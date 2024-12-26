@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sayfa İçi Sekmeler</title>
+    <style>
+        /* Sekme başlıkları */
+        .tab {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #ddd;
+            cursor: pointer;
+            margin-right: 5px;
+            border-radius: 5px 5px 0 0;
+        }
+
+        /* Aktif sekme başlığı */
+        .tab.active {
+            background-color: #333;
+            color: white;
+        }
+
+        /* Sekme içerikleri */
+        .tab-content {
+            display: none;
+            padding: 20px;
+            border: 0px solid #ddd;
+            border-top: none;
+        }
+
+        /* Aktif sekme içeriği */
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Logo ve Başlık */
+        .logo {
+            max-width: 300px;
+            height: auto;
+            margin: 20px;
+        }
+
+        /* Sabit Tab Bar - Sekme başlıkları altta */
+        .tab-bar {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background-color: #007BFF;
+            padding: 10px 0;
+            z-index: 1000;
+        }
+
+        /* Sayfa içeriği, sekme başlıkları ile çakışmasın diye alt tarafta bir boşluk bırak */
+        .content {
+            padding-bottom: 70px; /* Alt kısımdaki sabit sekme çubuğu için boşluk */
+        }
+
+        /* Tablo stili */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Logo ve Başlık -->
+<img src="/static/images/logo.png" alt="Logo" class="logo">
+<h1>User Name: {{ user }}</h1>
+<p id="largestFile">Quotation Number: {{ largest_file }}</p>
+
+<a href="/logout">Çıkış Yap</a>
+    <!-- Sayfa İçeriği -->
+    <div class="content">
+        <!-- Unite Tab İçeriği -->
+        <div id="tab_unite" class="tab-content active">
+            <h2>Unite İçeriği</h2>
+            <p>Bu, Unite sekmesinin içeriğidir.</p>
+            <!-- 40 Satır ve 43 Kolonlu Tablo -->
+
+            <!--<button id="updateWidthButton">Update Width</button>-->
+
+            <form method="POST">
+                <table>
+                    <thead>
+                        <tr>
+                            <th colspan="6"></th>
+                            <th colspan="2">Top Shelf1</th>
+                            <th colspan="2">Top Shelf2</th>
+                            <th colspan="2">Top Shelf3</th>
+                            <th colspan="3">Back Panel 40</th>
+                            <th colspan="3">Back Panel 30</th>
+                            <th colspan="3">Back Panel 20</th>
+                            <th colspan="3">Back Panel 10</th>
+                            <th colspan="1">Color</th>
+                            <th colspan="2">Shelves</th>
+                            <th colspan="2">Back Panels</th>
+                            <th colspan="2">Post, Baseleg</th>
+                            <th colspan="2">Extras</th>
+                            <th colspan="2">Risers</th>
+                            <th colspan="2">Wire Shelves</th>
+                            <th colspan="2">Baskets</th>
+                            <th colspan="2">Hooks</th>
+                            <th colspan="2">Counter Standart</th>
+                            <th colspan="2">Counter High</th>
+                        </tr>
+                        <tr>
+                            <th>Sira</th>
+                            <th>Unit Piece</th>
+                            <th>Unit Type</th>
+                            <th>Height</th>
+                            <th>Width</th>
+                            <th>Base Shelf</th>
+                            <th>Qty</th>
+                            <th>Shelf Size</th>
+                            <th>Qty</th>
+                            <th>Shelf Size</th>
+                            <th>Qty</th>
+                            <th>Shelf Size</th>
+                            <th>BP 40</th>
+                            <th>Plane 40</th>
+                            <th>Perf 40</th>
+                            <th>BP 30</th>
+                            <th>Plane 30</th>
+                            <th>Perf 30</th>
+                            <th>BP 20</th>
+                            <th>Plane 20</th>
+                            <th>Perf 20</th>
+                            <th>BP 10</th>
+                            <th>Plane 10</th>
+                            <th>Perf 10</th>
+                            <th>Color</th>
+                            <th>Qty</th>
+                            <th>Shelf</th>
+                            <th>Qty</th>
+                            <th>Back Panel</th>
+                            <th>Qty</th>
+                            <th>Item</th>
+                            <th>Qty</th>
+                            <th>Extras</th>
+                            <th>Qty</th>
+                            <th>Risers</th>
+                            <th>Qty</th>
+                            <th>Wire Shelf</th>
+                            <th>Qty</th>
+                            <th>Baskets</th>
+                            <th>Qty</th>
+                            <th>Hooks</th>
+                            <th>Qty</th>
+                            <th>Counter Standart</th>
+                            <th>Qty</th>
+                            <th>Counter High</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for i in range(40) %}
+                        <tr data-row-index="{{ i }}">
+                            <td class="row-number">{{ i + 1 }}</td>
+                            <td>
+                                <select name="option1_{{ i }}">
+                                    <option value=""></option>
+                                    {% for option in options['combobox1'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <select name="option2_{{ i }}" class="trigger-select">
+                                    <option value=""></option>
+                                    {% for option in options['combobox2'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <select name="option3_{{ i }}"class="base-select">
+                                    <option value=""></option>
+                                    {% for option in options['combobox3'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <select name="option4_{{ i }}" >
+                                    <option value=""></option>
+                                    {% for option in options['combobox4'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <select name="option5_{{ i }}">
+                                    <option value=""></option>
+                                    {% for option in options['combobox5'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <select name="option6_{{ i }}">
+                                    <option value=""></option>
+                                    {% for option in options['combobox6'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <select name="option7_{{ i }}">
+                                    <option value=""></option>
+                                    {% for option in options['combobox7'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <select name="option8_{{ i }}">
+                                    <option value=""></option>
+                                    {% for option in options['combobox8'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <select name="option9_{{ i }}">
+                                    <option value=""></option>
+                                    {% for option in options['combobox9'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <select name="option10_{{ i }}">
+                                    <option value=""></option>
+                                    {% for option in options['combobox10'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <select name="option11_{{ i }}">
+                                    <option value=""></option>
+                                    {% for option in options['combobox11'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <label class="value-label" id="value1_{{ i }}"></label>
+                            </td>
+                            <td>
+                                <select name="option13_{{ i }}">
+                                    <option value=""></option>
+                                    {% for option in options['combobox13'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <select name="option14_{{ i }}" class="bp-select">
+                                    <option value=""></option>
+                                    {% for option in options['combobox14'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <label class="value-label" id="value2_{{ i }}"></label>
+                            </td>
+                            <td>
+                                <select name="option16_{{ i }}">
+                                    <option value=""></option>
+                                    {% for option in options['combobox16'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <select name="option17_{{ i }}">
+                                    <option value=""></option>
+                                    {% for option in options['combobox17'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <label class="value-label" id="value3_{{ i }}"></label>
+                            </td>
+                            <td>
+                                <select name="option19_{{ i }}">
+                                    <option value=""></option>
+                                    {% for option in options['combobox19'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <select name="option20_{{ i }}">
+                                    <option value=""></option>
+                                    {% for option in options['combobox20'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <label class="value-label" id="value4_{{ i }}"></label>
+                            </td>
+                            <td>
+                                <select name="option22_{{ i }}">
+                                    <option value=""></option>
+                                    {% for option in options['combobox22'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <select name="option23_{{ i }}">
+                                    <option value=""></option>
+                                    {% for option in options['combobox23'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            
+
+
+                             <td>
+                                <select name="option24_{{ i }}">
+                                    <option value=""></option>
+                                    {% for option in options['combobox24'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+
+                            <td>
+                                <!-- Label yerine text box (input) ekliyoruz -->
+                                <input type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
+                            </td>
+                            <td>
+                                <select name="option26_{{ i }}">
+                                    <option value=""></option>
+                                    {% for option in options['combobox26'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <input type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
+                            </td>
+                            <td>
+                                <select name="option28_{{ i }}">
+                                    <option value=""></option>
+                                    {% for option in options['combobox28'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <input type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
+                            </td>
+                            <td>
+                                <select name="option30_{{ i }}">
+                                    <option value=""></option>
+                                    {% for option in options['combobox30'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <input type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
+                            </td>
+                            <td>
+                                <select name="option32_{{ i }}">
+                                    <option value=""></option>
+                                    {% for option in options['combobox32'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <input type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
+                            </td>
+                            <td>
+                                <select name="option34_{{ i }}">
+                                    <option value=""></option>
+                                    {% for option in options['combobox34'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <input type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
+                            </td>
+                            <td>
+                                <select name="option36_{{ i }}">
+                                    <option value=""></option>
+                                    {% for option in options['combobox36'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <input type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
+                            </td>
+                            <td>
+                                <select name="option38_{{ i }}">
+                                    <option value=""></option>
+                                    {% for option in options['combobox38'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <input type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
+                            </td>
+                            <td>
+                                <select name="option40_{{ i }}">
+                                    <option value=""></option>
+                                    {% for option in options['combobox40'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <input type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
+                            </td>
+                            <td>
+                                <select name="option42_{{ i }}">
+                                    <option value=""></option>
+                                    {% for option in options['combobox42'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <input type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
+                            </td>
+                            <td>
+                                <select name="option44_{{ i }}">
+                                    <option value=""></option>
+                                    {% for option in options['combobox44'] %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </form>
+        </div>
+
+        <!-- Diğer Tab İçeriği (Örnek: Refrigeration) -->
+        <div id="tab_refrigeration" class="tab-content">
+            <h2>Refrigeration</h2>
+            <p>Bu, Refrigeration sekmesinin içeriğidir.</p>
+        </div>
+
+        <div id="tab_add_item" class="tab-content">
+            <h2>ADD ITEM</h2>
+            <p>Bu, add item sekmesinin içeriğidir.</p>
+            <table border="1" style="width: 100%; text-align: center;">
+                <thead>
+                    <tr>
+                        <th>Item Name</th>
+                        <th>Qty</th>
+                        <th>Price</th>
+                        <th>After Disc.</th>
+                        <th>Depo Code</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- 20 satır oluşturuluyor -->
+                    <!-- Her satırda 5 sütun -->
+                    <!-- 2., 3., ve 4. sütunlar için yalnızca rakam girişi -->
+                    <!-- HTML5 input type="number" kullanılarak sağlanır -->
+                    <!-- Satırlar dinamik olarak çoğaltılabilir -->
+                    <script>
+                        // 20 satır ve 5 sütun ekleyen dinamik JavaScript kodu
+                        for (let i = 0; i < 20; i++) {
+                            document.write(`<tr>
+                                <td><input type="text" style="width: 100%;"></td>
+                                <td><input type="number" style="width: 100%;"></td>
+                                <td><input type="number" step="0.01" style="width: 100%;"></td>
+                                <td><input type="number" step="0.01" style="width: 100%;"></td>
+                                <td><input type="text" style="width: 100%;"></td>
+                            </tr>`);
+                        }
+                    </script>
+                </tbody>
+            </table>
+        </div>
+
+        <div id="tab_proforma" class="tab-content">
+            <!-- <h2>Proforma</h2>-->
+            <h2 id="tableHeader">Quote list: Yükleniyor...</h2>
+            <p>Bu, PROFORMA.</p>
+            <button id="updateWidthBtn">Update Width</button>
+            <p id="statusMessage"></p>
+        
+            <!-- Quote List Table -->
+            <table id="quoteListTable" border="1" style="margin-top: 20px; width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th>USER_ID</th>
+                        <th>ITEM_ID</th>
+                        <th>ITEM_NAME</th>
+                        <th>ADET</th>
+                        <th>UNIT_TYPE</th>
+                        <th>SIRA</th>
+                        <th>PRICE</th>
+                        <th>D.PRICE</th>
+                        <th>AMOUNTH</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Veri buraya yüklenecek -->
+                </tbody>
+            </table>
+        </div>
+
+        <div id="tab_goruntule" class="tab-content">
+            <h1>Database Content</h1>
+        
+            {% if data %}
+                {% for table_name, table_data in data.items() %}
+                    <h2>{{ table_name }}</h2>  <!-- Tablo adı -->
+                    <table border="1">
+                        <thead>
+                            <tr>
+                                {% for column in table_data.columns %}
+                                    <th>{{ column }}</th>  <!-- Sütun isimleri -->
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in table_data.rows %}
+                                <tr>
+                                    {% for cell in row %}
+                                        <td>{{ cell }}</td>  <!-- Her hücrenin değeri -->
+                                    {% endfor %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% endfor %}
+            {% else %}
+                <p>No data available.</p>
+            {% endif %}
+        </div>
+
+
+        <!-- Diğer içerikler buraya eklenebilir -->
+    </div>
+
+    <!-- Sabit Tab Bar - Sekme Başlıkları altta -->
+    <div class="tab-bar">
+        <div class="tab active" onclick="openTab('tab_unite')">Unite</div>
+        <div class="tab" onclick="openTab('tab_refrigeration')">Refrigeration</div>
+        <div class="tab" onclick="openTab('tab_ceiling')">Ceiling</div>
+        <div class="tab" onclick="openTab('tab_add_item')">Add Item</div>
+        <div class="tab" onclick="openTab('tab_proforma')">Proforma</div>
+        <div class="tab" onclick="openTab('tab_view_pdf')">View PDF</div>
+        <div class="tab" onclick="openTab('tab_goruntule')">Goruntule</div>
+    </div>
+
+    <script>
+        // Sekme açma fonksiyonu
+        function openTab(tabId) {
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => content.classList.remove('active'));
+
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+
+            document.getElementById(tabId).classList.add('active');
+            document.querySelector(`.tab[onclick="openTab('${tabId}')"]`).classList.add('active');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.trigger-select').forEach((select, index) => {
+                select.addEventListener('change', function() {
+                    toggleRowNumber(index);
+                });
+            });
+    
+            document.querySelectorAll('.bp-select').forEach((select, index) => {
+                select.addEventListener('change', function() {
+                    updateValueDisplay(index);
+                });
+            });
+    
+            document.querySelectorAll('.base-select').forEach((select, index) => {
+                select.addEventListener('change', function() {
+                    updateValueDisplay(index);
+                });
+            });
+        });
+    
+        function toggleRowNumber(index) {
+            const rowNumberCell = document.querySelectorAll('.row-number')[index];
+            const triggerSelect = document.querySelectorAll('.trigger-select')[index];
+            
+            if (triggerSelect.value) {
+                rowNumberCell.textContent = index + 1; 
+            } else {
+                rowNumberCell.textContent = ""; 
+            }
+        }
+    
+        function updateValueDisplay(index) {
+        const bpSelect = document.querySelectorAll('.bp-select')[index];
+        const type = document.querySelectorAll('.base-select')[index];
+        const secondCombobox = document.querySelectorAll('.trigger-select')[index]; // 2. combobox
+        const valueLabel1 = document.getElementById(`value1_${index}`);
+        const valueLabel2 = document.getElementById(`value2_${index}`);
+        const valueLabel3 = document.getElementById(`value3_${index}`);
+        const valueLabel4 = document.getElementById(`value4_${index}`);
+
+        const selectedValueBP = parseInt(bpSelect.value);
+        const selectedValueBase = parseInt(type.value);
+        const secondComboboxValue = secondCombobox.value; // 2. combobox değeri alınıyor
+    
+        let multiplier = 1;
+
+    // 2. combobox değeri 'Single Gondola' veya 'Double Gondola' ise multiplier 2 katına çıkar
+        if (secondComboboxValue === "Single Gondola" || secondComboboxValue === "Double Gondola") {
+            if (!isNaN(selectedValueBase) && selectedValueBase > 10) {
+                const adjustedValueBase = selectedValueBase - 10; 
+                const pnl40=adjustedValueBase / 40
+                valueLabel1.textContent = Math.floor(pnl40) * 2;
+                const remainingAfter40 = adjustedValueBase - (Math.floor(pnl40) * 40); 
+                const pnl30 = remainingAfter40 / 30; 
+                valueLabel2.textContent = Math.floor(pnl30) * 2;
+                const remainingAfter30 = remainingAfter40 - (Math.floor(pnl30) * 30); 
+                const pnl20 = remainingAfter30 / 20; 
+                valueLabel3.textContent = Math.floor(pnl20) * 2;
+                const remainingAfter20 = remainingAfter30 - (Math.floor(pnl20) * 20); 
+                const pnl10 = remainingAfter20 / 10; 
+                valueLabel4.textContent = Math.floor(pnl10) * 2;
+            }
+            else {
+            valueLabel1.textContent = "";
+            valueLabel2.textContent = "";
+            valueLabel3.textContent = "";
+            valueLabel4.textContent = "";
+            }  
+        }
+        else{
+
+            if (!isNaN(selectedValueBase) && selectedValueBase > 10) {
+                const adjustedValueBase = selectedValueBase - 10; 
+                const pnl40=adjustedValueBase / 40
+                valueLabel1.textContent = Math.floor(pnl40);
+                const remainingAfter40 = adjustedValueBase - (Math.floor(pnl40) * 40); 
+                const pnl30 = remainingAfter40 / 30; 
+                valueLabel2.textContent = Math.floor(pnl30);
+                const remainingAfter30 = remainingAfter40 - (Math.floor(pnl30) * 30); 
+                const pnl20 = remainingAfter30 / 20; 
+                valueLabel3.textContent = Math.floor(pnl20);
+                const remainingAfter20 = remainingAfter30 - (Math.floor(pnl20) * 20); 
+                const pnl10 = remainingAfter20 / 10; 
+                valueLabel4.textContent = Math.floor(pnl10);
+            }
+            else {
+            valueLabel1.textContent = "";
+            valueLabel2.textContent = "";
+            valueLabel3.textContent = "";
+            valueLabel4.textContent = "";
+            } 
+        } 
+    }       
+        function isNumberKey(evt) {
+        var charCode = (evt.which) ? evt.which : evt.keyCode;
+        // Rakam (0-9) ve Backspace (8) dışında bir tuş basıldığında engelle
+        if (charCode != 8 && (charCode < 48 || charCode > 57)) {
+            return false;
+        }
+        return true;
+    }
+
+
+
+// 1. İlk fonksiyon: updateWidthData
+async function updateWidthData() {
+    const rows = Array.from(document.querySelectorAll('tbody tr'));
+    let validRowFound = false;
+    const errorMessages = [];
+    const largestFile = document.getElementById('largestFile').textContent.trim();
+
+    for (let index = 0; index < 40; index++) {
+        const row = rows[index];
+        const rowIndex = index + 1;
+
+        // İlgili select öğelerinin varlığını kontrol et
+        const unitPieceElement = row.querySelector('select[name^="option1_"]');
+        const unittypeElement = row.querySelector('select[name^="option2_"]');
+        const heightValueElement = row.querySelector('select[name^="option3_"]');
+        const widthValueElement = row.querySelector('select[name^="option4_"]');
+        const baseShelfValueElement = row.querySelector('select[name^="option5_"]');
+        const qtyValueElement = row.querySelector('select[name^="option6_"]');
+        const shelfSizeValueElement = row.querySelector('select[name^="option7_"]');
+
+        const qtyOption8Element = row.querySelector('select[name^="option8_"]');
+        const shelfSizeOption9Element = row.querySelector('select[name^="option9_"]');
+        const qtyOption10Element = row.querySelector('select[name^="option10_"]');
+        const shelfSizeOption11Element = row.querySelector('select[name^="option11_"]');
+
+        const plane40Element = row.querySelector('select[name^="option13_"]');
+        const perf40Element = row.querySelector('select[name^="option14_"]');
+        const plane30Element = row.querySelector('select[name^="option16_"]');
+        const perf30Element = row.querySelector('select[name^="option17_"]');
+        const plane20Element = row.querySelector('select[name^="option19_"]');
+        const perf20Element = row.querySelector('select[name^="option20_"]');
+        const plane10Element = row.querySelector('select[name^="option22_"]');
+        const perf10Element = row.querySelector('select[name^="option23_"]');
+
+        // Satırdaki değerlerin herhangi biri seçilmiş veya girilmişse işlem yap
+        const anyValueEntered = 
+            (unitPieceElement && unitPieceElement.value) ||
+            (unittypeElement && unittypeElement.value) ||
+            (heightValueElement && heightValueElement.value) ||
+            (widthValueElement && widthValueElement.value) ||
+            (baseShelfValueElement && baseShelfValueElement.value) ||
+            (qtyValueElement && qtyValueElement.value) ||
+            (shelfSizeValueElement && shelfSizeValueElement.value) ||
+            (qtyOption8Element && qtyOption8Element.value) ||
+            (shelfSizeOption9Element && shelfSizeOption9Element.value) ||
+            (qtyOption10Element && qtyOption10Element.value) ||
+            (shelfSizeOption11Element && shelfSizeOption11Element.value) ||
+            (plane40Element && plane40Element.value) ||
+            (perf40Element && perf40Element.value) ||
+            (plane30Element && plane30Element.value) ||
+            (perf30Element && perf30Element.value) ||
+            (plane20Element && plane20Element.value) ||
+            (perf20Element && perf20Element.value) ||
+            (plane10Element && plane10Element.value) ||
+            (perf10Element && perf10Element.value);
+
+        // Eğer hiçbir değer girilmediyse bu satırı atla
+        if (!anyValueEntered) {
+            continue; // Bu satırı atla ve sıradaki satıra geç
+        }
+
+        // Gerekli öğeler eksikse hata mesajı ekle ve bu satırı atla
+        if (!unitPieceElement || !unittypeElement || !heightValueElement || !widthValueElement || !baseShelfValueElement) {
+            errorMessages.push(`Satır ${rowIndex}: Gerekli öğeler eksik.`);
+            continue; // Eksik öğe varsa bu satırı atla
+        }
+
+        // Seçilen değerleri al
+        const unitPiece = unitPieceElement.value;
+        const unittype = unittypeElement.value;
+        const heightValue = heightValueElement.value;
+        const widthValue = widthValueElement.value;
+        const baseShelfValue = baseShelfValueElement.value;
+        const qtyValue = qtyValueElement ? qtyValueElement.value : '';
+        const shelfSizeValue = shelfSizeValueElement ? shelfSizeValueElement.value : '';
+
+        const qtyOption8 = qtyOption8Element ? qtyOption8Element.value : '';
+        const shelfSizeOption9 = shelfSizeOption9Element ? shelfSizeOption9Element.value : '';
+        const qtyOption10 = qtyOption10Element ? qtyOption10Element.value : '';
+        const shelfSizeOption11 = shelfSizeOption11Element ? shelfSizeOption11Element.value : '';
+
+        const plane40 = plane40Element ? plane40Element.value : '';
+        const perf40 = perf40Element ? perf40Element.value : '';
+        const plane30 = plane30Element ? plane30Element.value : '';
+        const perf30 = perf30Element ? perf30Element.value : '';
+        const plane20 = plane20Element ? plane20Element.value : '';
+        const perf20 = perf20Element ? perf20Element.value : '';
+        const plane10 = plane10Element ? plane10Element.value : '';
+        const perf10 = perf10Element ? perf10Element.value : '';
+
+        // Boş değer kontrolü
+        const allOptionsEmpty =
+            !unitPiece && !unittype && !heightValue && !widthValue && !baseShelfValue &&
+            !qtyValue && !shelfSizeValue &&
+            !qtyOption8 && !shelfSizeOption9 &&
+            !qtyOption10 && !shelfSizeOption11 &&
+            !plane40 && !perf40 &&
+            !plane30 && !perf30 &&
+            !plane20 && !perf20 &&
+            !plane10 && !perf10;
+
+        if (allOptionsEmpty) {
+            continue; // Bu satırı atla ve sıradaki satıra geç
+        }
+
+        validRowFound = true; // İşlenecek bir satır bulundu
+
+        // Fetch çağrısı
+        try {
+            const response = await fetch('/update_width', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    row_index: rowIndex, // Satır numarasını ekliyoruz
+                    unit_piece: unitPiece,
+                    unit_type: unittype,
+                    height: heightValue,
+                    width: widthValue,
+                    base_shelf: baseShelfValue,
+                    qty: qtyValue,
+                    shelf_size: shelfSizeValue,
+                    qty_option8: qtyOption8,
+                    shelf_size_option9: shelfSizeOption9,
+                    qty_option10: qtyOption10,
+                    shelf_size_option11: shelfSizeOption11,
+                    plane40: plane40,
+                    perf40: perf40,
+                    plane30: plane30,
+                    perf30: perf30,
+                    plane20: plane20,
+                    perf20: perf20,
+                    plane10: plane10,
+                    perf10: perf10,
+                    largest_file: largestFile // largest_file değerini de ekliyoruz
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Güncelleme sırasında hata oluştu.');
+            }
+
+            //loadQuoteList();
+        } catch (error) {
+            console.error('Hata:', error);
+            document.getElementById('statusMessage').textContent = 'Güncelleme sırasında hata oluştu.';
+            return false; // Eğer hata varsa işlemi iptal et
+        }
+    }
+
+    if (errorMessages.length > 0) {
+        alert(errorMessages.join('\n'));
+        return false; // Hatalar varsa false döndür
+    }
+
+    if (!validRowFound) {
+        alert('Seçili bir öğe bulunamadı.');
+        return true; // Hiçbir satır işlenmediyse false döndür
+    }
+
+    return true; // İşlem başarıyla tamamlandı
+}
+
+// 2. İkinci fonksiyon: showAddItemData
+async function showAddItemData() {
+    const rows = document.querySelectorAll('#tab_add_item tbody tr'); // Tüm satırları seç
+    const largestFile = document.getElementById('largestFile').textContent.trim(); // largestFile değerini al
+
+    const addItemData = []; // Gönderilecek tüm verileri tutacak dizi
+
+    // Tüm satırlarda dön
+    rows.forEach((row) => {
+        const inputs = row.querySelectorAll('input'); // Satırdaki tüm inputları al
+        const itemName = inputs[0]?.value.trim(); // 1. input (Item Name)
+        const qty = inputs[1]?.value.trim(); // 2. input (Quantity)
+        const price = inputs[2]?.value.trim(); // 3. input (Price)
+        const dsprice = inputs[3]?.value.trim(); // 4. input (After Discount)
+        const kar = inputs[4]?.value.trim(); // 5. input (Depo Code)
+
+        // Eğer en az Item Name ve Quantity doluysa, veriyi ekle
+        if (itemName && qty) {
+            addItemData.push({
+                itemName: itemName,
+                qty: parseInt(qty, 10), // Sayıya çevir
+                price: parseFloat(price || 0), // Sayıya çevir, boşsa 0
+                dsprice: parseFloat(dsprice || 0), // Sayıya çevir, boşsa 0
+                //kar: String(kar || "") // kar değerini açıkça text'e çevir
+                kar:kar
+            });
+        }
+    });
+
+    // Eğer gönderilecek veri yoksa uyarı ver ve işlemi durdur
+    if (addItemData.length === 0) {
+        alert("Hiçbir satır doldurulmamış!");
+        return Promise.reject("Geçerli veri yok.");
+    }
+
+    // API'ye gönderilecek veri
+    const data = {
+        add_item_data: addItemData, // Toplanan tüm satırlar
+        largest_file: largestFile // largestFile değeri burada kullanılıyor
+    };
+
+    // API'ye POST isteği gönder
+    try {
+        const response = await fetch('http://127.0.0.1:5000/add_item_data', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        const responseData = await response.json();
+
+        if (responseData.status === "success") {
+            alert("Veriler başarıyla gönderildi!");
+        } else {
+            throw new Error("Bir hata oluştu: " + responseData.message);
+        }
+    } catch (error) {
+        console.error('API Hatası:', error);
+        alert('Veri gönderme sırasında hata oluştu.');
+        throw error; // Hata fırlatarak işlemi durdur
+    }
+}
+// 3. Main fonksiyon: Sıralı çağırma ve loadQuoteList() çağrısı
+async function mainFunction() {
+    console.log("mainFunction çalıştı");
+    // 1. updateWidthData çağrısı
+    const updateResult = await updateWidthData();
+
+    if (!updateResult) {
+        console.error('updateWidthData başarısız oldu. İşlem sonlandırıldı.');
+        return;
+    }
+
+    // 2. showAddItemData çağrısı
+    try {
+        console.log("showAddItemData fonksiyonu çağrıldı.");
+        await showAddItemData(); // İşlemin tamamlanmasını bekle
+    } catch (error) {
+        console.error('showAddItemData başarısız oldu. İşlem sonlandırıldı.', error);
+        return;
+    }
+
+    // 3. loadQuoteList çağrısı
+    console.log("loadQuoteList fonksiyonu çağrılıyor.");
+    await loadQuoteList(); // İşlemin tamamlanmasını bekle
+}
+
+
+
+// 4. Event Listener
+document.getElementById('updateWidthBtn').addEventListener('click', mainFunction);
+
+
+
+async function loadQuoteList() {
+    const largestFile = document.getElementById('largestFile').textContent;
+    const dbName = largestFile.replace('Quotation Number:', '').trim();
+
+    try {
+        const response = await fetch(`/get_quote_list?db_name=${dbName}`);
+
+        if (!response.ok) {
+            throw new Error('Veri alınırken hata oluştu.');
+        }
+
+        const responseData = await response.json();
+        const { db_name, data } = responseData;
+
+        const tableHeader = document.getElementById('tableHeader');
+        tableHeader.textContent = `Quote list: ${db_name}`;
+
+        // Eğer data boşsa tabloyu temizleyip mesaj göster
+        if (!data || data.length === 0) {
+            const tableBody = document.getElementById('quoteListTable').querySelector('tbody');
+            tableBody.innerHTML = ''; // Tüm veriyi temizle
+            alert('Gösterilecek liste verisi bulunamadı.');
+            return;
+        }
+
+        // Sıralama ve tabloya yerleştirme
+        //data.sort((a, b) => a[3] - b[3]);
+
+        const tableBody = document.getElementById('quoteListTable').querySelector('tbody');
+        tableBody.innerHTML = '';
+
+        data.forEach(row => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${row[0]}</td>
+                <td>${row[1]}</td>
+                <td>${row[2]}</td>
+                <td>${row[3]}</td>
+                <td>${row[4]}</td>
+                <td>${row[5]}</td>
+                <td>${row[6]}</td>
+                <td>${row[7]}</td>
+                <td>${row[8]}</td>
+            `;
+            tableBody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error('Hata:', error);
+        document.getElementById('statusMessage').textContent = 'Liste yüklenirken hata oluştu.';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+        // Hedef değerler
+        const targetValues = ["End / Wall Unit", "End / Single Gondola", "End / Double Gondola"];
+
+        // Tüm trigger-select sınıfındaki select elementlerini dinle
+        const triggerSelects = document.querySelectorAll('.trigger-select');
+
+        triggerSelects.forEach(select => {
+            select.addEventListener('change', function () {
+                const row = select.closest('tr'); // Satırı bul
+                const selectedValue = select.value; // Seçili değeri al
+                
+                // Eğer seçili değer hedef değerlerden biriyse
+                if (targetValues.includes(selectedValue)) {
+                    lockComboboxes(row);
+                } else {
+                    unlockComboboxes(row);
+                }
+            });
+        });
+
+        // Combobox'ları kilitle
+        function lockComboboxes(row) {
+            row.querySelectorAll('select').forEach((combobox, index) => {
+                if (![0, 1, 2, 4, 22].includes(index)) { // 1., 2., 3., 5. ve 23. combobox'ı atla
+                    combobox.disabled = true;
+                }
+            });
+        }
+
+        // Combobox'ları aç
+        function unlockComboboxes(row) {
+            row.querySelectorAll('select').forEach((combobox, index) => {
+                if (![0, 1, 2, 4, 22].includes(index)) { // 1., 2., 3., 5. ve 23. combobox'ı atla
+                    combobox.disabled = false;
+                }
+            });
+        }
+    });
+
+    document.addEventListener("DOMContentLoaded", function () {
+        // Dinlenmesi gereken combobox isimlerini bir array olarak tanımlıyoruz
+        const monitoredComboboxes = [
+            "option13_", "option14_", 
+            "option16_", "option17_", 
+            "option19_", "option20_", 
+            "option22_", "option23_"
+        ];
+
+        // Tüm satırlardaki comboboxlar için event listener ekle
+        const selects = document.querySelectorAll("select");
+
+        selects.forEach(select => {
+            const name = select.getAttribute("name");
+            if (monitoredComboboxes.some(prefix => name && name.startsWith(prefix))) {
+                select.addEventListener("change", function () {
+                    const row = select.closest('tr'); // İlgili satırı bul
+
+                    // Her bir label için kontrol yap
+                    checkLabelTotal(row, 'value1_', 'option13_', 'option14_');
+                    checkLabelTotal(row, 'value2_', 'option16_', 'option17_');
+                    checkLabelTotal(row, 'value3_', 'option19_', 'option20_');
+                    checkLabelTotal(row, 'value4_', 'option22_', 'option23_');
+                });
+            }
+        });
+
+        // Label ile kendisinden sonraki iki combobox'ı kontrol eden fonksiyon
+        function checkLabelTotal(row, labelPrefix, combobox1Prefix, combobox2Prefix) {
+            const rowIndex = row.dataset.rowIndex; // Satır index'i
+
+            // Label ve ilgili combobox'ları seç
+            const label = row.querySelector(`#${labelPrefix}${rowIndex}`);
+            const combobox1 = row.querySelector(`select[name="${combobox1Prefix}${rowIndex}"]`);
+            const combobox2 = row.querySelector(`select[name="${combobox2Prefix}${rowIndex}"]`);
+
+            if (label && combobox1 && combobox2) {
+                const combobox1Value = parseFloat(combobox1.value) || 0;
+                const combobox2Value = parseFloat(combobox2.value) || 0;
+                const total = combobox1Value + combobox2Value;
+
+                // Eğer label içeriği toplamına eşit değilse kırmızı arka plan ekle
+                if (parseFloat(label.textContent) !== total) {
+                    label.style.backgroundColor = "red";
+                } else {
+                    label.style.backgroundColor = ""; // Arka planı temizle
+                }
+            }
+        }
+    });
+
+    </script>
+
+</body>
+</html>
