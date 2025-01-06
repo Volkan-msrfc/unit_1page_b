@@ -11,10 +11,11 @@ import re
 
 app = Flask(__name__)
 
-if os.name == 'nt':  # Windows ortamı için
-    QUOTE_DB_PATH = r"C:\Users\test\Documents\unit_1page_b\quotes"
-else:  # Linux ortamı için
-    QUOTE_DB_PATH = os.getenv('QUOTE_DB_PATH', './quotes')
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# quotes dizinine giden yolu ayarlayın
+QUOTE_DB_PATH = os.path.join(BASE_DIR, 'quotes')
+
 app.secret_key = 'colacola998346'  # Güvenli bir anahtar belirleyin
 
 @app.route('/login', methods=['GET', 'POST'])
