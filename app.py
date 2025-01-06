@@ -11,7 +11,7 @@ import re
 
 app = Flask(__name__)
 
-QUOTE_DB_PATH = r"/home/render/quotes"
+QUOTE_DB_PATH = r"/quotes"
 app.secret_key = 'colacola998346'  # Güvenli bir anahtar belirleyin
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -618,7 +618,7 @@ def update_width():
 def create_quote_list(clean_string):
     try:
         # Hedef dizin
-        target_dir = r"/home/render/quotes"
+        target_dir = r"/quotes"
         os.makedirs(target_dir, exist_ok=True)  # Hedef klasörü oluştur (varsa hata vermez)
 
         #next_number = max(existing_numbers, default=0) #+ 1  # Mevcut numaralardan bir sonrakini al
@@ -756,7 +756,7 @@ def add_item_data():
             return jsonify({"status": "error", "message": "Hiçbir veri alınmadı."}), 400
 
         # Hedef dizin ve veritabanı adı
-        target_dir = r"/home/render/quotes"
+        target_dir = r"/quotes"
         os.makedirs(target_dir, exist_ok=True)
         new_db_path = os.path.join(target_dir, f"{largest_file}.db")
         sr = 2.0
