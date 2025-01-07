@@ -622,14 +622,11 @@ def update_width():
 def create_quote_list(clean_string):
     try:
         # Hedef dizin
-        target_dir = r"/home/render/quotes"
-        os.makedirs(target_dir, exist_ok=True)  # Hedef klasörü oluştur (varsa hata vermez)
-
-        #next_number = max(existing_numbers, default=0) #+ 1  # Mevcut numaralardan bir sonrakini al
-        new_file_name = f"{clean_string}.db"  # clean_string + '.db'  
-
+        os.makedirs(QUOTE_DB_PATH, exist_ok=True)
+        new_file_name = f"{clean_string}.db"
+        new_db_path = os.path.join(QUOTE_DB_PATH, new_file_name)
         # Yeni veritabanının tam yolu
-        new_db_path = os.path.join(target_dir, new_file_name)
+        #new_db_path = os.path.join(target_dir, new_file_name)
 
         # wall.db veritabanına bağlan
         conn = sqlite3.connect('wall.db')
@@ -760,9 +757,12 @@ def add_item_data():
             return jsonify({"status": "error", "message": "Hiçbir veri alınmadı."}), 400
 
         # Hedef dizin ve veritabanı adı
-        target_dir = r"/home/render/quotes"
-        os.makedirs(target_dir, exist_ok=True)
-        new_db_path = os.path.join(target_dir, f"{largest_file}.db")
+        #target_dir = r"/home/render/quotes"
+        #os.makedirs(target_dir, exist_ok=True)
+        #new_db_path = os.path.join(target_dir, f"{largest_file}.db")
+        
+        # Hedef veritabanı dosyası
+        new_db_path = os.path.join(QUOTE_DB_PATH, f"{largest_file}.db")
         sr = 2.0
 
         # Yeni veritabanı bağlantısı
