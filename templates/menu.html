@@ -906,13 +906,22 @@ async function showAddItemData() {
 
     // API'ye POST isteği gönder
     try {
-        const response = await fetch('http://127.0.0.1:5000/add_item_data', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
+        // Yerel veya sunucu ortamına göre API taban URL'sini ayarla
+    const isLocal = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
+
+    const apiBaseUrl = isLocal
+        ? 'http://127.0.0.1:5000' // Yerel geliştirme ortamı için
+        : window.location.origin; // Render.com veya herhangi bir sunucu ortamı için
+
+    // API çağrısı
+    const response = await fetch(`${apiBaseUrl}/add_item_data`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
             },
-            body: JSON.stringify(data)
-        });
+        body: JSON.stringify(data)
+    });
+
 
         const responseData = await response.json();
 
