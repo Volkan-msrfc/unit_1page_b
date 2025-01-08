@@ -477,14 +477,15 @@
         <div id="tab_add_item" class="tab-content">
             <h2>ADD ITEM</h2>
             <p>Bu, add item sekmesinin içeriğidir.</p>
-            <table border="1" style="width: 100%; text-align: center;">
+            <!--<table border="1" style="width: 100%; text-align: center;">-->
+                <table border="1" style="text-align: center;">
                 <thead>
                     <tr>
-                        <th>Item Name</th>
-                        <th>Qty</th>
-                        <th>Price</th>
-                        <th>After Disc.</th>
-                        <th>Depo Code</th>
+                        <th style="width: 200px;">Item Name</th>
+                        <th style="width: 30px;">Qty</th>
+                        <th style="width: 30px;">Price</th>
+                        <th style="width: 30px;">After Disc.</th>
+                        <th style="width: 60px;">Depo Code</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -494,13 +495,16 @@
                     <!-- HTML5 input type="number" kullanılarak sağlanır -->
                     <!-- Satırlar dinamik olarak çoğaltılabilir -->
                     <script>
+                        //<input type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
+                        //<td><input type="number" style="width: 100%;"></td>
+                        //<td><input type="number" step="0.01" style="width: 100%;"></td>
                         // 20 satır ve 5 sütun ekleyen dinamik JavaScript kodu
                         for (let i = 0; i < 20; i++) {
                             document.write(`<tr>
                                 <td><input type="text" style="width: 100%;"></td>
-                                <td><input type="number" style="width: 100%;"></td>
-                                <td><input type="number" step="0.01" style="width: 100%;"></td>
-                                <td><input type="number" step="0.01" style="width: 100%;"></td>
+                                <td><input type="text" style="width: 100%;"  onkeypress="return isNumberKey(event)" ></td> 
+                                <td><input type="text" style="width: 100%;"  onkeypress="return isNumberKey(event)" ></td> 
+                                <td><input type="text" style="width: 100%;"  onkeypress="return isNumberKey(event)" ></td>
                                 <td><input type="text" style="width: 100%;"></td>
                             </tr>`);
                         }
@@ -803,6 +807,9 @@ async function updateWidthData() {
         if (allOptionsEmpty) {
             continue; // Bu satırı atla ve sıradaki satıra geç
         }
+        else{
+            //return;
+        }
 
         validRowFound = true; // İşlenecek bir satır bulundu
 
@@ -895,7 +902,8 @@ async function showAddItemData() {
     // Eğer gönderilecek veri yoksa uyarı ver ve işlemi durdur
     if (addItemData.length === 0) {
         alert("Hiçbir satır doldurulmamış!");
-        return Promise.reject("Geçerli veri yok.");
+        //return Promise.reject("Geçerli veri yok.");
+        return true;
     }
 
     // API'ye gönderilecek veri
