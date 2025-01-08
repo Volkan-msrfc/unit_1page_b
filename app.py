@@ -763,7 +763,7 @@ def add_item_data():
         
         # Hedef veritabanı dosyası
         new_db_path = os.path.join(QUOTE_DB_PATH, f"{largest_file}.db")
-        sr = 2.0
+        sr = 4.0
 
         # Yeni veritabanı bağlantısı
         conn_quote = sqlite3.connect(new_db_path)
