@@ -820,6 +820,14 @@ def add_item_data():
         print("Beklenmeyen hata:", str(e))
         return jsonify({"status": "error", "message": f"Beklenmeyen hata: {str(e)}"}), 500
 
+@app.route("/fetch_customers", methods=["GET"])
+def fetch_customers():
+    connection = sqlite3.connect("customers.db")
+    cursor = connection.cursor()
+    cursor.execute("SELECT id, customer_name, tel, address, postcode FROM customers")
+    customers = cursor.fetchall()
+    connection.close()
+    return jsonify(customers)
 
 if __name__ == '__main__':
     app.run(debug=True)
