@@ -35,10 +35,59 @@
         }
 
         /* Logo ve Başlık */
+        .header {
+            display: flex;
+            align-items: center; /* Dikeyde ortalama */
+            justify-content: flex-start; /* Sol hizalama */
+            padding: 10px 20px;
+            background-color: #f8f8f8;
+            border-bottom: 1px solid #ddd;
+            position: relative;
+        }
+
         .logo {
             max-width: 300px;
             height: auto;
-            margin: 20px;
+            margin-right: 20px; /* Logo ile kullanıcı bilgisi arasına boşluk ekleyebiliriz */
+        }
+
+        .user-info {
+            display: flex;
+            flex-direction: column; /* Yatay yerine dikey sıralar */
+            gap: 0; /* Aradaki boşluğu sıfırla */
+            margin: 0; /* Margin sıfırlandı */
+        }
+
+        .user-info h1, .user-info p {
+            margin: 0; /* Burada da margin sıfırlandı */
+            padding: 0; /* Padding sıfırlandı */
+        }
+
+        .header-button {
+            margin-left: 20px; /* Buton ile kullanıcı bilgisinin arasına boşluk ekleyebiliriz */
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .header-button:hover {
+            background-color: #0056b3;
+        }
+
+        .logout {
+            position: absolute;  /* Sabit pozisyon */
+            top: 10px;        /* Ekranın üstünden 10px mesafe */
+            right: 10px;      /* Ekranın sağından 10px mesafe */
+            text-decoration: none;
+            background-color: #f44336;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 10000;    /* Diğer öğelerin önünde görünsün */
         }
 
         /* Sabit Tab Bar - Sekme başlıkları altta */
@@ -59,9 +108,49 @@
             padding-bottom: 70px; /* Alt kısımdaki sabit sekme çubuğu için boşluk */
         }
 
-        /* Tablo stili */
-        table {
+        /* Müşteri Penceresi */
+        .modal {
+            display: none; /* Başlangıçta gizli */
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5); /* Yarı şeffaf arka plan */
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            width: 1200px;
+        }
+
+        .modal input {
+            width: 30%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .modal button {
+            background-color: #007BFF;
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .modal button:hover {
+            background-color: #0056b3;
+        }
+
+        table {
+            width: 50%;
             border-collapse: collapse;
             margin-top: 20px;
         }
@@ -78,27 +167,61 @@
         th {
             background-color: #f2f2f2;
         }
+        .scrollable-table {
+            max-height: 820px; /* Tablonun maksimum yüksekliği */
+            overflow-y: auto; /* Yalnızca dikey kaydırma */
+            border: 1px solid #ddd; /* Çerçeve ekleyin */
+        }
+
+        .scrollable-table table {
+            width: 100%; /* Tabloyu kapsayıcıya yay */
+            border-collapse: collapse; /* Çerçeveleri birleştir */
+        }
+
+        .scrollable-table th {
+            position: sticky; /* Sabit pozisyon */
+            top: 0; /* Tablo başlığı yukarıda sabitlenir */
+            background-color: #f2f2f2; /* Arka plan rengi */
+            z-index: 1; /* Başlığı diğer elemanların üstünde tut */
+            border: 1px solid #ddd; /* Başlık hücre çerçevesi */
+            padding: 8px; /* İçerik aralığı */
+            text-align: center; /* Ortala */
+        }
     </style>
 </head>
 <body>
 
-    <!-- Logo ve Başlık -->
-<img src="/static/images/logo.png" alt="Logo" class="logo">
-<h1>User Name: {{ user }}</h1>
-<p id="largestFile">Quotation Number: {{ largest_file }}</p>
+ <!-- Çıkış Butonu -->
+ <a href="/logout" class="logout">Çıkış Yap</a>
 
-<a href="/logout">Çıkış Yap</a>
-    <!-- Sayfa İçeriği -->
-    <div class="content">
+ <!-- Logo ve Kullanıcı Bilgileri -->
+ <div class="header">
+     <img src="/static/images/logo.png" alt="Logo" class="logo">
+     <div class="user-info">
+         <h1>User Name: {{ user }}</h1>
+         <p id="largestFile">Quotation Number: {{ largest_file }}</p>
+     </div>
+     <button class="header-button" onclick="openModal()">Müşteri Bilgileri</button> <!-- Yeni Buton -->
+     <div id="selectedCustomer" style="margin-left: 20px; font-size: 14px;">
+         <!-- Seçilen müşteri bilgileri burada görünecek -->
+     </div>
+ </div>
+
+ <!-- İçerik -->
+ <div class="content">
+
         <!-- Unite Tab İçeriği -->
-        <div id="tab_unite" class="tab-content active">
-            <h2>Unite İçeriği</h2>
-            <p>Bu, Unite sekmesinin içeriğidir.</p>
+
+        <!-- Unite Tab İçeriği -->
+        <div id="tab_unite" class="tab-content">
+            <h2>Unite Page</h2>
+            <!--<p>Bu, Unite sekmesinin içeriğidir.</p>-->
             <!-- 40 Satır ve 43 Kolonlu Tablo -->
 
             <!--<button id="updateWidthButton">Update Width</button>-->
 
             <form method="POST">
+                <div class="scrollable-table">
                 <table>
                     <thead>
                         <tr>
@@ -465,6 +588,7 @@
                         {% endfor %}
                     </tbody>
                 </table>
+                </div>
             </form>
         </div>
 
@@ -476,7 +600,7 @@
 
         <div id="tab_add_item" class="tab-content">
             <h2>ADD ITEM</h2>
-            <p>Bu, add item sekmesinin içeriğidir.</p>
+            <!--<p>Bu, add item sekmesinin içeriğidir.</p>-->
             <!--<table border="1" style="width: 100%; text-align: center;">-->
                 <table border="1" style="text-align: center;">
                 <thead>
@@ -513,11 +637,12 @@
             </table>
         </div>
 
-        <div id="tab_proforma" class="tab-content">
+        
+        <div id="tab_proforma" class="tab-content active">
             <!-- <h2>Proforma</h2>-->
             <h2 id="tableHeader">Quote list: Yükleniyor...</h2>
             <p>Bu, PROFORMA.</p>
-            <button id="updateWidthBtn">Update Width</button>
+            <button id="updateWidthBtn">Make Proforma</button>
             <p id="statusMessage"></p>
         
             <!-- Quote List Table -->
@@ -575,13 +700,36 @@
         <!-- Diğer içerikler buraya eklenebilir -->
     </div>
 
+    <div class="modal" id="customerModal">
+        <div class="modal-content">
+            <h2>Müşteri Bilgileri</h2>
+            <input type="text" id="searchBox" placeholder="Müşteri Arama..." onkeyup="searchCustomer()">
+            <table id="customerTable">
+                <thead>
+                    <tr>
+                        <th>Customer ID</th>
+                        <th>Customer Name</th>
+                        <th>Tel</th>
+                        <th>Address</th>
+                        <th>Postcode</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Dinamik veri buraya gelir -->
+                </tbody>
+            </table>
+            <button onclick="closeModal()">Kapat</button>
+        </div>
+    </div>
+
     <!-- Sabit Tab Bar - Sekme Başlıkları altta -->
     <div class="tab-bar">
-        <div class="tab active" onclick="openTab('tab_unite')">Unite</div>
+        <div class="tab active" onclick="openTab('tab_proforma')">Proforma</div>
+        <div class="tab" onclick="openTab('tab_unite')">Unite</div>
         <div class="tab" onclick="openTab('tab_refrigeration')">Refrigeration</div>
         <div class="tab" onclick="openTab('tab_ceiling')">Ceiling</div>
         <div class="tab" onclick="openTab('tab_add_item')">Add Item</div>
-        <div class="tab" onclick="openTab('tab_proforma')">Proforma</div>
+        
         <div class="tab" onclick="openTab('tab_view_pdf')">View PDF</div>
         <div class="tab" onclick="openTab('tab_goruntule')">Goruntule</div>
     </div>
@@ -722,12 +870,10 @@ async function updateWidthData() {
         const baseShelfValueElement = row.querySelector('select[name^="option5_"]');
         const qtyValueElement = row.querySelector('select[name^="option6_"]');
         const shelfSizeValueElement = row.querySelector('select[name^="option7_"]');
-
         const qtyOption8Element = row.querySelector('select[name^="option8_"]');
         const shelfSizeOption9Element = row.querySelector('select[name^="option9_"]');
         const qtyOption10Element = row.querySelector('select[name^="option10_"]');
         const shelfSizeOption11Element = row.querySelector('select[name^="option11_"]');
-
         const plane40Element = row.querySelector('select[name^="option13_"]');
         const perf40Element = row.querySelector('select[name^="option14_"]');
         const plane30Element = row.querySelector('select[name^="option16_"]');
@@ -778,12 +924,10 @@ async function updateWidthData() {
         const baseShelfValue = baseShelfValueElement.value;
         const qtyValue = qtyValueElement ? qtyValueElement.value : '';
         const shelfSizeValue = shelfSizeValueElement ? shelfSizeValueElement.value : '';
-
         const qtyOption8 = qtyOption8Element ? qtyOption8Element.value : '';
         const shelfSizeOption9 = shelfSizeOption9Element ? shelfSizeOption9Element.value : '';
         const qtyOption10 = qtyOption10Element ? qtyOption10Element.value : '';
         const shelfSizeOption11 = shelfSizeOption11Element ? shelfSizeOption11Element.value : '';
-
         const plane40 = plane40Element ? plane40Element.value : '';
         const perf40 = perf40Element ? perf40Element.value : '';
         const plane30 = plane30Element ? plane30Element.value : '';
@@ -863,8 +1007,11 @@ async function updateWidthData() {
     }
 
     if (!validRowFound) {
-        alert('Seçili bir öğe bulunamadı.');
+        alert('Unit bos');
+        window.untknt = 0; // Tüm fonksiyonlar için global bir değişken oluşturuyoruz.
         return true; // Hiçbir satır işlenmediyse false döndür
+    }else{
+        window.untknt = 1;
     }
 
     return true; // İşlem başarıyla tamamlandı
@@ -900,10 +1047,13 @@ async function showAddItemData() {
     });
 
     // Eğer gönderilecek veri yoksa uyarı ver ve işlemi durdur
-    if (addItemData.length === 0) {
-        alert("Hiçbir satır doldurulmamış!");
+     if (addItemData.length === 0) {
+        alert("Add item bos!");
         //return Promise.reject("Geçerli veri yok.");
+        window.aditmknt = 0; // Tüm fonksiyonlar için global bir değişken oluşturuyoruz.
         return true;
+    }else{
+        window.aditmknt = 1;
     }
 
     // API'ye gönderilecek veri
@@ -947,6 +1097,13 @@ async function showAddItemData() {
 // 3. Main fonksiyon: Sıralı çağırma ve loadQuoteList() çağrısı
 async function mainFunction() {
     console.log("mainFunction çalıştı");
+
+    // Müşteri seçimi kontrolü
+    if (!selectedCustomerID) {
+        alert("Müşteri seçili değil! Lütfen bir müşteri seçin.");
+        return; // İşlemleri sonlandır
+    }
+
     // 1. updateWidthData çağrısı
     const updateResult = await updateWidthData();
 
@@ -965,8 +1122,12 @@ async function mainFunction() {
     }
 
     // 3. loadQuoteList çağrısı
-    console.log("loadQuoteList fonksiyonu çağrılıyor.");
-    await loadQuoteList(); // İşlemin tamamlanmasını bekle
+    if ((window.untknt || 0) + (window.aditmknt || 0) <= 0) {
+        alert("Proforma oluşturulacak bir değer yok!");
+    } else {
+        console.log("loadQuoteList fonksiyonu çağrılıyor.");
+        await loadQuoteList(); // İşlemin tamamlanmasını bekle
+    }
 }
 
 
@@ -1118,6 +1279,77 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
     });
+
+    let selectedCustomerID = null;
+
+// Modal açma
+function openModal() {
+    selectedCustomerID = null; // Modal açıldığında ID'yi sıfırla
+    document.getElementById("selectedCustomer").innerHTML = ""; // Seçilen müşteri bilgilerini temizle
+    document.getElementById("customerModal").style.display = "flex";
+    fetchCustomerData(); // Modal açıldığında müşteri verilerini çek
+}
+
+// Modal kapama
+function closeModal() {
+    document.getElementById("customerModal").style.display = "none";
+}
+
+// Müşteri verilerini çekme
+function fetchCustomerData() {
+    fetch("/fetch_customers")
+        .then(response => response.json())
+        .then(data => {
+            const tableBody = document.getElementById("customerTable").querySelector("tbody");
+            tableBody.innerHTML = ""; // Eski satırları temizle
+            data.forEach(customer => {
+                const tr = document.createElement("tr");
+                customer.forEach(cell => {
+                    const td = document.createElement("td");
+                    td.textContent = cell;
+                    tr.appendChild(td);
+                });
+                tr.addEventListener("dblclick", () => selectCustomer(customer)); // Satırı tıklanabilir hale getir
+                tableBody.appendChild(tr);
+            });
+        });
+}
+
+// Müşteri seçme
+function selectCustomer(customer) {
+    // Global değişkene müşteri ID'sini ata
+    selectedCustomerID = customer[0];
+
+    // Seçilen müşteri bilgilerini ekrana yaz
+    document.getElementById("selectedCustomer").innerHTML = `
+        <strong>Customer Name:</strong> ${customer[1]} <br>
+        <strong>Tel:</strong> ${customer[2]} <br>
+        <strong>Address:</strong> ${customer[3]} <br>
+        <strong>Postcode:</strong> ${customer[4]}
+    `;
+
+    // Modal'ı kapat
+    closeModal();
+}
+
+// Arama fonksiyonu
+function searchCustomer() {
+    const input = document.getElementById("searchBox").value.toUpperCase();
+    const table = document.getElementById("customerTable");
+    const tr = table.getElementsByTagName("tr");
+
+    for (let i = 1; i < tr.length; i++) { // İlk satır başlık olduğu için 1'den başla
+        const tds = tr[i].getElementsByTagName("td");
+        let visible = false;
+        for (let td of tds) {
+            if (td.textContent.toUpperCase().includes(input)) {
+                visible = true;
+                break;
+            }
+        }
+        tr[i].style.display = visible ? "" : "none";
+    }
+}
 
     </script>
 
