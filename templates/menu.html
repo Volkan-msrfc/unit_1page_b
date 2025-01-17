@@ -199,7 +199,8 @@
      <img src="/static/images/logo.png" alt="Logo" class="logo">
      <div class="user-info">
          <h1>User Name: {{ user }}</h1>
-         <p id="largestFile">Quotation Number: {{ largest_file }}</p>
+         <!--<p id="largestFile">Quotation Number: {{ largest_file }}</p>-->
+         <p id="largestFile">{{ largest_file }}</p>
      </div>
      <button class="header-button" onclick="openModal()">Müşteri Bilgileri</button> <!-- Yeni Buton -->
      <div id="selectedCustomer" style="margin-left: 20px; font-size: 14px;">
@@ -1048,7 +1049,7 @@ async function showAddItemData() {
 
     // Eğer gönderilecek veri yoksa uyarı ver ve işlemi durdur
      if (addItemData.length === 0) {
-        alert("Add item bos!");
+        ///////////////////////////////////////alert("Add item bos!");
         //return Promise.reject("Geçerli veri yok.");
         window.aditmknt = 0; // Tüm fonksiyonlar için global bir değişken oluşturuyoruz.
         return true;
@@ -1184,7 +1185,7 @@ async function quotenumkont() {
         const nextNumber = (BigInt(maxNumber) + 1n).toString().padStart(maxNumber.length, '0');
 
         // Kullanıcıya göster
-        alert(`Bir sonraki dosya numarası: ${nextNumber}`);
+        //////////////////////////////////////////alert(`Bir sonraki dosya numarası: ${nextNumber}`);
 
         return nextNumber; // Hesaplanan değeri döndür
     } catch (error) {
