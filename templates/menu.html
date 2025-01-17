@@ -1098,6 +1098,16 @@ async function showAddItemData() {
 async function mainFunction() {
     console.log("mainFunction çalıştı");
 
+    const nextNumber = await quotenumkont();
+    if (!nextNumber) {
+        console.error("quotenumkont işlemi başarısız. İşlem durduruldu.");
+        return; // İşlemi sonlandır
+    }
+
+    // largestFile değerini güncelle
+    document.getElementById('largestFile').textContent = nextNumber
+
+
     // Müşteri seçimi kontrolü
     if (!selectedCustomerID) {
         alert("Müşteri seçili değil! Lütfen bir müşteri seçin.");
@@ -1134,6 +1144,57 @@ async function mainFunction() {
 
 // 4. Event Listener
 document.getElementById('updateWidthBtn').addEventListener('click', mainFunction);
+//document.getElementById('updateWidthBtn').addEventListener('click', quotenumkont);
+
+// Yeni fonksiyon: quotenumkont
+
+async function quotenumkont() {
+    try {
+        // Sunucudan dosya listesini al
+        const response = await fetch('/get_quote_files'); // quotes klasöründeki dosyaları döndüren bir endpoint
+        if (!response.ok) {
+            throw new Error('Dosya listesi alınırken hata oluştu.');
+        }
+
+        // Dosya isimlerini al
+        const files = await response.json(); // Örnek: ["001.db", "002.db", "010.db", "100.db"]
+        if (!files || files.length === 0) {
+            alert("Quotes klasöründe dosya bulunamadı.");
+            return null; // İşlemi sonlandır
+        }
+
+        // Sadece .db uzantılı dosyaları ve sıfırları koruyarak numaraları ayıkla
+        const fileNumbers = files
+            .filter(file => file.endsWith('.db')) // .db uzantılı dosyaları seç
+            .map(file => file.match(/^(\d+)\.db$/)) // Numara kısmını ve sıfırları ayıkla
+            .filter(match => match) // Geçerli eşleşmeleri seç
+            .map(match => match[1]); // Numara kısmını al
+
+        if (fileNumbers.length === 0) {
+            alert("Geçerli dosya numarası bulunamadı.");
+            return null; // İşlemi sonlandır
+        }
+
+        // En büyük numarayı bul
+        const maxNumber = fileNumbers.reduce((max, num) => 
+            num.length > max.length || (num.length === max.length && num > max) ? num : max
+        );
+
+        // Bir fazlasını hesapla, sıfırları koruyarak
+        const nextNumber = (BigInt(maxNumber) + 1n).toString().padStart(maxNumber.length, '0');
+
+        // Kullanıcıya göster
+        alert(`Bir sonraki dosya numarası: ${nextNumber}`);
+
+        return nextNumber; // Hesaplanan değeri döndür
+    } catch (error) {
+        console.error('Hata:', error);
+        alert('Dosya kontrolü sırasında bir hata oluştu.');
+        return null; // İşlemi sonlandır
+    }
+}
+
+
 
 
 
