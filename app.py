@@ -829,5 +829,14 @@ def fetch_customers():
     connection.close()
     return jsonify(customers)
 
+@app.route('/get_quote_files', methods=['GET'])
+def get_quote_files():
+    quotes_dir = './quotes'  # Quotes klasörünün yolu
+    try:
+        files = [f for f in os.listdir(quotes_dir) if f.endswith('.db')]  # .db dosyalarını seç
+        return jsonify(files)  # Dosya listesini döndür
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True)
