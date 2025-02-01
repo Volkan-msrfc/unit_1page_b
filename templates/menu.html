@@ -197,8 +197,9 @@
  <!-- Logo ve Kullanıcı Bilgileri -->
  <div class="header">
      <img src="/static/images/logo.png" alt="Logo" class="logo">
-     <div class="user-info">
-         <h1>User Name: {{ user }}</h1>
+     <div class="user-info" id="{{ user_id }}">
+        <h1 id="username">User Name: {{ user }}</h1>
+         <!--<h1>User Name: {{ user }}</h1>-->
          <!--<p id="largestFile">Quotation Number: {{ largest_file }}</p>-->
          <p id="largestFile">{{ largest_file }}</p>
      </div>
@@ -637,13 +638,18 @@
                 </tbody>
             </table>
         </div>
-
         
         <div id="tab_proforma" class="tab-content active">
             <!-- <h2>Proforma</h2>-->
             <h2 id="tableHeader">Quote list: Yükleniyor...</h2>
             <p>Bu, PROFORMA.</p>
-            <button id="updateWidthBtn">Make Proforma</button>
+            <!-- <button id="updateWidthBtn">Make Proforma</button>-->
+
+            <button id="updateWidthBtn" onclick="queueManager(getUserName())">
+                Make Proforma
+            </button>
+
+
             <p id="statusMessage"></p>
         
             <!-- Quote List Table -->
@@ -733,6 +739,11 @@
         
         <div class="tab" onclick="openTab('tab_view_pdf')">View PDF</div>
         <div class="tab" onclick="openTab('tab_goruntule')">Goruntule</div>
+    </div>
+
+    <div id="queueContainer">
+        <h3>İşlem Kuyruğu</h3>
+        <ul id="queueList"></ul>
     </div>
 
     <script>
@@ -851,9 +862,68 @@
     }
 
 
+let requestQueue = [];  // 🔹 Kullanıcıları tutan kuyruk listesi
+let processing = false; // 🔹 İşlem devam ediyor mu?
+
+// 📌 Kullanıcıyı kuyruğa ekleyen ve sıraya göre çalıştıran fonksiyon
+function queueManager(user) {
+    if (requestQueue.includes(user)) {
+        alert("Zaten kuyruğa eklenmişsiniz! Lütfen bekleyin.");
+        return;
+    }
+
+    requestQueue.push(user);
+    updateQueueDisplay();
+
+    if (!processing) {
+        processNextInQueue();
+    }
+}
+
+// 📌 Kuyruktaki sıradaki kullanıcıyı seçen fonksiyon
+function processNextInQueue() {
+    if (requestQueue.length === 0) {
+        processing = false;
+        return;
+    }
+
+    processing = true;
+    const currentUser = requestQueue.shift();  // 🔹 İlk kullanıcıyı çıkar
+    updateQueueDisplay();
+
+    console.log("✅ İşlem başlıyor:", currentUser);
+
+    // ✅ **Sırası gelen kullanıcı `updateWidthData()` fonksiyonunu çalıştıracak**
+    updateWidthData(currentUser);
+}
+
+// 📌 Kuyruktaki kullanıcıları HTML'e ekleyelim
+function updateQueueDisplay() {
+    const queueList = document.getElementById("queueList");
+    queueList.innerHTML = "";
+
+    requestQueue.forEach((user, index) => {
+        const li = document.createElement("li");
+        li.textContent = `${index + 1}. ${user}`;
+        queueList.appendChild(li);
+    });
+}
+
 
 // 1. İlk fonksiyon: updateWidthData
-async function updateWidthData() {
+//async function updateWidthData() {
+async function updateWidthData(user = null) {
+    const userElement = document.getElementById('username');
+
+    if (!userElement) {
+        console.error("❌ Hata: 'username' öğesi bulunamadı!");
+        alert("Kullanıcı bilgisi alınamadı! Lütfen tekrar deneyin.");
+        return;
+    }
+
+    const username = user ? user : userElement.textContent.trim().replace("User Name: ", ""); // 🔹 Eğer kullanıcı yoksa HTML'den al
+    console.log("👤 İşlem yapan kullanıcı:", username);
+
     const rows = Array.from(document.querySelectorAll('tbody tr'));
     let validRowFound = false;
     const errorMessages = [];
@@ -1016,6 +1086,15 @@ async function updateWidthData() {
     }
 
     return true; // İşlem başarıyla tamamlandı
+
+        // ✅ İşlem bitince sıradaki kullanıcıyı başlat
+        setTimeout(() => {
+        console.log("✅ İşlem tamamlandı:", username);
+        processing = false;
+        processNextInQueue();
+    }, 3000); // 3 saniye işlem süresi simüle edildi
+
+
 }
 
 // 2. İkinci fonksiyon: showAddItemData
@@ -1098,6 +1177,7 @@ async function showAddItemData() {
 // 3. Main fonksiyon: Sıralı çağırma ve loadQuoteList() çağrısı
 async function mainFunction() {
     console.log("mainFunction çalıştı");
+
 
     const nextNumber = await quotenumkont();
     if (!nextNumber) {
@@ -1411,6 +1491,17 @@ function searchCustomer() {
         }
         tr[i].style.display = visible ? "" : "none";
     }
+}
+
+
+function getUserName() {
+    const userElement = document.getElementById('username');
+    if (!userElement) {
+        console.error("❌ Hata: Kullanıcı adı bulunamadı!");
+        alert("Kullanıcı adı bulunamadı! Lütfen tekrar deneyin.");
+        return "";
+    }
+    return userElement.textContent.trim().replace("User Name: ", "");  
 }
 
     </script>
