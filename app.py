@@ -8,6 +8,7 @@ from reportlab.lib.pagesizes import letter
 from io import BytesIO
 import os
 import re
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -18,6 +19,10 @@ QUOTE_DB_PATH = os.path.join(BASE_DIR, 'quotes')
 
 app.secret_key = 'colacola998346'  # Güvenli bir anahtar belirleyin
 
+
+
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -27,19 +32,19 @@ def login():
         # Kullanıcı doğrulama
         conn = sqlite3.connect('users.db')
         cursor = conn.cursor()
-        cursor.execute("SELECT password FROM users WHERE username = ?", (username,))
+        cursor.execute("SELECT id, password FROM users WHERE username = ?", (username,))
         user = cursor.fetchone()
         conn.close()
 
-        if user and check_password_hash(user[0], password):  # Şifre doğrulaması
+        if user and check_password_hash(user[1], password):  # Şifre doğrulaması
             session['user'] = username  # Kullanıcıyı oturuma kaydet
+            session['user_id'] = user[0]  # **Gerçek ID'yi kaydet (1 veya 2 gibi)**
             return redirect(url_for('menu'))  # Giriş başarılıysa menuye yönlendir
         else:
             error = "Kullanıcı adı veya şifre yanlış."  # Hata mesajı
             return render_template('login.html', error=error)
 
     return render_template('login.html')  # GET isteğinde login sayfasını göster
-
 
 @app.route('/', methods=['GET', 'POST'])
 def menu():
@@ -79,7 +84,15 @@ def menu():
         largest_file = f"Error: {str(e)}"
 
     # Şablona veri gönderme
-    return render_template('menu.html', user=session['user'], largest_file=largest_file, data=data, options=options)
+        # Kullanıcı bilgilerini şablona gönderiyoruz
+    return render_template(
+        'menu.html',
+        user=session['user'],
+        user_id=session.get('user_id', 'Unknown ID'),
+        largest_file=largest_file,
+        data=data,
+        options=options
+    )
 
 @app.route('/logout')
 def logout():
