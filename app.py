@@ -30,39 +30,57 @@ lock = threading.Lock()  # İşlem sırasında veri bütünlüğünü korumak i�
 
 def process_next_user():
     global processing_user
-    
-    while True:
-        user_id = user_queue.get()  # Sıradaki kullanıcıyı al (bloklamalı)
 
+    while not user_queue.empty():
         with lock:
-            processing_user = user_id  # İşlenen kullanıcıyı güncelle
+            if processing_user is not None:
+                print(f"🔒 Bekleme: Kullanıcı {processing_user} halen işlem yapıyor.")
+                return  # İşlem devam ediyorsa fonksiyondan çık
 
-        print(f"Processing user: {processing_user}")
-        time.sleep(5)  # Gerçek işlem burada olacak (simülasyon)
-        print(f"User {processing_user} finished processing.")
+            processing_user = user_queue.get()
+            print(f"🚀 Şu an işlem gören kullanıcı: {processing_user}")
+
+        # Gerçek işlemi burada gerçekleştir
+        time.sleep(5)
+
+        print(f"✅ Kullanıcı {processing_user} işlemi tamamladı.")
 
         with lock:
             processing_user = None  # İşlem tamamlandı
 
-        user_queue.task_done()  # Kuyrukta işin tamamlandığını bildir
+            if not user_queue.empty():
+                print(f"⏭ Sıradaki kullanıcı işleme başlıyor...")
+                process_next_user()  # Yeni işlemi başlat
+            else:
+                print("⏹ Kuyruk boş, işlem durduruldu.")
+
+
 
 @app.route('/enqueue', methods=['POST'])
 def enqueue_user():
     global processing_user
 
     if 'user_id' not in session:
+        print("❌ Hata: Kullanıcı oturum açmamış!")
         return jsonify({'error': 'Oturum açılmamış'}), 401
 
     user_id = session['user_id']
+    print(f"🔹 Kullanıcı {user_id} sıraya eklenmek istiyor.")
 
     with lock:
-        if user_id in list(user_queue.queue):  # Kullanıcı zaten sıradaysa tekrar ekleme
+        mevcut_kuyruk = list(user_queue.queue)
+        print(f"📌 Mevcut kuyruk: {mevcut_kuyruk}")
+
+        if user_id in mevcut_kuyruk:  
+            print(f"⚠️ Kullanıcı {user_id} zaten sırada.")
             return jsonify({'message': 'Zaten sıradasınız.'})
 
-        user_queue.put(user_id)  # Kullanıcıyı sıraya ekle
+        user_queue.put(user_id)  
+        print(f"✅ Kullanıcı {user_id} sıraya eklendi.")
 
-        # Eğer şu anda işlem yapan biri yoksa, işlem başlat
+        # Eğer şu anda işlem yapan biri yoksa, işlemi başlat
         if processing_user is None:
+            print(f"▶️ Kuyruk başlatılıyor...")
             threading.Thread(target=process_next_user, daemon=True).start()
 
     return jsonify({'message': 'Sıraya eklendiniz.', 'queue_position': user_queue.qsize()})
@@ -83,22 +101,22 @@ def login():
         username = request.form['username']
         password = request.form['password']
 
-        # Kullanıcı doğrulama
         conn = sqlite3.connect('users.db')
         cursor = conn.cursor()
         cursor.execute("SELECT id, password FROM users WHERE username = ?", (username,))
         user = cursor.fetchone()
         conn.close()
 
-        if user and check_password_hash(user[1], password):  # Şifre doğrulaması
-            session['user'] = username  # Kullanıcıyı oturuma kaydet
-            session['user_id'] = user[0]  # **Gerçek ID'yi kaydet (1 veya 2 gibi)**
-            return redirect(url_for('menu'))  # Giriş başarılıysa menuye yönlendir
+        if user and check_password_hash(user[1], password):
+            session['user'] = username
+            session['user_id'] = user[0]  # **Burada kesin bir ID atanmalı!**
+            print(f"✅ Kullanıcı {username} (ID: {user[0]}) giriş yaptı.")
+            return redirect(url_for('menu'))
         else:
-            error = "Kullanıcı adı veya şifre yanlış."  # Hata mesajı
-            return render_template('login.html', error=error)
+            print("❌ Giriş başarısız: Yanlış kullanıcı adı veya şifre.")
+            return render_template('login.html', error="Kullanıcı adı veya şifre yanlış.")
 
-    return render_template('login.html')  # GET isteğinde login sayfasını göster
+    return render_template('login.html')
 
 @app.route('/', methods=['GET', 'POST'])
 def menu():
