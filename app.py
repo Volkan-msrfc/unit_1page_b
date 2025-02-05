@@ -30,19 +30,21 @@ lock = threading.Lock()  # İşlem sırasında veri bütünlüğünü korumak i�
 
 def process_next_user():
     global processing_user
+    
+    while True:
+        user_id = user_queue.get()  # Sıradaki kullanıcıyı al (bloklamalı)
 
-    while not user_queue.empty():
         with lock:
-            processing_user = user_queue.get()  # Sıradaki kullanıcıyı al
+            processing_user = user_id  # İşlenen kullanıcıyı güncelle
 
-        print(f"Processing user: {processing_user}")  # Log ekleyebilirsin
-        time.sleep(5)  # Kullanıcının işlemi sürüyor gibi simüle edelim
+        print(f"Processing user: {processing_user}")
+        time.sleep(5)  # Gerçek işlem burada olacak (simülasyon)
         print(f"User {processing_user} finished processing.")
 
         with lock:
             processing_user = None  # İşlem tamamlandı
-            if not user_queue.empty():
-                threading.Thread(target=process_next_user).start()  # Sıradakini başlat
+
+        user_queue.task_done()  # Kuyrukta işin tamamlandığını bildir
 
 @app.route('/enqueue', methods=['POST'])
 def enqueue_user():
@@ -57,12 +59,14 @@ def enqueue_user():
         if user_id in list(user_queue.queue):  # Kullanıcı zaten sıradaysa tekrar ekleme
             return jsonify({'message': 'Zaten sıradasınız.'})
 
-        user_queue.put(user_id)
+        user_queue.put(user_id)  # Kullanıcıyı sıraya ekle
 
-        if processing_user is None:  # İşlemde biri yoksa hemen başlat
-            threading.Thread(target=process_next_user).start()
+        # Eğer şu anda işlem yapan biri yoksa, işlem başlat
+        if processing_user is None:
+            threading.Thread(target=process_next_user, daemon=True).start()
 
     return jsonify({'message': 'Sıraya eklendiniz.', 'queue_position': user_queue.qsize()})
+
 
 @app.route('/queue_status', methods=['GET'])
 def queue_status():
