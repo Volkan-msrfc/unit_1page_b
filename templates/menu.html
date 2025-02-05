@@ -1085,7 +1085,7 @@ async function showAddItemData() {
         const responseData = await response.json();
 
         if (responseData.status === "success") {
-            alert("Veriler başarıyla gönderildi!");
+            //alert("Veriler başarıyla gönderildi!");
         } else {
             throw new Error("Bir hata oluştu: " + responseData.message);
         }
