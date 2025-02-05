@@ -9,6 +9,10 @@ from io import BytesIO
 import os
 import re
 from datetime import datetime
+import queue
+import threading
+import time
+
 
 app = Flask(__name__)
 
@@ -19,7 +23,53 @@ QUOTE_DB_PATH = os.path.join(BASE_DIR, 'quotes')
 
 app.secret_key = 'colacola998346'  # Güvenli bir anahtar belirleyin
 
+# Kullanıcı sırası için bir FIFO kuyruğu
+user_queue = queue.Queue()
+processing_user = None  # Şu an işlem yapan kullanıcıyı tutar
+lock = threading.Lock()  # İşlem sırasında veri bütünlüğünü korumak için
 
+def process_next_user():
+    global processing_user
+
+    while not user_queue.empty():
+        with lock:
+            processing_user = user_queue.get()  # Sıradaki kullanıcıyı al
+
+        print(f"Processing user: {processing_user}")  # Log ekleyebilirsin
+        time.sleep(5)  # Kullanıcının işlemi sürüyor gibi simüle edelim
+        print(f"User {processing_user} finished processing.")
+
+        with lock:
+            processing_user = None  # İşlem tamamlandı
+            if not user_queue.empty():
+                threading.Thread(target=process_next_user).start()  # Sıradakini başlat
+
+@app.route('/enqueue', methods=['POST'])
+def enqueue_user():
+    global processing_user
+
+    if 'user_id' not in session:
+        return jsonify({'error': 'Oturum açılmamış'}), 401
+
+    user_id = session['user_id']
+
+    with lock:
+        if user_id in list(user_queue.queue):  # Kullanıcı zaten sıradaysa tekrar ekleme
+            return jsonify({'message': 'Zaten sıradasınız.'})
+
+        user_queue.put(user_id)
+
+        if processing_user is None:  # İşlemde biri yoksa hemen başlat
+            threading.Thread(target=process_next_user).start()
+
+    return jsonify({'message': 'Sıraya eklendiniz.', 'queue_position': user_queue.qsize()})
+
+@app.route('/queue_status', methods=['GET'])
+def queue_status():
+    return jsonify({
+        'current_processing': processing_user,
+        'queue': list(user_queue.queue)
+    })
 
 
 
