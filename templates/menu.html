@@ -194,10 +194,11 @@
  <!-- Çıkış Butonu -->
  <a href="/logout" class="logout">Çıkış Yap</a>
 
+
  <!-- Logo ve Kullanıcı Bilgileri -->
  <div class="header">
      <img src="/static/images/logo.png" alt="Logo" class="logo">
-     <div class="user-info" id="{{ user_id }}">
+     <div class="user-info" id="{{ user_id }}" data-user-id="{{ user_id }}">
          <h1>User Name: {{ user }}</h1>
          <!--<p id="largestFile">Quotation Number: {{ largest_file }}</p>-->
          <p id="largestFile">{{ largest_file }}</p>
@@ -206,6 +207,14 @@
      <div id="selectedCustomer" style="margin-left: 20px; font-size: 14px;">
          <!-- Seçilen müşteri bilgileri burada görünecek -->
      </div>
+ </div>
+
+ <!-- Kullanıcı Kuyruğu -->
+ <div class="user-queue">
+     <h2>Kullanıcı Kuyruğu</h2>
+     <ul id="userQueueList">
+         <!-- Kullanıcı kuyruğu burada görünecek -->
+     </ul>
  </div>
 
  <!-- İçerik -->
@@ -637,14 +646,15 @@
                 </tbody>
             </table>
         </div>
+
+
         
         <div id="tab_proforma" class="tab-content active">
             <!-- <h2>Proforma</h2>-->
             <h2 id="tableHeader">Quote list: Yükleniyor...</h2>
             <p>Bu, PROFORMA.</p>
             <button id="updateWidthBtn">Make Proforma</button>
-            <p id="queueStatus"></p>
-            <!--<p id="statusMessage"></p>-->
+            <p id="statusMessage"></p>
         
             <!-- Quote List Table -->
             <table id="quoteListTable" border="1" style="margin-top: 20px; width: 100%; border-collapse: collapse;">
@@ -736,6 +746,9 @@
     </div>
 
     <script>
+
+        var dvmislm = 0; // Başlangıçta 0 olacak
+
         // Sekme açma fonksiyonu
         function openTab(tabId) {
             const contents = document.querySelectorAll('.tab-content');
@@ -1085,7 +1098,7 @@ async function showAddItemData() {
         const responseData = await response.json();
 
         if (responseData.status === "success") {
-            //alert("Veriler başarıyla gönderildi!");
+            alert("Veriler başarıyla gönderildi!");
         } else {
             throw new Error("Bir hata oluştu: " + responseData.message);
         }
@@ -1097,51 +1110,61 @@ async function showAddItemData() {
 }
 // 3. Main fonksiyon: Sıralı çağırma ve loadQuoteList() çağrısı
 async function mainFunction() {
+    if (dvmislm === 0) {
+        dvmislm = 1; // Butona basıldığında 1 yap
+        console.log("dvmislm değeri: ", dvmislm);
+    }
+
     console.log("mainFunction çalıştı");
 
+    // Eş zamanlı tıklamaları kontrol et
+    await checkConcurrentClicks();
 
     const nextNumber = await quotenumkont();
     if (!nextNumber) {
         console.error("quotenumkont işlemi başarısız. İşlem durduruldu.");
-        return; // İşlemi sonlandır
+        dvmislm = 0; // Hata durumunda tekrar 0 yap
+        return;
     }
 
-    // largestFile değerini güncelle
-    document.getElementById('largestFile').textContent = nextNumber
+    document.getElementById('largestFile').textContent = nextNumber;
 
-
-    // Müşteri seçimi kontrolü
     if (!selectedCustomerID) {
         alert("Müşteri seçili değil! Lütfen bir müşteri seçin.");
-        return; // İşlemleri sonlandır
+        dvmislm = 0; // Müşteri seçimi başarısızsa tekrar 0 yap
+        return;
     }
 
-    // 1. updateWidthData çağrısı
     const updateResult = await updateWidthData();
-
     if (!updateResult) {
         console.error('updateWidthData başarısız oldu. İşlem sonlandırıldı.');
+        dvmislm = 0; // Hata durumunda tekrar 0 yap
         return;
     }
 
-    // 2. showAddItemData çağrısı
     try {
         console.log("showAddItemData fonksiyonu çağrıldı.");
-        await showAddItemData(); // İşlemin tamamlanmasını bekle
+        await showAddItemData();
     } catch (error) {
         console.error('showAddItemData başarısız oldu. İşlem sonlandırıldı.', error);
+        dvmislm = 0; // Hata durumunda tekrar 0 yap
         return;
     }
 
-    // 3. loadQuoteList çağrısı
     if ((window.untknt || 0) + (window.aditmknt || 0) <= 0) {
         alert("Proforma oluşturulacak bir değer yok!");
+        dvmislm = 0; // İşlem yapılacak bir şey yoksa tekrar 0 yap
     } else {
         console.log("loadQuoteList fonksiyonu çağrılıyor.");
         await loadQuoteList(); // İşlemin tamamlanmasını bekle
-    }
-}
 
+        dvmislm = 0; // loadQuoteList tamamlandıktan sonra 0 yap
+        console.log("loadQuoteList tamamlandı, dvmislm sıfırlandı.");
+    }
+
+    // Kuyruktaki sıradaki kullanıcıyı işleme al
+    processNextUser();
+}
 
 
 // 4. Event Listener
@@ -1414,30 +1437,83 @@ function searchCustomer() {
     }
 }
 
-document.getElementById("updateWidthBtn").addEventListener("click", async function () {
-        try {
-            let response = await fetch("/enqueue", { method: "POST" });
-            let data = await response.json();
-            document.getElementById("queueStatus").textContent = data.message;
-        } catch (error) {
-            console.error("Error:", error);
-        }
-    });
 
-    async function checkQueueStatus() {
-        try {
-            let response = await fetch("/queue_status");
-            let data = await response.json();
-            document.getElementById("queueStatus").textContent =
-                "Şu an işlenen: " + (data.current_processing || "Yok") +
-                " | Bekleyenler: " + data.queue.join(", ");
-        } catch (error) {
-            console.error("Queue error:", error);
+
+// Aynı anda tıklayanları kontrol eden fonksiyon
+async function checkConcurrentClicks() {
+    try {
+        const user = document.querySelector('.user-info h1').textContent.trim();
+        const userId = document.querySelector('.user-info').getAttribute('data-user-id');
+        const clickTime = new Date().toLocaleString(); // Kullanıcının tıklama zamanı
+
+        const response = await fetch('/log_click', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                user: user, 
+                user_id: userId 
+            }),
+        });
+
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            const recentClicks = data.recent_clicks;
+
+            // Kullanıcının kendi tıklama detaylarını göster
+            let alertMessage = `Tıklayan Kullanıcı: ${user} (ID: ${userId})\nTıklama Saati: ${clickTime}`;
+
+            // Eğer başka kullanıcılar da tıkladıysa, onları listele
+            if (recentClicks.length > 1) {
+                const otherUsers = recentClicks
+                    .filter(log => log.user_id !== userId)
+                    .map(log => {
+                        const time = new Date(log.time).toLocaleTimeString();
+                        return `${log.user} (ID: ${log.user_id}) - ${time}`;
+                    })
+                    .join('\n');
+
+                alertMessage += `\n\nAynı anda tıklayan diğer kullanıcılar:\n${otherUsers}`;
+            }
+
+            alert(alertMessage);
         }
+    } catch (error) {
+        console.error('Eş zamanlı tıklama kontrol hatası:', error);
     }
+}
 
-    setInterval(checkQueueStatus, 3000);
 
+// Kullanıcı kuyruğunu güncelle
+function updateUserQueue() {
+    fetch('/get_user_queue')
+        .then(response => response.json())
+        .then(data => {
+            const userQueueList = document.getElementById('userQueueList');
+            userQueueList.innerHTML = '';
+            data.forEach(user => {
+                const li = document.createElement('li');
+                li.textContent = `${user.user} (ID: ${user.user_id})`;
+                userQueueList.appendChild(li);
+            });
+        });
+}
+
+// Kuyruktaki sıradaki kullanıcıyı işleme al
+function processNextUser() {
+    fetch('/process_next_user', {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        updateUserQueue();
+    });
+}
+
+// Kuyruğu düzenli olarak güncelle
+setInterval(updateUserQueue, 5000);
 
     </script>
 
