@@ -9,10 +9,7 @@ from io import BytesIO
 import os
 import re
 from datetime import datetime
-import queue
-import threading
-import time
-
+import random
 
 app = Flask(__name__)
 
@@ -23,77 +20,70 @@ QUOTE_DB_PATH = os.path.join(BASE_DIR, 'quotes')
 
 app.secret_key = 'colacola998346'  # Güvenli bir anahtar belirleyin
 
-# Kullanıcı sırası için bir FIFO kuyruğu
-user_queue = queue.Queue()
-processing_user = None  # Şu an işlem yapan kullanıcıyı tutar
-lock = threading.Lock()  # İşlem sırasında veri bütünlüğünü korumak için
+# Yeni global değişkenler
+click_logs = []
+user_queue = []
 
+# Yeni endpoint
+@app.route('/log_click', methods=['POST'])
+def log_click():
+    try:
+        data = request.get_json()
+        user = data.get('user', 'Unknown User')
+        user_id = data.get('user_id', 'Unknown ID')
+        time = datetime.now().isoformat()
+        
+        global click_logs, user_queue
+        now = datetime.now()
+        click_logs = [log for log in click_logs 
+                     if (now - datetime.fromisoformat(log['time'])).total_seconds() <= 60]
+        
+        click_logs.append({
+            'user': user,
+            'user_id': user_id,
+            'time': time  # Zaman damgası eklendi
+        })
+        
+        recent_clicks = [log for log in click_logs 
+                        if (now - datetime.fromisoformat(log['time'])).total_seconds() <= 1]
+        
+        # Kullanıcıyı kuyruğa ekle
+        if user_id not in [u['user_id'] for u in user_queue]:
+            user_queue.append({
+                'user': user,
+                'user_id': user_id,
+                'time': time
+            })
+        
+        # Aynı anda tıklayanları rastgele sıraya ekle
+        if len(recent_clicks) > 1:
+            random.shuffle(recent_clicks)
+            for log in recent_clicks:
+                if log['user_id'] not in [u['user_id'] for u in user_queue]:
+                    user_queue.append(log)
+        
+        return jsonify({
+            'status': 'success',
+            'recent_clicks': recent_clicks,  # Zaman damgası içeren veri
+            'user_queue': user_queue  # Kullanıcı kuyruğu
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/get_user_queue', methods=['GET'])
+def get_user_queue():
+    return jsonify(user_queue)
+
+@app.route('/process_next_user', methods=['POST'])
 def process_next_user():
-    global processing_user
-
-    while not user_queue.empty():
-        with lock:
-            if processing_user is not None:
-                print(f"🔒 Bekleme: Kullanıcı {processing_user} halen işlem yapıyor.")
-                return  # İşlem devam ediyorsa fonksiyondan çık
-
-            processing_user = user_queue.get()
-            print(f"🚀 Şu an işlem gören kullanıcı: {processing_user}")
-
-        # Gerçek işlemi burada gerçekleştir
-        time.sleep(5)
-
-        print(f"✅ Kullanıcı {processing_user} işlemi tamamladı.")
-
-        with lock:
-            processing_user = None  # İşlem tamamlandı
-
-            if not user_queue.empty():
-                print(f"⏭ Sıradaki kullanıcı işleme başlıyor...")
-                process_next_user()  # Yeni işlemi başlat
-            else:
-                print("⏹ Kuyruk boş, işlem durduruldu.")
-
-
-
-@app.route('/enqueue', methods=['POST'])
-def enqueue_user():
-    global processing_user
-
-    if 'user_id' not in session:
-        print("❌ Hata: Kullanıcı oturum açmamış!")
-        return jsonify({'error': 'Oturum açılmamış'}), 401
-
-    user_id = session['user_id']
-    print(f"🔹 Kullanıcı {user_id} sıraya eklenmek istiyor.")
-
-    with lock:
-        mevcut_kuyruk = list(user_queue.queue)
-        print(f"📌 Mevcut kuyruk: {mevcut_kuyruk}")
-
-        if user_id in mevcut_kuyruk:  
-            print(f"⚠️ Kullanıcı {user_id} zaten sırada.")
-            return jsonify({'message': 'Zaten sıradasınız.'})
-
-        user_queue.put(user_id)  
-        print(f"✅ Kullanıcı {user_id} sıraya eklendi.")
-
-        # Eğer şu anda işlem yapan biri yoksa, işlemi başlat
-        if processing_user is None:
-            print(f"▶️ Kuyruk başlatılıyor...")
-            threading.Thread(target=process_next_user, daemon=True).start()
-
-    return jsonify({'message': 'Sıraya eklendiniz.', 'queue_position': user_queue.qsize()})
-
-
-@app.route('/queue_status', methods=['GET'])
-def queue_status():
-    return jsonify({
-        'current_processing': processing_user,
-        'queue': list(user_queue.queue)
-    })
-
-
+    global user_queue
+    if user_queue:
+        user_queue.pop(0)  # Kuyruktan ilk kullanıcıyı çıkar
+    return jsonify({'status': 'success', 'user_queue': user_queue})
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -101,22 +91,22 @@ def login():
         username = request.form['username']
         password = request.form['password']
 
+        # Kullanıcı doğrulama
         conn = sqlite3.connect('users.db')
         cursor = conn.cursor()
         cursor.execute("SELECT id, password FROM users WHERE username = ?", (username,))
         user = cursor.fetchone()
         conn.close()
 
-        if user and check_password_hash(user[1], password):
-            session['user'] = username
-            session['user_id'] = user[0]  # **Burada kesin bir ID atanmalı!**
-            print(f"✅ Kullanıcı {username} (ID: {user[0]}) giriş yaptı.")
-            return redirect(url_for('menu'))
+        if user and check_password_hash(user[1], password):  # Şifre doğrulaması
+            session['user'] = username  # Kullanıcıyı oturuma kaydet
+            session['user_id'] = user[0]  # **Gerçek ID'yi kaydet (1 veya 2 gibi)**
+            return redirect(url_for('menu'))  # Giriş başarılıysa menuye yönlendir
         else:
-            print("❌ Giriş başarısız: Yanlış kullanıcı adı veya şifre.")
-            return render_template('login.html', error="Kullanıcı adı veya şifre yanlış.")
+            error = "Kullanıcı adı veya şifre yanlış."  # Hata mesajı
+            return render_template('login.html', error=error)
 
-    return render_template('login.html')
+    return render_template('login.html')  # GET isteğinde login sayfasını göster
 
 @app.route('/', methods=['GET', 'POST'])
 def menu():
