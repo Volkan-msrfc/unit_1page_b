@@ -9,7 +9,6 @@ from io import BytesIO
 import os
 import re
 from datetime import datetime
-import random
 
 app = Flask(__name__)
 
@@ -22,7 +21,7 @@ app.secret_key = 'colacola998346'  # Güvenli bir anahtar belirleyin
 
 # Yeni global değişkenler
 click_logs = []
-user_queue = []
+islmdvm = 0
 
 # Yeni endpoint
 @app.route('/log_click', methods=['POST'])
@@ -33,7 +32,7 @@ def log_click():
         user_id = data.get('user_id', 'Unknown ID')
         time = datetime.now().isoformat()
         
-        global click_logs, user_queue
+        global click_logs
         now = datetime.now()
         click_logs = [log for log in click_logs 
                      if (now - datetime.fromisoformat(log['time'])).total_seconds() <= 60]
@@ -47,25 +46,9 @@ def log_click():
         recent_clicks = [log for log in click_logs 
                         if (now - datetime.fromisoformat(log['time'])).total_seconds() <= 1]
         
-        # Kullanıcıyı kuyruğa ekle
-        if user_id not in [u['user_id'] for u in user_queue]:
-            user_queue.append({
-                'user': user,
-                'user_id': user_id,
-                'time': time
-            })
-        
-        # Aynı anda tıklayanları rastgele sıraya ekle
-        if len(recent_clicks) > 1:
-            random.shuffle(recent_clicks)
-            for log in recent_clicks:
-                if log['user_id'] not in [u['user_id'] for u in user_queue]:
-                    user_queue.append(log)
-        
         return jsonify({
             'status': 'success',
-            'recent_clicks': recent_clicks,  # Zaman damgası içeren veri
-            'user_queue': user_queue  # Kullanıcı kuyruğu
+            'recent_clicks': recent_clicks  # Zaman damgası içeren veri
         })
         
     except Exception as e:
@@ -74,16 +57,14 @@ def log_click():
             'message': str(e)
         }), 500
 
-@app.route('/get_user_queue', methods=['GET'])
-def get_user_queue():
-    return jsonify(user_queue)
-
-@app.route('/process_next_user', methods=['POST'])
-def process_next_user():
-    global user_queue
-    if user_queue:
-        user_queue.pop(0)  # Kuyruktan ilk kullanıcıyı çıkar
-    return jsonify({'status': 'success', 'user_queue': user_queue})
+@app.route('/check_islmdvm', methods=['GET'])
+def check_islmdvm():
+    global islmdvm
+    if islmdvm == 1:
+        return jsonify({'status': 'busy'})
+    else:
+        islmdvm = 1
+        return jsonify({'status': 'free'})
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -158,6 +139,8 @@ def menu():
 
 @app.route('/logout')
 def logout():
+    global islmdvm
+    islmdvm = 0
     session.pop('user', None)  # Kullanıcıyı oturumdan çıkar
     return redirect(url_for('login'))  # Login sayfasına yönlendir
 
@@ -167,6 +150,8 @@ def proforma():
 
 @app.route('/update_width', methods=['POST'])
 def update_width():
+    global islmdvm
+    islmdvm = 1  # update_width fonksiyonu başladığında değeri 1 yap
     try:
         # Veritabanına bağlan ve cursor oluştur
         conn = sqlite3.connect('wall.db')
@@ -693,6 +678,8 @@ def update_width():
     except ValueError as e:
         print("Dönüşüm hatası:", str(e))
         return jsonify({'message': f'Dönüşüm hatası: {str(e)}'}), 400
+    finally:
+        islmdvm = 0  # İşlem tamamlandığında değeri tekrar 0 yap
     
 def create_quote_list(clean_string):
     try:
@@ -818,6 +805,9 @@ def get_quote_list():
     except Exception as e:
         print("Beklenmeyen hata:", str(e))
         return jsonify({'message': f'Beklenmeyen hata: {str(e)}'}), 500
+    finally:
+        global islmdvm
+        islmdvm = 0  # get_quote_list işlemi bittiğinde değeri tekrar 0 yap
 
 
 @app.route('/add_item_data', methods=['POST'])
