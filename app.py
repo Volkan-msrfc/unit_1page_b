@@ -63,7 +63,7 @@ def check_islmdvm():
     if islmdvm == 1:
         return jsonify({'status': 'busy'})
     else:
-        # islmdvm = 1
+        islmdvm = 1
         return jsonify({'status': 'free'})
 
 @app.route('/login', methods=['GET', 'POST'])
