@@ -1218,6 +1218,9 @@ async function loadQuoteList() {
         const response = await fetch(`/get_quote_list?db_name=${dbName}`);
 
         if (!response.ok) {
+            if (response.status === 404) {
+                alert('Dosya bulunamadı: ' + dbName);
+            }
             throw new Error('Veri alınırken hata oluştu.');
         }
 
