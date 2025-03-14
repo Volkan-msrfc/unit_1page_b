@@ -1104,6 +1104,7 @@ async function mainFunction() {
     const data = await response.json();
     if (data.status === 'busy') {
         alert("İçeride kullanıcı var!");
+        setTimeout(mainFunction, 1000);  // 1 saniye sonra tekrar dene
         return; // İşlemleri iptal et
     }
 
