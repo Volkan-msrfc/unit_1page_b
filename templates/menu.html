@@ -1102,18 +1102,23 @@ async function mainFunction() {
     // islmdvm değerini kontrol et
     const response = await fetch('/check_islmdvm');
     const data = await response.json();
-   const msgl=0;
+    let msgl = 0;
     if (data.status === 'busy') {
         alert("İçeride kullanıcı var!");
-        const msgl=1;
+        msgl = 1;
         //return; // İşlemleri iptal et
     }
 
-    if (msgl === 1) {
+    while (msgl === 1) {
         alert("İçeride hala kullanıcı var!");
-        const msgl=1;
-        
-        return; // İşlemleri iptal et
+        alert("msgl değeri: " + msgl);
+        // 1 saniye bekle ve tekrar kontrol et
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        //const response = await fetch('/check_islmdvm');
+        //const data = await response.json();
+        //if (data.status === 'free') {
+        //    msgl = 0;
+        //}
     }
 
     alert("msgl değeri: " + msgl);
@@ -1160,7 +1165,10 @@ async function mainFunction() {
     } else {
         console.log("loadQuoteList fonksiyonu çağrılıyor.");
         await loadQuoteList(); // İşlemin tamamlanmasını bekle
+        let msgl = 0;
     }
+
+    
 }
 
 
