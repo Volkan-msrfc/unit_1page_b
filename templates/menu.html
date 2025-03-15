@@ -1102,13 +1102,22 @@ async function mainFunction() {
     // islmdvm değerini kontrol et
     const response = await fetch('/check_islmdvm');
     const data = await response.json();
+    //if (data.status === 'busy') {
+    //    alert("İçeride kullanıcı var!");
+    //    return; // İşlemleri iptal et
+    //}
+
     if (data.status === 'busy') {
-        alert("İçeride kullanıcı var!");
-        return; // İşlemleri iptal et
+    //alert("İçeride kullanıcı var!");
+    // İşlemleri iptal ettikten sonra "Make Proforma" butonuna otomatik tıklama
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    document.getElementById('updateWidthBtn').click();
+    return; // İşlemleri iptal et
     }
 
+
     // Eş zamanlı tıklamaları kontrol et
-    await checkConcurrentClicks();
+    //await checkConcurrentClicks();
 
     const nextNumber = await quotenumkont();
     if (!nextNumber) {
