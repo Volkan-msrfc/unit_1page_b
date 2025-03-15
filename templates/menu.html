@@ -1122,8 +1122,10 @@ async function mainFunction() {
 
     // Müşteri seçimi kontrolü
     if (!selectedCustomerID) {
-        alert("Müşteri seçili değil! Lütfen bir müşteri seçin.");
-        return; // İşlemleri sonlandır
+    alert("Müşteri seçili değil! Lütfen bir müşteri seçin.");
+    // islmdvm değerini sıfırlamak için bir API çağrısı yap
+    await fetch('/reset_islmdvm', { method: 'POST' });
+    return; // İşlemleri sonlandır
     }
 
     // 1. updateWidthData çağrısı
@@ -1146,9 +1148,11 @@ async function mainFunction() {
     // 3. loadQuoteList çağrısı
     if ((window.untknt || 0) + (window.aditmknt || 0) <= 0) {
         alert("Proforma oluşturulacak bir değer yok!");
+        await fetch('/reset_islmdvm', { method: 'POST' });
     } else {
         console.log("loadQuoteList fonksiyonu çağrılıyor.");
         await loadQuoteList(); // İşlemin tamamlanmasını bekle
+        await fetch('/reset_islmdvm', { method: 'POST' });
     }
 }
 
