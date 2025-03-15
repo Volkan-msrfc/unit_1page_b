@@ -1106,18 +1106,7 @@ async function mainFunction() {
     if (data.status === 'busy') {
         alert("İçeride kullanıcı var!");
         msgl = 1;
-        while (data.status === 'busy') {
-        alert("İçeride hala kullanıcı var!");
-        //alert("msgl değeri: " + msgl);
-        // 1 saniye bekle ve tekrar kontrol et
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        const response = await fetch('/check_islmdvm');
-        const data = await response.json();
-        if (data.status === 'free') {
-            let msgl = 0;
-        }
-    }
-        //return; // İşlemleri iptal et
+        return; // İşlemleri iptal et
     }
 
     alert("msgl değeri: " + msgl);
@@ -1174,7 +1163,6 @@ async function mainFunction() {
 
     
 }
-
 
 
 // 4. Event Listener
