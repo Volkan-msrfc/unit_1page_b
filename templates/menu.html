@@ -1102,21 +1102,10 @@ async function mainFunction() {
     // islmdvm değerini kontrol et
     const response = await fetch('/check_islmdvm');
     const data = await response.json();
-    const msgl=0;
     if (data.status === 'busy') {
         alert("İçeride kullanıcı var!");
-        const msgl=1;
-        //return; // İşlemleri iptal et
-    }
-
-    if (msgl === 1) {
-        alert("İçeride hala kullanıcı var!");
-        const msgl=1;
-        
         return; // İşlemleri iptal et
     }
-
-    alert("msgl değeri: " + msgl);
 
     // Eş zamanlı tıklamaları kontrol et
     await checkConcurrentClicks();
@@ -1124,7 +1113,6 @@ async function mainFunction() {
     const nextNumber = await quotenumkont();
     if (!nextNumber) {
         console.error("quotenumkont işlemi başarısız. İşlem durduruldu.");
-        let msgl = 0;
         return; // İşlemi sonlandır
     }
 
@@ -1135,7 +1123,6 @@ async function mainFunction() {
     // Müşteri seçimi kontrolü
     if (!selectedCustomerID) {
         alert("Müşteri seçili değil! Lütfen bir müşteri seçin.");
-        let msgl = 0;
         return; // İşlemleri sonlandır
     }
 
@@ -1144,7 +1131,6 @@ async function mainFunction() {
 
     if (!updateResult) {
         console.error('updateWidthData başarısız oldu. İşlem sonlandırıldı.');
-        let msgl = 0;
         return;
     }
 
@@ -1154,22 +1140,18 @@ async function mainFunction() {
         await showAddItemData(); // İşlemin tamamlanmasını bekle
     } catch (error) {
         console.error('showAddItemData başarısız oldu. İşlem sonlandırıldı.', error);
-        let msgl = 0;
         return;
     }
 
     // 3. loadQuoteList çağrısı
     if ((window.untknt || 0) + (window.aditmknt || 0) <= 0) {
         alert("Proforma oluşturulacak bir değer yok!");
-        let msgl = 0;
     } else {
         console.log("loadQuoteList fonksiyonu çağrılıyor.");
         await loadQuoteList(); // İşlemin tamamlanmasını bekle
-        let msgl = 0;
     }
-
-    
 }
+
 
 
 // 4. Event Listener
