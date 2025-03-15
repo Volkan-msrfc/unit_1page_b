@@ -1102,13 +1102,21 @@ async function mainFunction() {
     // islmdvm değerini kontrol et
     const response = await fetch('/check_islmdvm');
     const data = await response.json();
+   const msgl=0;
     if (data.status === 'busy') {
         alert("İçeride kullanıcı var!");
-        //setTimeout(() => {
-       //     mainFunction(); // 1103 numaralı satıra geri dön
-       // }, 1000);  // 1 saniye sonra tekrar dene
+        const msgl=1;
+        //return; // İşlemleri iptal et
+    }
+
+    if (msgl === 1) {
+        alert("İçeride hala kullanıcı var!");
+        const msgl=1;
+        
         return; // İşlemleri iptal et
     }
+
+    alert("msgl değeri: " + msgl);
 
     // Eş zamanlı tıklamaları kontrol et
     await checkConcurrentClicks();
