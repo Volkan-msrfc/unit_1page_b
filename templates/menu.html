@@ -1102,10 +1102,17 @@ async function mainFunction() {
     // islmdvm değerini kontrol et
     const response = await fetch('/check_islmdvm');
     const data = await response.json();
-    let msgl = 0;
+    const msgl=0;
     if (data.status === 'busy') {
         alert("İçeride kullanıcı var!");
-        msgl = 1;
+        const msgl=1;
+        //return; // İşlemleri iptal et
+    }
+
+    if (msgl === 1) {
+        alert("İçeride hala kullanıcı var!");
+        const msgl=1;
+        
         return; // İşlemleri iptal et
     }
 
