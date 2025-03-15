@@ -57,6 +57,12 @@ def log_click():
             'message': str(e)
         }), 500
 
+@app.route('/reset_islmdvm', methods=['POST'])
+def reset_islmdvm():
+    global islmdvm
+    islmdvm = 0  # islmdvm değerini sıfırla
+    return jsonify({'status': 'success', 'message': 'islmdvm sıfırlandı.'})
+
 @app.route('/check_islmdvm', methods=['GET'])
 def check_islmdvm():
     global islmdvm
