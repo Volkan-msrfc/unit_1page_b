@@ -59,8 +59,8 @@ def log_click():
 
 @app.route('/reset_islmdvm', methods=['POST'])
 def reset_islmdvm():
-    global islmdvm
-    islmdvm = 0  # islmdvm değerini sıfırla
+    #global islmdvm
+    #islmdvm = 0  # islmdvm değerini sıfırla
     return jsonify({'status': 'success', 'message': 'islmdvm sıfırlandı.'})
 
 @app.route('/check_islmdvm', methods=['GET'])
@@ -684,10 +684,11 @@ def update_width():
     except ValueError as e:
         print("Dönüşüm hatası:", str(e))
         return jsonify({'message': f'Dönüşüm hatası: {str(e)}'}), 400
-    finally:
-        islmdvm = 0  # İşlem tamamlandığında değeri tekrar 0 yap
+    #finally:
+        #islmdvm = 0  # İşlem tamamlandığında değeri tekrar 0 yap
     
 def create_quote_list(clean_string):
+    
     try:
         # Hedef dizin
         os.makedirs(QUOTE_DB_PATH, exist_ok=True)
@@ -725,12 +726,17 @@ def create_quote_list(clean_string):
         ''')
         rows = cursor.fetchall()
 
+               # Kullanıcı ID'sini oturumdan al
+        user_id = session.get('user_id', 0)  # Eğer oturumda user_id yoksa varsayılan olarak 0 kullanılır
+
+        # USER_ID'yi ekleyerek verileri düzenle
+        rows_with_user_id = [(user_id, *row) for row in rows]
+
         # quote_list tablosuna ekle
         cursor_quote.executemany('''
             INSERT INTO list (USER_ID, ITEM_ID, ITEM_NAME, ADET, UNIT_TYPE, SIRA, PRICE, DSPRICE, AMOUNTH)
-            VALUES (0, 0, ?, ?, ?, ?, 0.00, 0.00, 0.00)
-        ''', rows)
-
+            VALUES (?, 0, ?, ?, ?, ?, 0.00, 0.00, 0.00)
+        ''', rows_with_user_id)
         # Değişiklikleri kaydet ve bağlantıyı kapat
         conn_quote.commit()
         conn_quote.close()
@@ -740,7 +746,8 @@ def create_quote_list(clean_string):
 
     except sqlite3.Error as e:
         print("Veritabanı hatası (create_quote_list):", str(e))
-
+    #finally:
+        #islmdvm = 0  # İşlem tamamlandığında değeri tekrar 0 yap
 
 def get_data_from_db():
     # SQLite veritabanına bağlan
@@ -774,6 +781,8 @@ def get_data_from_db():
 
 @app.route('/get_quote_list', methods=['GET'])
 def get_quote_list():
+    global islmdvm
+    islmdvm = 1  # update_width fonksiyonu başladığında değeri 1 yap
     try:
         # Frontend'den gelen db_name parametresini al
         db_name = request.args.get('db_name')  # db_name parametresi URL'den alınacak
@@ -812,7 +821,7 @@ def get_quote_list():
         print("Beklenmeyen hata:", str(e))
         return jsonify({'message': f'Beklenmeyen hata: {str(e)}'}), 500
     finally:
-        global islmdvm
+        #global islmdvm
         islmdvm = 0  # get_quote_list işlemi bittiğinde değeri tekrar 0 yap
 
 
@@ -855,6 +864,11 @@ def add_item_data():
             )
         ''')
 
+        user_id = session.get('user_id', 0)  # Eğer oturumda user_id yoksa varsayılan olarak 0 kullanılır
+
+        # USER_ID'yi ekleyerek verileri düzenle
+        #rows_with_user_id = [(user_id, *row) for row in rows]
+
         # Gelen verileri işleyip tabloya ekle
         for item in add_item_data:
             item_name = item.get('itemName', '').strip()
@@ -875,9 +889,12 @@ def add_item_data():
                 kar_value = 0.0  # Eğer rakam yoksa varsayılan 0.0 olarak al
 
             cursor_quote.execute('''
-                INSERT INTO list (ITEM_NAME, ADET, UNIT_TYPE, SIRA, PRICE, DSPRICE)
-                VALUES (?, ?, 'ADD_ITEM', ?, ?, ?)
-            ''', (item_name, qty, sr, price, dsprice))
+                INSERT INTO list (USER_ID, ITEM_ID, ITEM_NAME, ADET, UNIT_TYPE, SIRA, PRICE, DSPRICE, AMOUNTH)
+                VALUES (?, 0, ?, ?, 'ADD_ITEM', ?, ?, ?, ?)                 
+
+
+            ''', (user_id, item_name, qty, sr, price, dsprice, qty*dsprice))      #, price, dsprice))
+
 
         # Değişiklikleri kaydet ve bağlantıyı kapat
         conn_quote.commit()
