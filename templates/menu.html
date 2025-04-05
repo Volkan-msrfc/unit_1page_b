@@ -1850,5 +1850,88 @@ async function fetchServerTime() {
 
     </script>
 
+    <script>
+    // Global variable to determine if the app is running locally or on a server
+    let apiBaseUrl;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Check if the app is running locally or on a server
+        const isLocal = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
+
+        // Set the API base URL based on the environment
+        apiBaseUrl = isLocal
+            ? 'http://127.0.0.1:5000' // Local development environment
+            : window.location.origin; // Server environment
+
+        console.log(`API Base URL set to: ${apiBaseUrl}`);
+    });
+
+    // Example usage in showAddItemData
+    async function showAddItemData() {
+        const rows = document.querySelectorAll('#tab_add_item tbody tr'); // Tüm satırları seç
+        const largestFile = document.getElementById('largestFile').textContent.trim(); // largestFile değerini al
+
+        const addItemData = []; // Gönderilecek tüm verileri tutacak dizi
+
+        // Tüm satırlarda dön
+        rows.forEach((row) => {
+            const inputs = row.querySelectorAll('input'); // Satırdaki tüm inputları al
+            const itemName = inputs[0]?.value.trim(); // 1. input (Item Name)
+            const qty = inputs[1]?.value.trim(); // 2. input (Quantity)
+            const price = inputs[2]?.value.trim(); // 3. input (Price)
+            const dsprice = inputs[3]?.value.trim(); // 4. input (After Discount)
+            const kar = inputs[4]?.value.trim(); // 5. input (Depo Code)
+
+            // Eğer en az Item Name ve Quantity doluysa, veriyi ekle
+            if (itemName && qty) {
+                addItemData.push({
+                    itemName: itemName,
+                    qty: parseInt(qty, 10), // Sayıya çevir
+                    price: parseFloat(price || 0), // Sayıya çevir, boşsa 0
+                    dsprice: parseFloat(dsprice || 0), // Sayıya çevir, boşsa 0
+                    kar: kar
+                });
+            }
+        });
+
+        // Eğer gönderilecek veri yoksa uyarı ver ve işlemi durdur
+        if (addItemData.length === 0) {
+            window.aditmknt = 0; // Tüm fonksiyonlar için global bir değişken oluşturuyoruz.
+            return true;
+        } else {
+            window.aditmknt = 1;
+        }
+
+        // API'ye gönderilecek veri
+        const data = {
+            add_item_data: addItemData, // Toplanan tüm satırlar
+            largest_file: largestFile // largestFile değeri burada kullanılıyor
+        };
+
+        // API'ye POST isteği gönder
+        try {
+            const response = await fetch(`${apiBaseUrl}/add_item_data`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            const responseData = await response.json();
+
+            if (responseData.status === "success") {
+                alert("Veriler başarıyla gönderildi!");
+            } else {
+                throw new Error("Bir hata oluştu: " + responseData.message);
+            }
+        } catch (error) {
+            console.error('API Hatası:', error);
+            alert('Veri gönderme sırasında hata oluştu.');
+            throw error; // Hata fırlatarak işlemi durdur
+        }
+    }
+</script>
+
 </body>
 </html>
