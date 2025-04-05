@@ -1164,11 +1164,11 @@ async function showAddItemData() {
     // API'ye POST isteği gönder
     try {
         // Yerel veya sunucu ortamına göre API taban URL'sini ayarla
-    const isLocal = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
+    //const isLocal = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
 
-    const apiBaseUrl = isLocal
-        ? 'http://127.0.0.1:5000' // Yerel geliştirme ortamı için
-        : window.location.origin; // Render.com veya herhangi bir sunucu ortamı için
+    //const apiBaseUrl = isLocal
+    //    ? 'http://127.0.0.1:5000' // Yerel geliştirme ortamı için
+    //    : window.location.origin; // Render.com veya herhangi bir sunucu ortamı için
 
     // API çağrısı
     const response = await fetch(`${apiBaseUrl}/add_item_data`, {
