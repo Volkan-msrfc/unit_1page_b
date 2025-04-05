@@ -63,6 +63,8 @@
             padding: 0; /* Padding sıfırlandı */
         }
 
+        
+
         .header-button {
             margin-left: 20px; /* Buton ile kullanıcı bilgisinin arasına boşluk ekleyebiliriz */
             padding: 10px 20px;
@@ -88,6 +90,12 @@
             border-radius: 5px;
             font-size: 14px;
             z-index: 10000;    /* Diğer öğelerin önünde görünsün */
+        }
+
+        #serverTime {
+            font-size: 14px;
+            color: gray;
+            margin-left: auto; /* Sağ tarafa hizala */
         }
 
         /* Sabit Tab Bar - Sekme başlıkları altta */
@@ -122,10 +130,16 @@
         }
 
         .modal-content {
-            background-color: white;
+            background-color: #fff;
+            margin: 10% auto; /* Ortalamak için */
             padding: 20px;
-            border-radius: 5px;
-            width: 1200px;
+            border: 1px solid #888;
+            width: 100%; /* Modal genişliği */
+            max-width: 700px; /* Maksimum genişlik */
+            height: 70%; /* Sabit yükseklik */
+            overflow: hidden; /* İçerik taşmasını gizle */
+            display: flex;
+            flex-direction: column;
         }
 
         .modal input {
@@ -187,6 +201,10 @@
             padding: 8px; /* İçerik aralığı */
             text-align: center; /* Ortala */
         }
+
+        
+
+
     </style>
 </head>
 <body>
@@ -194,18 +212,24 @@
  <!-- Çıkış Butonu -->
  <a href="/logout" class="logout">Çıkış Yap</a>
 
+
  <!-- Logo ve Kullanıcı Bilgileri -->
  <div class="header">
      <img src="/static/images/logo.png" alt="Logo" class="logo">
      <div class="user-info" data-user-id="{{ user_id }}">
          <h1>User Name: {{ user }}</h1>
+         
          <!--<p id="largestFile">Quotation Number: {{ largest_file }}</p>-->
          <p id="largestFile">{{ largest_file }}</p>
      </div>
      <button class="header-button" onclick="openModal()">Müşteri Bilgileri</button> <!-- Yeni Buton -->
-     <div id="selectedCustomer" style="margin-left: 20px; font-size: 14px;">
+
+     <div id="selectedCustomer" style="margin-left: 0px; font-size: 14px;">
          <!-- Seçilen müşteri bilgileri burada görünecek -->
      </div>
+     <span id="serverTime" style="display: block; margin-top: 10px; font-size: 14px; color: gray;">
+        <!-- Tarih burada gösterilecek -->
+    </span>
  </div>
 
  <!-- İçerik -->
@@ -641,9 +665,16 @@
         
         <div id="tab_proforma" class="tab-content active">
             <!-- <h2>Proforma</h2>-->
-            <h2 id="tableHeader">Quote list: Yükleniyor...</h2>
-            <p>Bu, PROFORMA.</p>
-            <button id="updateWidthBtn">Make Proforma</button>
+            <h2 id="tableHeader" style="display: flex; justify-content: space-between; align-items: center;">
+                <span>Quote list: Yükleniyor...</span>
+            </h2>
+            <div style="display: flex; gap: 100px; align-items: center; margin-top: 20px;">
+                <button id="updateWidthBtn">Make Proforma</button>
+                <button id="openProformaBtn" onclick="openProformaModal()">Open Proforma</button>
+                <label for="discountInput">Discount:</label>
+                <input type="number" id="discountInput" value="0" style="width: 60px;" min="0" max="100" step="1">
+            </div>
+
             <p id="statusMessage"></p>
         
             <!-- Quote List Table -->
@@ -723,6 +754,35 @@
         </div>
     </div>
 
+    <div class="modal" id="proformaModal">
+        <div class="modal-content">
+            <h2>Proforma Listesi</h2>
+            <input type="text" id="searchBox" placeholder="Proforma Arama..." onkeyup="searchProforma()">
+            
+            <!-- Kaydırılabilir tablo -->
+            <div class="scrollable-table">
+                <table id="proformaTable">
+                    <thead>
+                        <tr>
+                            <th>Quote Number</th>
+                            <th>User ID</th>
+                            <th>User Name</th>
+                            <th>Customer ID</th>
+                            <th>Customer Name</th>
+                            <th>Amount</th>
+                            <th>Created At</th> <!-- Yeni sütun -->
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Dinamik veri buraya gelir -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <button onclick="closeProformaModal()">Kapat</button>
+        </div>
+    </div>
+
     <!-- Sabit Tab Bar - Sekme Başlıkları altta -->
     <div class="tab-bar">
         <div class="tab active" onclick="openTab('tab_proforma')">Proforma</div>
@@ -735,7 +795,39 @@
         <div class="tab" onclick="openTab('tab_goruntule')">Goruntule</div>
     </div>
 
+
+    
+
     <script>
+
+let selectedCustomerID = null;
+let selectedCustomerName = null;
+let selectedQuoteNumber = null; // Seçili quote numarasını saklamak için global değişken
+
+function setCustomerInfo(customer) {
+    // Backend'e müşteri bilgilerini gönder
+    fetch('/set_customer', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            customer_id: customer[0],
+            customer_name: customer[1],
+        }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            console.log("Müşteri bilgileri başarıyla gönderildi.");
+        } else {
+            console.error("Müşteri bilgileri gönderilirken hata oluştu:", data.message);
+        }
+    })
+    .catch(error => {
+        console.error("Müşteri bilgileri gönderilirken hata oluştu:", error);
+    });
+}
         // Sekme açma fonksiyonu
         function openTab(tabId) {
             const contents = document.querySelectorAll('.tab-content');
@@ -1098,14 +1190,17 @@ async function showAddItemData() {
 // 3. Main fonksiyon: Sıralı çağırma ve loadQuoteList() çağrısı
 async function mainFunction() {
     console.log("mainFunction çalıştı");
-
     // islmdvm değerini kontrol et
     const response = await fetch('/check_islmdvm');
     const data = await response.json();
-    //if (data.status === 'busy') {
-    //    alert("İçeride kullanıcı var!");
-    //    return; // İşlemleri iptal et
-    //}
+
+        // Müşteri seçimi kontrolü
+    if (!selectedCustomerID) {
+    alert("Müşteri seçili değil! Lütfen bir müşteri seçin.");
+    // islmdvm değerini sıfırlamak için bir API çağrısı yap
+    await fetch('/reset_islmdvm', { method: 'POST' });
+    return; // İşlemleri sonlandır
+    }
 
     if (data.status === 'busy') {
     //alert("İçeride kullanıcı var!");
@@ -1114,14 +1209,12 @@ async function mainFunction() {
     document.getElementById('updateWidthBtn').click();
     return; // İşlemleri iptal et
     }
-
-
     // Eş zamanlı tıklamaları kontrol et
     //await checkConcurrentClicks();
-
     const nextNumber = await quotenumkont();
     if (!nextNumber) {
         console.error("quotenumkont işlemi başarısız. İşlem durduruldu.");
+        await fetch('/reset_islmdvm', { method: 'POST' });
         return; // İşlemi sonlandır
     }
 
@@ -1129,19 +1222,13 @@ async function mainFunction() {
     document.getElementById('largestFile').textContent = nextNumber
 
 
-    // Müşteri seçimi kontrolü
-    if (!selectedCustomerID) {
-    alert("Müşteri seçili değil! Lütfen bir müşteri seçin.");
-    // islmdvm değerini sıfırlamak için bir API çağrısı yap
-    await fetch('/reset_islmdvm', { method: 'POST' });
-    return; // İşlemleri sonlandır
-    }
 
     // 1. updateWidthData çağrısı
     const updateResult = await updateWidthData();
 
     if (!updateResult) {
         console.error('updateWidthData başarısız oldu. İşlem sonlandırıldı.');
+        await fetch('/reset_islmdvm', { method: 'POST' });
         return;
     }
 
@@ -1151,6 +1238,7 @@ async function mainFunction() {
         await showAddItemData(); // İşlemin tamamlanmasını bekle
     } catch (error) {
         console.error('showAddItemData başarısız oldu. İşlem sonlandırıldı.', error);
+        await fetch('/reset_islmdvm', { method: 'POST' });
         return;
     }
 
@@ -1160,7 +1248,35 @@ async function mainFunction() {
         await fetch('/reset_islmdvm', { method: 'POST' });
     } else {
         console.log("loadQuoteList fonksiyonu çağrılıyor.");
-        await loadQuoteList(); // İşlemin tamamlanmasını bekle
+
+    // 3. Kullanıcıdan indirim değerini al
+    const discountInput = document.getElementById('discountInput');
+    const dsc = parseFloat(discountInput.value) || 0; // Kullanıcının girdiği değeri al
+
+    // 4. apply_discount çağrısı
+        try {
+        const response = await fetch('/apply_discount', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ quote_number: nextNumber, dsc: dsc }) // dsc = 5
+        });
+
+        const result = await response.json();
+        if (result.status !== 'success') {
+            console.error('apply_discount başarısız oldu:', result.message);
+            return;
+        }
+        console.log(result.message);
+        } catch (error) {
+        console.error('apply_discount sırasında hata oluştu:', error);
+        return;
+        }
+
+        await loadQuoteList(nextNumber); // İşlemin tamamlanmasını bekle
+        await callPrepUpQt(nextNumber);
+        await saveUniteSelection(nextNumber);
         await fetch('/reset_islmdvm', { method: 'POST' });
     }
 }
@@ -1175,6 +1291,34 @@ document.getElementById('updateWidthBtn').addEventListener('click', mainFunction
 
 async function quotenumkont() {
     try {
+        // Proforma listesinden seçili bir quote olup olmadığını kontrol et
+        if (selectedQuoteNumber) {
+            console.log(`Seçili quote bulundu: ${selectedQuoteNumber}`);
+
+            // clear_list_table endpoint'ini çağır
+            const response = await fetch('/clear_list_table', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ db_name: selectedQuoteNumber }), // Veritabanı adını gönder
+            });
+
+            const data = await response.json();
+            if (data.status === 'success') {
+                console.log(data.message); // Başarı mesajını konsola yazdır
+            } else {
+                console.error('Tablo temizlenirken hata oluştu:', data.message);
+                alert(data.message); // Hata mesajını kullanıcıya göster
+                return null; // İşlemi sonlandır
+            }
+
+            return selectedQuoteNumber; // Seçili quote numarasını döndür
+        }
+
+        // Eğer seçili bir quote yoksa normal işlemlere devam et
+        console.log("Seçili quote bulunamadı, yeni numara hesaplanıyor...");
+
         // Sunucudan dosya listesini al
         const response = await fetch('/get_quote_files'); // quotes klasöründeki dosyaları döndüren bir endpoint
         if (!response.ok) {
@@ -1208,9 +1352,7 @@ async function quotenumkont() {
         // Bir fazlasını hesapla, sıfırları koruyarak
         const nextNumber = (BigInt(maxNumber) + 1n).toString().padStart(maxNumber.length, '0');
 
-        // Kullanıcıya göster
-        //////////////////////////////////////////alert(`Bir sonraki dosya numarası: ${nextNumber}`);
-
+        console.log(`Bir sonraki dosya numarası: ${nextNumber}`);
         return nextNumber; // Hesaplanan değeri döndür
     } catch (error) {
         console.error('Hata:', error);
@@ -1220,63 +1362,6 @@ async function quotenumkont() {
 }
 
 
-
-
-
-async function loadQuoteList() {
-    const largestFile = document.getElementById('largestFile').textContent;
-    const dbName = largestFile.replace('Quotation Number:', '').trim();
-
-    try {
-        const response = await fetch(`/get_quote_list?db_name=${dbName}`);
-
-        if (!response.ok) {
-            if (response.status === 404) {
-                alert('Dosya bulunamadı: ' + dbName);
-            }
-            throw new Error('Veri alınırken hata oluştu.');
-        }
-
-        const responseData = await response.json();
-        const { db_name, data } = responseData;
-
-        const tableHeader = document.getElementById('tableHeader');
-        tableHeader.textContent = `Quote list: ${db_name}`;
-
-        // Eğer data boşsa tabloyu temizleyip mesaj göster
-        if (!data || data.length === 0) {
-            const tableBody = document.getElementById('quoteListTable').querySelector('tbody');
-            tableBody.innerHTML = ''; // Tüm veriyi temizle
-            alert('Gösterilecek liste verisi bulunamadı.');
-            return;
-        }
-
-        // Sıralama ve tabloya yerleştirme
-        //data.sort((a, b) => a[3] - b[3]);
-
-        const tableBody = document.getElementById('quoteListTable').querySelector('tbody');
-        tableBody.innerHTML = '';
-
-        data.forEach(row => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${row[0]}</td>
-                <td>${row[1]}</td>
-                <td>${row[2]}</td>
-                <td>${row[3]}</td>
-                <td>${row[4]}</td>
-                <td>${row[5]}</td>
-                <td>${row[6]}</td>
-                <td>${row[7]}</td>
-                <td>${row[8]}</td>
-            `;
-            tableBody.appendChild(tr);
-        });
-    } catch (error) {
-        console.error('Hata:', error);
-        document.getElementById('statusMessage').textContent = 'Liste yüklenirken hata oluştu.';
-    }
-}
 
 document.addEventListener('DOMContentLoaded', function () {
         // Hedef değerler
@@ -1369,7 +1454,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    let selectedCustomerID = null;
+    //let selectedCustomerID = null;
 
 // Modal açma
 function openModal() {
@@ -1408,6 +1493,7 @@ function fetchCustomerData() {
 function selectCustomer(customer) {
     // Global değişkene müşteri ID'sini ata
     selectedCustomerID = customer[0];
+    selectedCustomerName = customer[1];
 
     // Seçilen müşteri bilgilerini ekrana yaz
     document.getElementById("selectedCustomer").innerHTML = `
@@ -1416,6 +1502,9 @@ function selectCustomer(customer) {
         <strong>Address:</strong> ${customer[3]} <br>
         <strong>Postcode:</strong> ${customer[4]}
     `;
+
+    // Backend'e müşteri bilgilerini gönder
+    setCustomerInfo(customer);
 
     // Modal'ı kapat
     closeModal();
@@ -1489,9 +1578,275 @@ async function checkConcurrentClicks() {
     }
 }
 
+function openProformaModal() {
+    const modal = document.getElementById('proformaModal');
+    modal.style.display = 'flex'; // Modalı görünür yap
+
+    // Proforma listesini yükle
+    fetch('/get_quotes')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+
+            // Tabloyu doldur
+            const tableBody = document.getElementById('proformaTable').querySelector('tbody');
+            tableBody.innerHTML = ''; // Önceki içeriği temizle
+
+            data.rows.forEach(row => {
+                const tr = document.createElement('tr');
+                row.forEach((cell, index) => {
+                    const td = document.createElement('td');
+                    td.textContent = cell;
+                    tr.appendChild(td);
+                });
+
+                // Satıra tıklama olayı ekle
+                tr.addEventListener('click', () => {
+                    const quoteNumber = row[0]; // Birinci sütundaki numarayı al
+                    selectedQuoteNumber = row[0]; // Birinci sütundaki quote numarasını al
+                    const dbName = `${quoteNumber}`; // Dosya adını oluştur  sondaki .db yi sil
+
+                    fetchCustomerDataByQuote(quoteNumber);
+                
+                    loadQuoteList(dbName); // get_quote_list'i çağır
+                    loadUniteSelection(dbName);
+                    closeProformaModal(); // Modalı kapat
+                });
+
+                tableBody.appendChild(tr);
+            });
+        })
+        .catch(error => {
+            console.error('Hata:', error);
+            alert('Proforma listesi yüklenirken bir hata oluştu.');
+        });
+}
+
+function closeProformaModal() {
+    const modal = document.getElementById('proformaModal');
+    modal.style.display = 'none'; // Modalı gizle
+}
+
+async function loadQuoteList(dbName) {
+    try {
+        const response = await fetch(`/get_quote_list?db_name=${dbName}`);
+
+        if (!response.ok) {
+            if (response.status === 404) {
+                alert('Dosya bulunamadı: ' + dbName);
+            }
+            throw new Error('Veri alınırken hata oluştu.');
+        }
+
+        const responseData = await response.json();
+        const { db_name, data } = responseData;
+
+        const tableHeader = document.getElementById('tableHeader');
+        tableHeader.textContent = `Quote list: ${db_name}`;
+
+        // Eğer data boşsa tabloyu temizleyip mesaj göster
+        if (!data || data.length === 0) {
+            const tableBody = document.getElementById('quoteListTable').querySelector('tbody');
+            tableBody.innerHTML = ''; // Tüm veriyi temizle
+            alert('Gösterilecek liste verisi bulunamadı.');
+            return;
+        }
+
+        // Tabloyu doldur
+        const tableBody = document.getElementById('quoteListTable').querySelector('tbody');
+        tableBody.innerHTML = '';
+
+        // Alt toplamları hesaplamak için bir nesne oluştur
+        const subtotals = {};
+        const rowsByUnitType = {}; // Her unit_type için satırları saklamak için
+
+        data.forEach((row, index) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${row[0]}</td>
+                <td>${row[1]}</td>
+                <td>${row[2]}</td>
+                <td>${row[3]}</td>
+                <td>${row[4]}</td>
+                <td>${row[5]}</td>
+                <td>${parseFloat(row[6]).toFixed(2)}</td>
+                <td>${parseFloat(row[7]).toFixed(2)}</td>
+                <td>${parseFloat(row[8]).toFixed(2)}</td>
+            `;
+            tableBody.appendChild(tr);
+
+            // Alt toplamları hesapla
+            const unitType = row[4]; // `unit_type` sütunu
+            const price = parseFloat(row[6]) || 0; // `price` sütunu
+            const dPrice = parseFloat(row[7]) || 0; // `d.price` sütunu
+            const amount = parseFloat(row[8]) || 0; // `amount` sütunu
+
+            if (!subtotals[unitType]) {
+                subtotals[unitType] = { price: 0, dPrice: 0, amount: 0 };
+                rowsByUnitType[unitType] = []; // Her unit_type için bir dizi oluştur
+            }
+
+            subtotals[unitType].price += price;
+            subtotals[unitType].dPrice += dPrice;
+            subtotals[unitType].amount += amount;
+            rowsByUnitType[unitType].push(tr); // Satırı ilgili unit_type dizisine ekle
+        });
+
+        // Alt toplamları ilgili `unit_type`'ın altına ekle
+        Object.keys(rowsByUnitType).forEach(unitType => {
+            const subtotalRow = document.createElement('tr');
+            subtotalRow.innerHTML = `
+                <td colspan="5" style="font-weight: bold; text-align: right;"> (${unitType}):</td>
+                <td></td>
+                <td style="font-weight: bold;">${subtotals[unitType].price.toFixed(2)}</td>
+                <td style="font-weight: bold;">${subtotals[unitType].dPrice.toFixed(2)}</td>
+                <td style="font-weight: bold;">${subtotals[unitType].amount.toFixed(2)}</td>
+            `;
+
+            // Alt toplam satırını ilgili `unit_type`'ın son satırının altına ekle
+            const lastRow = rowsByUnitType[unitType][rowsByUnitType[unitType].length - 1];
+            lastRow.after(subtotalRow);
+        });
+    } catch (error) {
+        console.error('Hata:', error);
+        document.getElementById('statusMessage').textContent = 'Liste yüklenirken hata oluştu.';
+    }
+}
+
+// Sayfa yüklendiğinde sunucudan tarih ve saat bilgisini çek
+document.addEventListener('DOMContentLoaded', fetchServerTime);
+
+async function saveUniteSelection(quoteNumber) {
+    const rows = Array.from(document.querySelectorAll('#tab_unite tbody tr'));
+    const selections = rows.map(row => {
+        const selects = Array.from(row.querySelectorAll('select'));
+        return selects.map(select => select.value || null); // Seçili değerleri al
+    });
+
+    try {
+        const response = await fetch('/save_unite_selection', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                quote_number: quoteNumber,
+                selections: selections,
+            }),
+        });
+
+        const data = await response.json();
+        if (data.status === 'success') {
+            console.log('Seçimler başarıyla kaydedildi.');
+        } else {
+            console.error('Seçimler kaydedilirken hata oluştu:', data.message);
+        }
+    } catch (error) {
+        console.error('Seçimler kaydedilirken hata oluştu:', error);
+    }
+}
 
 
+async function loadUniteSelection(quoteNumber) {
+    try {
+        const response = await fetch(`/load_unite_selection?quote_number=${quoteNumber}`);
+        const data = await response.json();
 
+        if (data.status === 'success') {
+            const selections = data.selections;
+            const rows = Array.from(document.querySelectorAll('#tab_unite tbody tr'));
+
+            rows.forEach((row, index) => {
+                const selects = Array.from(row.querySelectorAll('select'));
+                const selection = selections[index] || [];
+                selects.forEach((select, i) => {
+                    select.value = selection[i] || ''; // Seçimleri geri yükle
+                });
+
+                // Seçimler yüklendikten sonra hesaplama fonksiyonunu çağır
+                updateValueDisplay(index);
+            });
+
+            console.log('Seçimler başarıyla yüklendi.');
+        } else {
+            console.error('Seçimler yüklenirken hata oluştu:', data.message);
+        }
+    } catch (error) {
+        console.error('Seçimler yüklenirken hata oluştu:', error);
+    }
+}
+
+
+async function fetchCustomerDataByQuote(quoteNumber) {
+    try {
+        const response = await fetch(`/get_customer_by_quote?quote_number=${quoteNumber}`);
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            // Müşteri bilgilerini al
+            const customer = [
+                data.customer_id,    // ID
+                data.customer_name,  // Name
+                data.tel,            // Tel
+                data.address,        // Address
+                data.postcode        // Postcode
+            ];
+
+            // selectCustomer fonksiyonunu tetikle
+            selectCustomer(customer);
+        } else {
+            console.error('Müşteri bilgileri alınırken hata oluştu:', data.message);
+            alert(data.message); // Hata mesajını kullanıcıya göster
+        }
+    } catch (error) {
+        console.error('Müşteri bilgileri alınırken hata oluştu:', error);
+        alert('Müşteri bilgileri alınırken bir hata oluştu.');
+    }
+}
+
+
+async function callPrepUpQt(quoteNumber) {
+    try {
+        const response = await fetch('/prep_up_qt', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ quote_number: quoteNumber }),
+        });
+
+        const data = await response.json();
+        if (data.status === 'success') {
+            console.log(data.message);
+        } else {
+            console.error('prep_up_qt çağrılırken hata oluştu:', data.message);
+        }
+    } catch (error) {
+        console.error('prep_up_qt isteği sırasında hata oluştu:', error);
+    }
+}
+
+async function fetchServerTime() {
+    try {
+        const response = await fetch('/get_server_time'); // Sunucudan tarih ve saat bilgisini al
+        if (!response.ok) {
+            throw new Error('Sunucudan tarih ve saat alınamadı.');
+        }
+
+        const data = await response.json();
+        if (data.status === 'success') {
+            const serverTimeElement = document.getElementById('serverTime');
+            serverTimeElement.textContent = `Server Time: ${data.time}`; // Tarih ve saati göster
+        } else {
+            console.error('Tarih ve saat alınırken hata oluştu:', data.message);
+        }
+    } catch (error) {
+        console.error('Tarih ve saat alınırken hata oluştu:', error);
+    }
+}
 
     </script>
 
