@@ -9,6 +9,7 @@ from io import BytesIO
 import os
 import re
 from datetime import datetime
+import json
 
 app = Flask(__name__)
 
@@ -22,6 +23,25 @@ app.secret_key = 'colacola998346'  # Güvenli bir anahtar belirleyin
 # Yeni global değişkenler
 click_logs = []
 islmdvm = 0
+
+@app.route('/set_customer', methods=['POST'])
+def set_customer():
+    try:
+        data = request.get_json()
+        customer_id = data.get('customer_id')
+        customer_name = data.get('customer_name')
+
+        if not customer_id or not customer_name:
+            return jsonify({'status': 'error', 'message': 'Eksik müşteri bilgileri.'}), 400
+
+        # Müşteri bilgilerini oturumda sakla
+        session['customer_id'] = customer_id
+        session['customer_name'] = customer_name
+
+        return jsonify({'status': 'success', 'message': 'Müşteri bilgileri başarıyla kaydedildi.'})
+    except Exception as e:
+        print("Hata:", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # Yeni endpoint
 @app.route('/log_click', methods=['POST'])
@@ -59,8 +79,8 @@ def log_click():
 
 @app.route('/reset_islmdvm', methods=['POST'])
 def reset_islmdvm():
-    #global islmdvm
-    #islmdvm = 0  # islmdvm değerini sıfırla
+    global islmdvm
+    islmdvm = 0  # islmdvm değerini sıfırla
     return jsonify({'status': 'success', 'message': 'islmdvm sıfırlandı.'})
 
 @app.route('/check_islmdvm', methods=['GET'])
@@ -344,6 +364,12 @@ def update_width():
                 WHERE UNIT_ITEMS = 'Baseleg '
             ''', (base_shelf, unit_piece, unit_type, row_index))
 
+            cursor.execute('''
+            UPDATE wall_parca
+            SET ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 22
+            ''', (unit_piece, unit_type, row_index))
+
         elif unit_type == "Double Gondola":
 
             # 2. İlk "Metallic Shelf" için Width, Depth ve Adet güncellemeleri
@@ -461,11 +487,11 @@ def update_width():
             WHERE rowid = 19
             ''', (width, perf10 * unit_piece, unit_type, row_index))
 
-            cursor.execute('''
-            UPDATE wall_parca
-            SET ADET = ?, UNIT_TYPE = ?, SIRA = ?
-            WHERE rowid = 22
-            ''', (unit_piece, unit_type, row_index))
+            # cursor.execute('''
+            # UPDATE wall_parca
+            # SET ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            # WHERE rowid = 22
+            # ''', (unit_piece, unit_type, row_index))
 
         elif unit_type == "End / Double Gondola":
             # Case 2: End / Wall Unit işlemleri
@@ -600,12 +626,13 @@ def update_width():
             SET WIDTH = ?, HEIGHT = 10, ADET = ?, UNIT_TYPE = ?, SIRA = ?
             WHERE rowid = 19
             ''', (width, perf10 * unit_piece, unit_type, row_index))
-
-            cursor.execute('''
-            UPDATE wall_parca
-            SET ADET = ?, UNIT_TYPE = ?, SIRA = ?
-            WHERE rowid = 22
-            ''', (unit_piece, unit_type, row_index))
+            
+            # # wall fix
+            # cursor.execute('''  
+            # UPDATE wall_parca
+            # SET ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            # WHERE rowid = 22
+            # ''', (unit_piece, unit_type, row_index))
 
         elif unit_type == "End / Single Gondola":
             # Case 2: End / Wall Unit işlemleri
@@ -621,7 +648,7 @@ def update_width():
                 UPDATE wall_parca
                 SET depth = ?, adet = ?, UNIT_TYPE = ?, SIRA = ?
                 WHERE UNIT_ITEMS = 'Baseleg '
-            ''', (base_shelf, unit_piece * 2, unit_type, row_index))   
+            ''', (base_shelf, unit_piece , unit_type, row_index))   
 
         else:
             # Farklı bir değer geldiğinde hata döndür
@@ -686,16 +713,40 @@ def update_width():
         return jsonify({'message': f'Dönüşüm hatası: {str(e)}'}), 400
     #finally:
         #islmdvm = 0  # İşlem tamamlandığında değeri tekrar 0 yap
-    
+
+@app.route('/clear_list_table', methods=['POST'])
+def clear_list_table():
+    try:
+        # JSON verisini al
+        data = request.get_json()
+        db_name = data.get('db_name')  # Frontend'den gelen veritabanı adı
+
+        if not db_name:
+            return jsonify({'status': 'error', 'message': 'Eksik parametre: db_name'}), 400
+
+        # Veritabanı yolunu oluştur
+        db_path = os.path.join(QUOTE_DB_PATH, f"{db_name}.db")
+
+        # Veritabanına bağlan
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # `list` tablosunu temizle
+        cursor.execute('DELETE FROM list')
+        conn.commit()
+        conn.close()
+
+        return jsonify({'status': 'success', 'message': f'{db_name} veritabanındaki list tablosu temizlendi.'})
+    except Exception as e:
+        print("Hata (clear_list_table):", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 def create_quote_list(clean_string):
-    
     try:
         # Hedef dizin
         os.makedirs(QUOTE_DB_PATH, exist_ok=True)
         new_file_name = f"{clean_string}.db"
         new_db_path = os.path.join(QUOTE_DB_PATH, new_file_name)
-        # Yeni veritabanının tam yolu
-        #new_db_path = os.path.join(target_dir, new_file_name)
 
         # wall.db veritabanına bağlan
         conn = sqlite3.connect('wall.db')
@@ -707,14 +758,16 @@ def create_quote_list(clean_string):
         cursor_quote.execute('''
             CREATE TABLE IF NOT EXISTS list (
                 USER_ID INTEGER,
-                ITEM_ID INTEGER,               
+                ITEM_ID INTEGER,
                 ITEM_NAME TEXT,
                 ADET INTEGER,
                 UNIT_TYPE TEXT,
                 SIRA DECIMAL(10, 2),
                 PRICE DECIMAL(10, 2),
                 DSPRICE DECIMAL(10, 2),
-                AMOUNTH DECIMAL(10, 2)
+                AMOUNTH DECIMAL(10, 2),
+                DEPO DECIMAL(10, 2),
+                IMPORT DECIMAL(10, 2) -- Yeni kolon eklendi
             )
         ''')
 
@@ -726,28 +779,214 @@ def create_quote_list(clean_string):
         ''')
         rows = cursor.fetchall()
 
-               # Kullanıcı ID'sini oturumdan al
+        # Kullanıcı ve müşteri bilgilerini oturumdan al
         user_id = session.get('user_id', 0)  # Eğer oturumda user_id yoksa varsayılan olarak 0 kullanılır
 
-        # USER_ID'yi ekleyerek verileri düzenle
-        rows_with_user_id = [(user_id, *row) for row in rows]
+        # prc_tbl veritabanına bağlan
+        conn_prc = sqlite3.connect('prc_tbl.db')
+        cursor_prc = conn_prc.cursor()
 
-        # quote_list tablosuna ekle
+        # USER_ID'yi ekleyerek verileri düzenle
+        rows_with_user_id = []
+        for row in rows:
+            item_name, adet, unit_type, sira = row
+
+            # prc_tbl'deki name1 ile eşleşen satırı al (büyük/küçük harf ve boşlukları göz ardı ederek)
+            cursor_prc.execute('''
+                SELECT id, local, import
+                FROM prc_tbl
+                WHERE LOWER(REPLACE(name1, ' ', '')) = LOWER(REPLACE(?, ' ', ''))
+            ''', (item_name,))
+            prc_row = cursor_prc.fetchone()
+
+            if prc_row:
+                item_id, local_price, import_price = prc_row
+            else:
+                item_id, local_price, import_price = 0, 0.0, 0.0  # Eşleşme yoksa varsayılan değerler
+
+            # local_price = round(local_price, 2)  # Ensure 2 decimal places
+            local_price = float(f"{local_price:.2f}")
+            rows_with_user_id.append((user_id, item_id, item_name, adet, unit_type, sira, local_price, 0.00, 0.00, 0.00, import_price))
+
+        # list tablosuna ekle
         cursor_quote.executemany('''
-            INSERT INTO list (USER_ID, ITEM_ID, ITEM_NAME, ADET, UNIT_TYPE, SIRA, PRICE, DSPRICE, AMOUNTH)
-            VALUES (?, 0, ?, ?, ?, ?, 0.00, 0.00, 0.00)
+            INSERT INTO list (USER_ID, ITEM_ID, ITEM_NAME, ADET, UNIT_TYPE, SIRA, PRICE, DSPRICE, AMOUNTH, DEPO, IMPORT)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', rows_with_user_id)
-        # Değişiklikleri kaydet ve bağlantıyı kapat
+
+        # Değişiklikleri kaydet ve bağlantıları kapat
         conn_quote.commit()
         conn_quote.close()
         conn.close()
+        conn_prc.close()
 
-        print(f"Quote list database created successfully aloo: {new_db_path}")
+        print(f"Quote list database created successfully: {new_db_path}")
 
     except sqlite3.Error as e:
         print("Veritabanı hatası (create_quote_list):", str(e))
-    #finally:
-        #islmdvm = 0  # İşlem tamamlandığında değeri tekrar 0 yap
+    except Exception as e:
+        print("Beklenmeyen hata (create_quote_list):", str(e))
+
+@app.route('/run_fytlndr', methods=['POST'])
+def run_fytlndr():
+    return jsonify({'status': 'error', 'message': 'fytlndr fonksiyonu kaldırıldı.'}), 400
+
+@app.route('/apply_discount', methods=['POST'])
+def apply_discount():
+    try:
+        # JSON verisini al
+        data = request.get_json()
+        quote_number = data.get('quote_number')
+        dsc = data.get('dsc', 0)  # İndirim oranı (varsayılan %0)
+
+        if not quote_number:
+            return jsonify({'status': 'error', 'message': 'Eksik parametre: quote_number'}), 400
+
+        # Veritabanı yolunu oluştur
+        db_path = os.path.join(QUOTE_DB_PATH, f"{quote_number}.db")
+
+        # Veritabanına bağlan
+        if not os.path.exists(db_path):
+            return jsonify({'status': 'error', 'message': f'{quote_number} veritabanı bulunamadı.'}), 404
+
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # `list` tablosundaki verileri al
+        cursor.execute('SELECT ITEM_NAME, PRICE, ADET FROM list')
+        rows = cursor.fetchall()
+
+        # Her satır için `DSPRICE` ve `AMOUNTH` hesapla
+        updated_rows = []
+        for row in rows:
+            item_name, price, adet = row
+            price = price or 0  # Eğer `PRICE` None ise 0 olarak ele al
+            adet = adet or 0    # Eğer `ADET` None ise 0 olarak ele al
+
+            # DSPRICE ve AMOUNTH hesaplaması
+            dsprice = round(price * (1 - dsc / 100), 2)
+            amounth = round(adet * dsprice, 2)
+
+            updated_rows.append((dsprice, amounth, item_name))
+
+        # Güncellenmiş değerleri veritabanına yaz
+        cursor.executemany('''
+            UPDATE list
+            SET DSPRICE = ?, AMOUNTH = ?
+            WHERE ITEM_NAME = ?
+        ''', updated_rows)
+
+        # Değişiklikleri kaydet ve bağlantıyı kapat
+        conn.commit()
+        conn.close()
+
+        return jsonify({'status': 'success', 'message': f'{quote_number} için indirim uygulandı.'})
+    except sqlite3.Error as e:
+        print("Veritabanı hatası (apply_discount):", str(e))
+        return jsonify({'status': 'error', 'message': f'Veritabanı hatası: {str(e)}'}), 500
+    except Exception as e:
+        print("Beklenmeyen hata (apply_discount):", str(e))
+        return jsonify({'status': 'error', 'message': f'Beklenmeyen hata: {str(e)}'}), 500
+
+
+@app.route('/prep_up_qt', methods=['POST'])
+def call_prep_up_qt():
+    try:
+        # Frontend'den gelen JSON verisini al
+        data = request.get_json()
+        quote_number = data.get('quote_number')
+
+        if not quote_number:
+            return jsonify({'status': 'error', 'message': 'Eksik parametre: quote_number'}), 400
+
+        # prep_up_qt fonksiyonunu çağır
+        prep_up_qt(quote_number)
+
+        return jsonify({'status': 'success', 'message': f'{quote_number} için prep_up_qt çağrıldı.'})
+    except Exception as e:
+        print(f"prep_up_qt endpoint hatası: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+def prep_up_qt(clean_string):
+    try:
+        # Kullanıcı ve müşteri bilgilerini oturumdan al
+        user_id = session.get('user_id', 0)  # Eğer oturumda user_id yoksa varsayılan olarak 0 kullanılır
+        user_name = session.get('user', 'Unknown User')  # Kullanıcı adını oturumdan al
+        customer_id = session.get('customer_id', 0)  # Eğer oturumda customer_id yoksa varsayılan olarak 0 kullanılır
+        customer_name = session.get('customer_name', 'Unknown Customer')  # Müşteri adını oturumdan al
+
+        # `update_quotes_db` fonksiyonunu çağır
+        update_quotes_db(clean_string, user_id, user_name, customer_id, customer_name)
+
+        print(f"prep_up_qt: {clean_string} için update_quotes_db çağrıldı.")
+    except Exception as e:
+        print(f"prep_up_qt sırasında hata oluştu: {str(e)}")
+
+def update_quotes_db(clean_string, user_id, user_name, customer_id, customer_name):
+    try:
+        # quotes.db dosyasının yolunu belirleyin
+        quotes_db_path = os.path.join(BASE_DIR, "quotes.db")
+
+        # quotes.db veritabanını oluştur veya aç
+        conn_quotes = sqlite3.connect(quotes_db_path)
+        cursor_quotes = conn_quotes.cursor()
+
+        # quotes tablosunu oluştur (eğer yoksa)
+        cursor_quotes.execute('''
+            CREATE TABLE IF NOT EXISTS quotes (
+                Quote_number TEXT NOT NULL,  -- 00000001 gibi numaraları tutar
+                User_id INTEGER NOT NULL,    -- Kullanıcı ID'si
+                User_name TEXT NOT NULL,     -- Kullanıcı adı
+                Customer_id INTEGER,         -- Müşteri ID'si
+                Customer_name TEXT,          -- Müşteri adı
+                Amount DECIMAL(10, 2) NOT NULL, -- Toplam tutar
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- Kayıt tarihi ve saati
+            )
+        ''')
+
+        # Oluşturulan veritabanının yolunu belirleyin
+        new_db_path = os.path.join(QUOTE_DB_PATH, f"{clean_string}.db")
+
+        # Oluşturulan veritabanına bağlan
+        conn_new_db = sqlite3.connect(new_db_path)
+        cursor_new_db = conn_new_db.cursor()
+
+        # Amount sütunundaki değerlerin toplamını hesapla
+        cursor_new_db.execute('SELECT SUM(AMOUNTH) FROM list')
+        total_amount = cursor_new_db.fetchone()[0] or 0.0  # Eğer sonuç None ise 0.0 olarak ayarla
+
+        # Sunucunun tarih ve saatini al
+        current_time1 = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        # `Quote_number` zaten var mı kontrol et
+        cursor_quotes.execute('SELECT COUNT(*) FROM quotes WHERE Quote_number = ?', (clean_string,))
+        quote_exists = cursor_quotes.fetchone()[0] > 0
+
+        if quote_exists:
+            # Eğer `Quote_number` zaten varsa, satırı güncelle
+            cursor_quotes.execute('''
+                UPDATE quotes
+                SET User_id = ?, User_name = ?, Customer_id = ?, Customer_name = ?, Amount = ?, created_at = ?
+                WHERE Quote_number = ?
+            ''', (user_id, user_name, customer_id, customer_name, total_amount, current_time1, clean_string))
+            print(f"Quotes database updated for existing Quote_number: {clean_string}")
+        else:
+            # Eğer `Quote_number` yoksa, yeni bir satır ekle
+            cursor_quotes.execute('''
+                INSERT INTO quotes (Quote_number, User_id, User_name, Customer_id, Customer_name, Amount, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (clean_string, user_id, user_name, customer_id, customer_name, total_amount, current_time1))
+            print(f"Quotes database inserted new Quote_number: {clean_string}")
+
+        # Değişiklikleri kaydet ve bağlantıları kapat
+        conn_quotes.commit()
+        conn_new_db.close()
+        conn_quotes.close()
+
+    except sqlite3.Error as e:
+        print("Veritabanı hatası (update_quotes_db):", str(e))
+    except Exception as e:
+        print("Beklenmeyen hata (update_quotes_db):", str(e))
 
 def get_data_from_db():
     # SQLite veritabanına bağlan
@@ -777,7 +1016,32 @@ def get_data_from_db():
     return data  # Verileri döndür
 
 
+@app.route('/get_quotes', methods=['GET'])
+def get_quotes():
+    try:
+        # quotes.db veritabanına bağlan
+        quotes_db_path = os.path.join(BASE_DIR, "quotes.db")
+        conn = sqlite3.connect(quotes_db_path)
+        cursor = conn.cursor()
 
+        # quotes tablosundaki tüm verileri al
+        cursor.execute('SELECT * FROM quotes')
+        rows = cursor.fetchall()
+
+        # Sütun adlarını al
+        cursor.execute('PRAGMA table_info(quotes)')
+        columns = [col[1] for col in cursor.fetchall()]
+
+        conn.close()
+
+        # Verileri JSON formatında döndür
+        return jsonify({'columns': columns, 'rows': rows})
+    except sqlite3.Error as e:
+        print("Veritabanı hatası:", str(e))
+        return jsonify({'error': f'Hata: {str(e)}'}), 500
+    except Exception as e:
+        print("Beklenmeyen hata:", str(e))
+        return jsonify({'error': f'Beklenmeyen hata: {str(e)}'}), 500
 
 @app.route('/get_quote_list', methods=['GET'])
 def get_quote_list():
@@ -811,6 +1075,15 @@ def get_quote_list():
         # Bağlantıyı kapat
         conn.close()
 
+        # Kullanıcı ve müşteri bilgilerini oturumdan al
+        user_id = session.get('user_id', 0)  # Eğer oturumda user_id yoksa varsayılan olarak 0 kullanılır
+        user_name = session.get('user', 'Unknown User')  # Kullanıcı adını oturumdan al
+        customer_id = session.get('customer_id', 0)  # Eğer oturumda customer_id yoksa varsayılan olarak 0 kullanılır
+        customer_name = session.get('customer_name', 'Unknown Customer')  # Müşteri adını oturumdan al
+
+        # `update_quotes_db` fonksiyonunu çağır
+        # update_quotes_db(db_name.replace('.db', ''), user_id, user_name, customer_id, customer_name)
+
         # Veriyi JSON formatında döndür
         return jsonify({'db_name': db_name, 'data': rows})
 
@@ -821,7 +1094,6 @@ def get_quote_list():
         print("Beklenmeyen hata:", str(e))
         return jsonify({'message': f'Beklenmeyen hata: {str(e)}'}), 500
     finally:
-        #global islmdvm
         islmdvm = 0  # get_quote_list işlemi bittiğinde değeri tekrar 0 yap
 
 
@@ -921,10 +1193,160 @@ def fetch_customers():
 def get_quote_files():
     quotes_dir = './quotes'  # Quotes klasörünün yolu
     try:
-        files = [f for f in os.listdir(quotes_dir) if f.endswith('.db')]  # .db dosyalarını seç
-        return jsonify(files)  # Dosya listesini döndür
+        # .db uzantılı dosyaları seç
+        files = [f for f in os.listdir(quotes_dir) if f.endswith('.db')]
+
+        # Eğer hiç dosya yoksa "00000000.db" döndür
+        if not files:
+            return jsonify(["00000000.db"])
+
+        # Dosya listesini döndür
+        return jsonify(files)
     except Exception as e:
+        # Hata durumunda hata mesajını döndür
         return jsonify({'error': str(e)}), 500
+    
+@app.route('/get_server_time', methods=['GET'])
+def get_server_time():
+    try:
+        # Sunucunun tarih ve saatini al
+        # current_time = datetime.now().strftime('%d-%m-%Y')
+        # current_dtime = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
+        current_time = datetime.now().strftime('%d-%m-%y %H:%M:%S')
+        return jsonify({'status': 'success', 'server_time': current_time})
+    except Exception as e:
+        print("Hata:", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500  
+      
+
+@app.route('/save_unite_selection', methods=['POST'])
+def save_unite_selection():
+    try:
+        data = request.get_json()
+        quote_number = data.get('quote_number')
+        selections = data.get('selections')  # Unite sayfasındaki seçimler
+
+        if not quote_number or not selections:
+            return jsonify({'status': 'error', 'message': 'Eksik parametreler.'}), 400
+
+        # Veritabanına bağlan
+        db_path = os.path.join(BASE_DIR, "unite_selections.db")
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Tabloyu oluştur (eğer yoksa)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS unite_selections (
+                Quote_number TEXT NOT NULL,
+                Row_index INTEGER NOT NULL,
+                Selection_data TEXT NOT NULL,
+                PRIMARY KEY (Quote_number, Row_index)
+            )
+        ''')
+
+        # Eski kayıtları sil
+        cursor.execute('DELETE FROM unite_selections WHERE Quote_number = ?', (quote_number,))
+
+        # Yeni seçimleri ekle
+        for row_index, selection in enumerate(selections):
+            cursor.execute('''
+                INSERT INTO unite_selections (Quote_number, Row_index, Selection_data)
+                VALUES (?, ?, ?)
+            ''', (quote_number, row_index, json.dumps(selection)))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'status': 'success', 'message': 'Seçimler kaydedildi.'})
+    except Exception as e:
+        print("Hata (save_unite_selection):", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    
+@app.route('/load_unite_selection', methods=['GET'])
+def load_unite_selection():
+    try:
+        quote_number = request.args.get('quote_number')
+
+        if not quote_number:
+            return jsonify({'status': 'error', 'message': 'Eksik parametreler.'}), 400
+
+        # Veritabanına bağlan
+        db_path = os.path.join(BASE_DIR, "unite_selections.db")
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Seçimleri al
+        cursor.execute('SELECT Row_index, Selection_data FROM unite_selections WHERE Quote_number = ?', (quote_number,))
+        rows = cursor.fetchall()
+
+        conn.close()
+
+        # Seçimleri JSON formatında döndür
+        selections = {row[0]: json.loads(row[1]) for row in rows}
+        return jsonify({'status': 'success', 'selections': selections})
+    except Exception as e:
+        print("Hata (load_unite_selection):", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500  
+
+
+@app.route('/get_customer_by_quote', methods=['GET'])
+def get_customer_by_quote():
+    try:
+        quote_number = request.args.get('quote_number')
+
+        if not quote_number:
+            return jsonify({'status': 'error', 'message': 'Eksik parametre: quote_number'}), 400
+
+        # quotes.db veritabanına bağlan
+        quotes_db_path = os.path.join(BASE_DIR, "quotes.db")
+        conn_quotes = sqlite3.connect(quotes_db_path)
+        cursor_quotes = conn_quotes.cursor()
+
+        # Quote'a ait Customer ID'yi al
+        cursor_quotes.execute('''
+            SELECT Customer_id
+            FROM quotes
+            WHERE Quote_number = ?
+        ''', (quote_number,))
+        customer_id_row = cursor_quotes.fetchone()
+        conn_quotes.close()
+
+        if not customer_id_row:
+            return jsonify({'status': 'error', 'message': f'Quote_number {quote_number} ile ilişkili müşteri bulunamadı.'}), 404
+
+        # Customer ID'yi 7 karakter uzunluğunda sıfırlarla doldur
+        customer_id = str(customer_id_row[0]).zfill(7)
+
+        # customers.db veritabanına bağlan
+        customers_db_path = os.path.join(BASE_DIR, "customers.db")
+        conn_customers = sqlite3.connect(customers_db_path)
+        cursor_customers = conn_customers.cursor()
+
+        # Customer ID'ye göre müşteri bilgilerini al
+        cursor_customers.execute('''
+            SELECT id, customer_name, tel, address, postcode
+            FROM customers
+            WHERE id = ?
+        ''', (customer_id,))
+        customer = cursor_customers.fetchone()
+        conn_customers.close()
+
+        if not customer:
+            return jsonify({'status': 'error', 'message': f'Customer_id {customer_id} ile ilişkili müşteri bulunamadı.'}), 404
+
+        # Müşteri bilgilerini JSON formatında döndür
+        return jsonify({
+            'status': 'success',
+            'customer_id': customer[0],
+            'customer_name': customer[1],
+            'tel': customer[2],
+            'address': customer[3],
+            'postcode': customer[4]
+        })
+    except Exception as e:
+        print("Hata (get_customer_by_quote):", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True)
