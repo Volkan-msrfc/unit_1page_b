@@ -1075,6 +1075,10 @@ def get_quote_list():
         # Bağlantıyı kapat
         conn.close()
 
+        print(f"db_name: {db_name}")  # db_name'i konsola yazdır
+
+        print(f"data: {rows}")  # data'yı (rows) konsola yazdır
+
         # Kullanıcı ve müşteri bilgilerini oturumdan al
         user_id = session.get('user_id', 0)  # Eğer oturumda user_id yoksa varsayılan olarak 0 kullanılır
         user_name = session.get('user', 'Unknown User')  # Kullanıcı adını oturumdan al
@@ -1094,6 +1098,7 @@ def get_quote_list():
         print("Beklenmeyen hata:", str(e))
         return jsonify({'message': f'Beklenmeyen hata: {str(e)}'}), 500
     finally:
+        print("GET_quote bitti:")
         islmdvm = 0  # get_quote_list işlemi bittiğinde değeri tekrar 0 yap
 
 
