@@ -806,7 +806,7 @@ def create_quote_list(clean_string):
 
             # local_price = round(local_price, 2)  # Ensure 2 decimal places
             local_price = float(f"{local_price:.2f}")
-            rows_with_user_id.append((user_id, item_id, item_name, adet, unit_type, sira, local_price, 1.00, 1.00, 1.00, 1.00))
+            rows_with_user_id.append((user_id, item_id, item_name, adet, unit_type, sira, local_price, 0.00, 0.00, 0.00, import_price))
 
         # list tablosuna ekle
         cursor_quote.executemany('''
@@ -1075,10 +1075,6 @@ def get_quote_list():
         # Bağlantıyı kapat
         conn.close()
 
-        print(f"db_name: {db_name}")  # db_name'i konsola yazdır
-
-        print(f"data: {rows}")  # data'yı (rows) konsola yazdır
-
         # Kullanıcı ve müşteri bilgilerini oturumdan al
         user_id = session.get('user_id', 0)  # Eğer oturumda user_id yoksa varsayılan olarak 0 kullanılır
         user_name = session.get('user', 'Unknown User')  # Kullanıcı adını oturumdan al
@@ -1098,7 +1094,6 @@ def get_quote_list():
         print("Beklenmeyen hata:", str(e))
         return jsonify({'message': f'Beklenmeyen hata: {str(e)}'}), 500
     finally:
-        print("GET_quote bitti:")
         islmdvm = 0  # get_quote_list işlemi bittiğinde değeri tekrar 0 yap
 
 
