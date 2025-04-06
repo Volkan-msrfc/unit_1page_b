@@ -1259,26 +1259,26 @@ async function mainFunction() {
     const discountInput = document.getElementById('discountInput');
     const dsc = parseFloat(discountInput.value) || 0; // Kullanıcının girdiği değeri al
 
-    // 4. apply_discount çağrısı
-        try {
-        const response = await fetch('/apply_discount', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ quote_number: nextNumber, dsc: dsc }) // dsc = 5
-        });
+    // // 4. apply_discount çağrısı
+    //     try {
+    //     const response = await fetch('/apply_discount', {
+    //         method: 'POST',
+    //         headers: {
+    //             'Content-Type': 'application/json',
+    //         },
+    //         body: JSON.stringify({ quote_number: nextNumber, dsc: dsc }) // dsc = 5
+    //     });
 
-        const result = await response.json();
-        if (result.status !== 'success') {
-            console.error('apply_discount başarısız oldu:', result.message);
-            return;
-        }
-        console.log(result.message);
-        } catch (error) {
-        console.error('apply_discount sırasında hata oluştu:', error);
-        return;
-        }
+    //     const result = await response.json();
+    //     if (result.status !== 'success') {
+    //         console.error('apply_discount başarısız oldu:', result.message);
+    //         return;
+    //     }
+    //     console.log(result.message);
+    //     } catch (error) {
+    //     console.error('apply_discount sırasında hata oluştu:', error);
+    //     return;
+    //     }
 
         await loadQuoteList(nextNumber); // İşlemin tamamlanmasını bekle
         await callPrepUpQt(nextNumber);
