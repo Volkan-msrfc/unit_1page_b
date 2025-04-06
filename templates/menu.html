@@ -804,12 +804,6 @@ let selectedCustomerID = null;
 let selectedCustomerName = null;
 let selectedQuoteNumber = null; // Seçili quote numarasını saklamak için global değişken
 
-// Global environment check
-const isLocal = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
-const apiBaseUrl = isLocal
-    ? 'http://127.0.0.1:5000' // Local development environment
-    : window.location.origin; // Server environment
-
 function setCustomerInfo(customer) {
     // Backend'e müşteri bilgilerini gönder
     fetch('/set_customer', {
@@ -1164,11 +1158,11 @@ async function showAddItemData() {
     // API'ye POST isteği gönder
     try {
         // Yerel veya sunucu ortamına göre API taban URL'sini ayarla
-    //const isLocal = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
+    const isLocal = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
 
-    //const apiBaseUrl = isLocal
-    //    ? 'http://127.0.0.1:5000' // Yerel geliştirme ortamı için
-    //    : window.location.origin; // Render.com veya herhangi bir sunucu ortamı için
+    const apiBaseUrl = isLocal
+        ? 'http://127.0.0.1:5000' // Yerel geliştirme ortamı için
+        : window.location.origin; // Render.com veya herhangi bir sunucu ortamı için
 
     // API çağrısı
     const response = await fetch(`${apiBaseUrl}/add_item_data`, {
@@ -1259,26 +1253,26 @@ async function mainFunction() {
     const discountInput = document.getElementById('discountInput');
     const dsc = parseFloat(discountInput.value) || 0; // Kullanıcının girdiği değeri al
 
-    // // 4. apply_discount çağrısı
-    //     try {
-    //     const response = await fetch('/apply_discount', {
-    //         method: 'POST',
-    //         headers: {
-    //             'Content-Type': 'application/json',
-    //         },
-    //         body: JSON.stringify({ quote_number: nextNumber, dsc: dsc }) // dsc = 5
-    //     });
+    // 4. apply_discount çağrısı
+        try {
+        const response = await fetch('/apply_discount', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ quote_number: nextNumber, dsc: dsc }) // dsc = 5
+        });
 
-    //     const result = await response.json();
-    //     if (result.status !== 'success') {
-    //         console.error('apply_discount başarısız oldu:', result.message);
-    //         return;
-    //     }
-    //     console.log(result.message);
-    //     } catch (error) {
-    //     console.error('apply_discount sırasında hata oluştu:', error);
-    //     return;
-    //     }
+        const result = await response.json();
+        if (result.status !== 'success') {
+            console.error('apply_discount başarısız oldu:', result.message);
+            return;
+        }
+        console.log(result.message);
+        } catch (error) {
+        console.error('apply_discount sırasında hata oluştu:', error);
+        return;
+        }
 
         await loadQuoteList(nextNumber); // İşlemin tamamlanmasını bekle
         await callPrepUpQt(nextNumber);
@@ -1638,7 +1632,7 @@ function closeProformaModal() {
 
 async function loadQuoteList(dbName) {
     try {
-        const response = await fetch(`${apiBaseUrl}/get_quote_list?db_name=${dbName}`);
+        const response = await fetch(`/get_quote_list?db_name=${dbName}`);
 
         if (!response.ok) {
             if (response.status === 404) {
@@ -1733,7 +1727,7 @@ async function saveUniteSelection(quoteNumber) {
     });
 
     try {
-        const response = await fetch(`${apiBaseUrl}/save_unite_selection`, {
+        const response = await fetch('/save_unite_selection', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1758,7 +1752,7 @@ async function saveUniteSelection(quoteNumber) {
 
 async function loadUniteSelection(quoteNumber) {
     try {
-        const response = await fetch(`${apiBaseUrl}/load_unite_selection?quote_number=${quoteNumber}`);
+        const response = await fetch(`/load_unite_selection?quote_number=${quoteNumber}`);
         const data = await response.json();
 
         if (data.status === 'success') {
