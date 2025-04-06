@@ -806,7 +806,7 @@ def create_quote_list(clean_string):
 
             # local_price = round(local_price, 2)  # Ensure 2 decimal places
             local_price = float(f"{local_price:.2f}")
-            rows_with_user_id.append((user_id, item_id, item_name, adet, unit_type, sira, local_price, 0.00, 0.00, 0.00, import_price))
+            rows_with_user_id.append((user_id, item_id, item_name, adet, unit_type, sira, local_price, 1.00, 1.00, 1.00, 1.00))
 
         # list tablosuna ekle
         cursor_quote.executemany('''
