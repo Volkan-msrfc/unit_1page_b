@@ -853,13 +853,13 @@ def apply_discount():
         cursor = conn.cursor()
 
         # `list` tablosundaki verileri al
-        cursor.execute('SELECT ITEM_NAME, PRICE, ADET FROM list')
+        cursor.execute('SELECT PRICE, ADET FROM list')
         rows = cursor.fetchall()
 
         # Her satır için `DSPRICE` ve `AMOUNTH` hesapla
         updated_rows = []
         for row in rows:
-            item_name, price, adet = row
+            price, adet = row
             price = price or 0  # Eğer `PRICE` None ise 0 olarak ele al
             adet = adet or 0    # Eğer `ADET` None ise 0 olarak ele al
 
@@ -867,14 +867,14 @@ def apply_discount():
             dsprice = round(price * (1 - dsc / 100), 2)
             amounth = round(adet * dsprice, 2)
 
-            updated_rows.append((dsprice, amounth, item_name))
+            updated_rows.append((dsprice, amounth))
 
         # Güncellenmiş değerleri veritabanına yaz
         cursor.executemany('''
             UPDATE list
             SET DSPRICE = ?, AMOUNTH = ?
-            WHERE ITEM_NAME = ?
-        ''', updated_rows)
+            WHERE PRICE = ? AND ADET = ?
+        ''', [(row[0], row[1], rows[i][0], rows[i][1]) for i, row in enumerate(updated_rows)])
 
         # Değişiklikleri kaydet ve bağlantıyı kapat
         conn.commit()
@@ -1167,6 +1167,35 @@ def add_item_data():
 
             ''', (user_id, item_name, qty, sr, price, dsprice, qty*dsprice))      #, price, dsprice))
 
+            # Seçimleri unite_selections.db'ye kaydet
+            db_path = os.path.join(BASE_DIR, "unite_selections.db")
+            conn_selections = sqlite3.connect(db_path)
+            cursor_selections = conn_selections.cursor()
+
+            # Tabloyu oluştur (eğer yoksa)
+            cursor_selections.execute('''
+                CREATE TABLE IF NOT EXISTS unite_selections (
+                    Quote_number TEXT NOT NULL,
+                    Row_index INTEGER NOT NULL,
+                    Selection_data TEXT NOT NULL,
+                    PRIMARY KEY (Quote_number, Row_index)
+                )
+            ''')
+
+            # Seçimi kaydet
+            selection_data = {
+                "item_name": item_name,
+                "qty": qty,
+                "price": price,
+                "dsprice": dsprice
+            }
+            cursor_selections.execute('''
+                INSERT INTO unite_selections (Quote_number, Row_index, Selection_data)
+                VALUES (?, ?, ?)
+            ''', (largest_file, sr, json.dumps(selection_data)))
+
+            conn_selections.commit()
+            conn_selections.close()
 
         # Değişiklikleri kaydet ve bağlantıyı kapat
         conn_quote.commit()
