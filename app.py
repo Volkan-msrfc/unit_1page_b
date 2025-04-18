@@ -10,6 +10,7 @@ import os
 import re
 from datetime import datetime
 import json
+import math
 
 app = Flask(__name__)
 
@@ -853,28 +854,33 @@ def apply_discount():
         cursor = conn.cursor()
 
         # `list` tablosundaki verileri al
-        cursor.execute('SELECT PRICE, ADET FROM list')
+        cursor.execute('SELECT PRICE, ADET, SIRA, DSPRICE FROM list')
         rows = cursor.fetchall()
 
-        # Her satır için `DSPRICE` ve `AMOUNTH` hesapla
         updated_rows = []
         for row in rows:
-            price, adet = row
-            price = price or 0  # Eğer `PRICE` None ise 0 olarak ele al
-            adet = adet or 0    # Eğer `ADET` None ise 0 olarak ele al
+            price, adet, sira, dsprice = row
+            price = price or 0
+            adet = adet or 0
 
-            # DSPRICE ve AMOUNTH hesaplaması
-            dsprice = round(price * (1 - dsc / 100), 2)
-            amounth = round(adet * dsprice, 2)
+            # Sıra numarası 1 ile başlıyorsa indirim uygula
+            if str(sira).startswith('1'):
+                new_dsprice = round(price * (1 - dsc / 100), 2)
+            else:
+                new_dsprice = dsprice  # İndirim uygulanmaz
 
-            updated_rows.append((dsprice, amounth))
+            amounth = round(adet * new_dsprice, 2)
 
-        # Güncellenmiş değerleri veritabanına yaz
+            # Değiştirilen değerleri yazdır
+            # print(f"SIRA: {sira}, PRICE: {price}, ADET: {adet}, DSPRICE: {new_dsprice}, AMOUNTH: {amounth}")
+
+            updated_rows.append((new_dsprice, amounth, price, adet, sira))
+
         cursor.executemany('''
             UPDATE list
             SET DSPRICE = ?, AMOUNTH = ?
-            WHERE PRICE = ? AND ADET = ?
-        ''', [(row[0], row[1], rows[i][0], rows[i][1]) for i, row in enumerate(updated_rows)])
+            WHERE PRICE = ? AND ADET = ? AND SIRA = ?
+        ''', updated_rows)
 
         # Değişiklikleri kaydet ve bağlantıyı kapat
         conn.commit()
@@ -895,34 +901,36 @@ def call_prep_up_qt():
         # Frontend'den gelen JSON verisini al
         data = request.get_json()
         quote_number = data.get('quote_number')
-
+        dsc = data.get('dsc', 0)
         if not quote_number:
             return jsonify({'status': 'error', 'message': 'Eksik parametre: quote_number'}), 400
 
         # prep_up_qt fonksiyonunu çağır
-        prep_up_qt(quote_number)
+        # print(f"dsc değeri1: {dsc}")  # dsc değerini konsola yazdır
+        prep_up_qt(quote_number,dsc)
 
         return jsonify({'status': 'success', 'message': f'{quote_number} için prep_up_qt çağrıldı.'})
     except Exception as e:
         print(f"prep_up_qt endpoint hatası: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-def prep_up_qt(clean_string):
+def prep_up_qt(clean_string,dsc):
     try:
         # Kullanıcı ve müşteri bilgilerini oturumdan al
         user_id = session.get('user_id', 0)  # Eğer oturumda user_id yoksa varsayılan olarak 0 kullanılır
         user_name = session.get('user', 'Unknown User')  # Kullanıcı adını oturumdan al
         customer_id = session.get('customer_id', 0)  # Eğer oturumda customer_id yoksa varsayılan olarak 0 kullanılır
         customer_name = session.get('customer_name', 'Unknown Customer')  # Müşteri adını oturumdan al
+        # Proforma sayfasındaki dsc değerini al
 
         # `update_quotes_db` fonksiyonunu çağır
-        update_quotes_db(clean_string, user_id, user_name, customer_id, customer_name)
+        update_quotes_db(clean_string, user_id, user_name, customer_id, customer_name, dsc)
 
         print(f"prep_up_qt: {clean_string} için update_quotes_db çağrıldı.")
     except Exception as e:
         print(f"prep_up_qt sırasında hata oluştu: {str(e)}")
 
-def update_quotes_db(clean_string, user_id, user_name, customer_id, customer_name):
+def update_quotes_db(clean_string, user_id, user_name, customer_id, customer_name, dsc):
     try:
         # quotes.db dosyasının yolunu belirleyin
         quotes_db_path = os.path.join(BASE_DIR, "quotes.db")
@@ -939,7 +947,10 @@ def update_quotes_db(clean_string, user_id, user_name, customer_id, customer_nam
                 User_name TEXT NOT NULL,     -- Kullanıcı adı
                 Customer_id INTEGER,         -- Müşteri ID'si
                 Customer_name TEXT,          -- Müşteri adı
+                Discount DECIMAL(10, 2),     -- İndirim oranı
                 Amount DECIMAL(10, 2) NOT NULL, -- Toplam tutar
+                Sold TEXT,                    -- Satış durumu (1 harf)
+                Inv TEXT,                    -- Fatura durumu (1 harf)
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- Kayıt tarihi ve saati
             )
         ''')
@@ -966,16 +977,16 @@ def update_quotes_db(clean_string, user_id, user_name, customer_id, customer_nam
             # Eğer `Quote_number` zaten varsa, satırı güncelle
             cursor_quotes.execute('''
                 UPDATE quotes
-                SET User_id = ?, User_name = ?, Customer_id = ?, Customer_name = ?, Amount = ?, created_at = ?
+                SET User_id = ?, User_name = ?, Customer_id = ?, Customer_name = ?, Discount = ?, Amount = ?, Sold = ?, Inv = ?, created_at = ?
                 WHERE Quote_number = ?
-            ''', (user_id, user_name, customer_id, customer_name, total_amount, current_time1, clean_string))
+            ''', (user_id, user_name, customer_id, customer_name, dsc, total_amount, '', '', current_time1, clean_string))
             print(f"Quotes database updated for existing Quote_number: {clean_string}")
         else:
             # Eğer `Quote_number` yoksa, yeni bir satır ekle
             cursor_quotes.execute('''
-                INSERT INTO quotes (Quote_number, User_id, User_name, Customer_id, Customer_name, Amount, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (clean_string, user_id, user_name, customer_id, customer_name, total_amount, current_time1))
+                INSERT INTO quotes (Quote_number, User_id, User_name, Customer_id, Customer_name, Discount, Amount, Sold, Inv, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (clean_string, user_id, user_name, customer_id, customer_name, dsc, total_amount, '', '', current_time1))
             print(f"Quotes database inserted new Quote_number: {clean_string}")
 
         # Değişiklikleri kaydet ve bağlantıları kapat
@@ -1167,35 +1178,7 @@ def add_item_data():
 
             ''', (user_id, item_name, qty, sr, price, dsprice, qty*dsprice))      #, price, dsprice))
 
-            # Seçimleri unite_selections.db'ye kaydet
-            db_path = os.path.join(BASE_DIR, "unite_selections.db")
-            conn_selections = sqlite3.connect(db_path)
-            cursor_selections = conn_selections.cursor()
-
-            # Tabloyu oluştur (eğer yoksa)
-            cursor_selections.execute('''
-                CREATE TABLE IF NOT EXISTS unite_selections (
-                    Quote_number TEXT NOT NULL,
-                    Row_index INTEGER NOT NULL,
-                    Selection_data TEXT NOT NULL,
-                    PRIMARY KEY (Quote_number, Row_index)
-                )
-            ''')
-
-            # Seçimi kaydet
-            selection_data = {
-                "item_name": item_name,
-                "qty": qty,
-                "price": price,
-                "dsprice": dsprice
-            }
-            cursor_selections.execute('''
-                INSERT INTO unite_selections (Quote_number, Row_index, Selection_data)
-                VALUES (?, ?, ?)
-            ''', (largest_file, sr, json.dumps(selection_data)))
-
-            conn_selections.commit()
-            conn_selections.close()
+         
 
         # Değişiklikleri kaydet ve bağlantıyı kapat
         conn_quote.commit()
@@ -1376,6 +1359,697 @@ def get_customer_by_quote():
         print("Hata (get_customer_by_quote):", str(e))
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+@app.route('/save_aditm_selection', methods=['POST'])
+def save_aditm_selection():
+    try:
+        data = request.get_json()
+        quote_number = data.get('quote_number') if isinstance(data, dict) else None
+        selections = data.get('selections') if isinstance(data, dict) else data  # Eğer data bir listeyse doğrudan kullan
+
+        if not quote_number or not selections:
+            return jsonify({'status': 'error', 'message': 'Eksik parametreler.'}), 400
+
+        # Veritabanına bağlan
+        db_path = os.path.join(BASE_DIR, "aditm_selections.db")
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Tabloyu yeniden oluştur (eksik sütunları eklemek için)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS aditm_selections (
+                Quote_number TEXT NOT NULL,
+                Row_index INTEGER NOT NULL,
+                Item_name TEXT DEFAULT '',  -- Eksik sütun eklendi
+                Quantity INTEGER DEFAULT 0,
+                Price REAL DEFAULT 0.0,
+                Discounted_price REAL DEFAULT 0.0,
+                Depo_code TEXT DEFAULT '',
+                PRIMARY KEY (Quote_number, Row_index)
+            )
+        ''')
+
+        # Eski kayıtları sil
+        cursor.execute('DELETE FROM aditm_selections WHERE Quote_number = ?', (quote_number,))
+
+        # Yeni seçimleri ekle
+        for row_index, selection in enumerate(selections):
+            cursor.execute('''
+                INSERT INTO aditm_selections (Quote_number, Row_index, Item_name, Quantity, Price, Discounted_price, Depo_code)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                quote_number,
+                row_index,
+                selection[0] if len(selection) > 0 else '',  # Item_name
+                int(selection[1]) if len(selection) > 1 and selection[1] else 0,  # Quantity
+                float(selection[2]) if len(selection) > 2 and selection[2] else 0.0,  # Price
+                float(selection[3]) if len(selection) > 3 and selection[3] else 0.0,  # Discounted_price
+                selection[4] if len(selection) > 4 else ''  # Depo_code
+            ))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'status': 'success', 'message': 'Add Item seçimleri kaydedildi.'})
+    except Exception as e:
+        print("Hata (save_aditm_selection):", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/load_aditm_selection', methods=['GET'])
+def load_aditm_selection():
+    try:
+        quote_number = request.args.get('quote_number')
+
+        if not quote_number:
+            return jsonify({'status': 'error', 'message': 'Eksik parametreler.'}), 400
+
+        # Veritabanına bağlan
+        db_path = os.path.join(BASE_DIR, "aditm_selections.db")
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Seçimleri al
+        cursor.execute('''
+            SELECT Row_index, Item_name, Quantity, Price, Discounted_price, Depo_code
+            FROM aditm_selections
+            WHERE Quote_number = ?
+        ''', (quote_number,))
+        rows = cursor.fetchall()
+
+        conn.close()
+
+        # Seçimleri JSON formatında döndür
+        selections = [
+            {
+                'row_index': row[0],
+                'item_name': row[1],
+                'quantity': row[2],
+                'price': row[3],
+                'discounted_price': row[4],
+                'depo_code': row[5]
+            }
+            for row in rows
+        ]
+        # print("Geri gönderilen veriler:", selections)  # Geri gönderilen veriyi yazdır
+        return jsonify({'status': 'success', 'selections': selections})
+    except Exception as e:
+        print("Hata (load_aditm_selection):", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/get_refrigeration_groups', methods=['GET'])
+def get_refrigeration_groups():
+    try:
+        conn = sqlite3.connect('refrigeration.db')
+        cursor = conn.cursor()
+        # "GroupName" sütun adı kullanıldı
+        cursor.execute('SELECT DISTINCT "GroupName" FROM REFRIGERATION')
+        groups = [row[0] for row in cursor.fetchall()]
+        conn.close()
+        return jsonify({'status': 'success', 'groups': groups})
+    except Exception as e:
+        print("Hata (get_refrigeration_groups):", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/get_refrigeration_items', methods=['GET'])
+def get_refrigeration_items():
+    try:
+        group = request.args.get('group')
+        if not group:
+            return jsonify({'status': 'error', 'message': 'Group parametresi eksik.'}), 400
+
+        conn = sqlite3.connect('refrigeration.db')
+        cursor = conn.cursor()
+        # "GroupName" sütun adı kullanıldı
+        cursor.execute('SELECT Model FROM REFRIGERATION WHERE "GroupName" = ?', (group,))
+        items = [row[0] for row in cursor.fetchall()]
+        conn.close()
+        return jsonify({'status': 'success', 'items': items})
+    except Exception as e:
+        print("Hata (get_refrigeration_items):", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/get_refrigeration_price', methods=['GET'])
+def get_refrigeration_price():
+    try:
+        model_name = request.args.get('model')
+        customer_type = request.args.get('customer_type')
+        if not model_name or not customer_type:
+            return jsonify({'status': 'error', 'message': 'Model veya müşteri tipi eksik.'}), 400
+
+        conn = sqlite3.connect('refrigeration.db')
+        cursor = conn.cursor()
+
+        # Müşteri tipine göre fiyat sütununu seç
+        if customer_type == "Retail":
+            cursor.execute('SELECT RetailPrice FROM REFRIGERATION WHERE Model = ?', (model_name,))
+        elif customer_type == "Trade":
+            cursor.execute('SELECT TradePrice FROM REFRIGERATION WHERE Model = ?', (model_name,))
+        else:
+            return jsonify({'status': 'error', 'message': 'Geçersiz müşteri tipi.'}), 400
+
+        result = cursor.fetchone()
+        conn.close()
+
+        if result:
+            price = result[0]
+            # print(f"Customer Type: {customer_type}, Model: {model_name}, Price: {price}")  # Yeni print ifadesi
+            return jsonify({'status': 'success', 'price': price})
+        else:
+            return jsonify({'status': 'error', 'message': 'Model bulunamadı.'}), 404
+    except Exception as e:
+        print("Hata (get_refrigeration_price):", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/get_refrigeration_item_details', methods=['GET'])
+def get_refrigeration_item_details():
+    try:
+        model_name = request.args.get('model')
+        if not model_name:
+            return jsonify({'status': 'error', 'message': 'Model adı belirtilmedi.'}), 400
+
+        conn = sqlite3.connect('refrigeration.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT Warranty, UnpackPosition, RemoveDispose, TradePrice, Kar
+            FROM REFRIGERATION
+            WHERE Model = ?
+        ''', (model_name,))
+        result = cursor.fetchone()
+        conn.close()
+
+        if result:
+            return jsonify({
+                'status': 'success',
+                'warranty': result[0],
+                'unpack': result[1],
+                'remove': result[2],
+                'tradePrice': result[3],
+                'kar': result[4]
+            })
+        else:
+            return jsonify({'status': 'error', 'message': 'Model bulunamadı.'}), 404
+    except Exception as e:
+        print("Hata (get_refrigeration_item_details):", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/add_ref_data', methods=['POST'])
+def add_ref_data():
+    try:
+        data = request.get_json()
+        ref_data = data.get('ref_data', [])
+        largest_file = str(data.get('largest_file', '')).strip()
+
+        # Eğer veri gelmemişse hata döndür
+        if not ref_data:
+            return jsonify({"status": "error", "message": "Geçerli veri yok."}), 400
+
+        # Hedef veritabanı dosyası
+        new_db_path = os.path.join(QUOTE_DB_PATH, f"{largest_file}.db")
+
+        # Yeni veritabanı bağlantısı
+        conn_quote = sqlite3.connect(new_db_path)
+        cursor_quote = conn_quote.cursor()
+
+        # `list` tablosunu oluştur (zaten varsa hata vermez)
+        cursor_quote.execute('''
+            CREATE TABLE IF NOT EXISTS list (
+                USER_ID INTEGER,
+                ITEM_ID TEXT NOT NULL,
+                ITEM_NAME TEXT NOT NULL,
+                ADET INTEGER NOT NULL,
+                UNIT_TYPE TEXT DEFAULT 'ADD_ITEM',
+                SIRA DECIMAL(10, 2),
+                PRICE DECIMAL(10, 2),
+                DSPRICE DECIMAL(10, 2),
+                AMOUNTH DECIMAL(10, 2)
+            )
+        ''')
+
+        user_id = session.get('user_id', 0)  # Eğer oturumda user_id yoksa varsayılan olarak 0 kullanılır
+        sira = 2.1  # Sıra değeri başlangıç
+
+        # Gelen verileri işleyip tabloya ekle
+        for item in ref_data:
+            cursor_quote.execute('''
+                INSERT INTO list (USER_ID, ITEM_ID, ITEM_NAME, ADET, UNIT_TYPE, SIRA, PRICE, DSPRICE, AMOUNTH)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                user_id,
+                item.get('sku', ''),
+                item.get('itemName', ''),
+                item.get('quantity', 0),
+                item.get('unitType', 'Add Refrigeration'),
+                round(sira, 2),  # Sıra değeri
+                item.get('price', 0.0),
+                item.get('dprice', 0.0),
+                item.get('quantity', 0) * item.get('dprice', 0.0)  # AMOUNTH hesaplama
+            ))
+            sira += 0.1  # Sıra değerini artır
+
+        # Değişiklikleri kaydet ve bağlantıyı kapat
+        conn_quote.commit()
+        conn_quote.close()
+
+        return jsonify({"status": "success", "message": "Refrigeration verileri başarıyla kaydedildi!"})
+    except sqlite3.Error as e:
+        print("Veritabanı hatası (add_ref_data):", str(e))
+        return jsonify({"status": "error", "message": str(e)}), 500
+    except Exception as e:
+        print("Beklenmeyen hata (add_ref_data):", str(e))
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/save_ref_selection', methods=['POST'])
+def save_ref_selection():
+    try:
+        data = request.get_json()
+        quote_number = data.get('quote_number')
+        customer_type = data.get('customer_type')  # Customer type değeri
+        ref_dsc = data.get('ref_dsc')  # Ref_dsc değeri
+        selections = data.get('selections')  # Refrigeration sayfasındaki seçimler
+
+        if not quote_number or not selections:
+            return jsonify({'status': 'error', 'message': 'Eksik parametreler.'}), 400
+
+        # Veritabanına bağlan
+        db_path = os.path.join(BASE_DIR, "ref_selections.db")
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Tabloyu oluştur (eğer yoksa)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS ref_selections (
+                Quote_number TEXT NOT NULL,
+                Customer_type TEXT DEFAULT '',
+                Ref_dsc REAL DEFAULT 0.0,
+                Row_index INTEGER NOT NULL,
+                Group_name TEXT DEFAULT '',
+                Item_name TEXT DEFAULT '',
+                Warranty INTEGER DEFAULT '',
+                Unpack INTEGER DEFAULT '',
+                Remove INTEGER DEFAULT '',
+                Quantity INTEGER DEFAULT 0,
+                Price REAL DEFAULT 0.0,
+                Discounted_price REAL DEFAULT 0.0,
+                PRIMARY KEY (Quote_number, Row_index)
+            )
+        ''')
+
+        # Eski kayıtları sil
+        cursor.execute('DELETE FROM ref_selections WHERE Quote_number = ?', (quote_number,))
+
+        # Yeni seçimleri ekle
+        for row_index, selection in enumerate(selections):
+            cursor.execute('''
+                INSERT INTO ref_selections (Quote_number, Customer_type, Ref_dsc, Row_index, Group_name, Item_name, Warranty, Unpack, Remove, Quantity, Price, Discounted_price)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                quote_number,
+                customer_type,
+                float(ref_dsc) if ref_dsc else 0.0,
+                row_index,
+                selection.get('group_name', ''),
+                selection.get('item_name', ''),
+                selection.get('warranty', ''),
+                selection.get('unpack', ''),
+                selection.get('remove', ''),
+                int(selection.get('quantity', 0)),
+                float(selection.get('price', 0.0)),
+                float(selection.get('discounted_price', 0.0))
+            ))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'status': 'success', 'message': 'Refrigeration seçimleri kaydedildi.'})
+    except Exception as e:
+        print("Hata (save_ref_selection):", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/load_ref_selection', methods=['GET'])
+def load_ref_selection():
+    try:
+        quote_number = request.args.get('quote_number')
+
+        if not quote_number:
+            return jsonify({'status': 'error', 'message': 'Eksik parametreler.'}), 400
+
+        # Veritabanına bağlan
+        db_path = os.path.join(BASE_DIR, "ref_selections.db")
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Seçimleri al
+        cursor.execute('''
+            SELECT Customer_type, Ref_dsc, Row_index, Group_name, Item_name, Warranty, Unpack, Remove, Quantity, Price, Discounted_price
+            FROM ref_selections
+            WHERE Quote_number = ?
+        ''', (quote_number,))
+        rows = cursor.fetchall()
+
+        conn.close()
+
+        # İlk satırdan customer_type ve ref_dsc değerlerini al
+        customer_type = rows[0][0] if rows else ''
+        ref_dsc = rows[0][1] if rows else 0.0
+
+        # Seçimleri JSON formatında döndür
+        selections = [
+            {
+                'row_index': row[2],
+                'group_name': row[3],
+                'item_name': row[4],
+                'warranty': row[5],
+                'unpack': row[6],
+                'remove': row[7],
+                'quantity': row[8],
+                'price': row[9],
+                'discounted_price': row[10]
+            }
+            for row in rows
+        ]
+        return jsonify({
+            'status': 'success',
+            'customer_type': customer_type,
+            'ref_dsc': ref_dsc,
+            'selections': selections
+        })
+    except Exception as e:
+        print("Hata (load_ref_selection):", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/calculate_ceiling_qty', methods=['POST'])
+def calculate_ceiling_qty():
+    try:
+        data = request.get_json()
+        ceiling_m2 = float(data.get('ceilingM2', 0))
+        trim_lm = float(data.get('trimLM', 0))
+        ceil_dsc = float(data.get('ceil_dsc', 0))  # ceil_dsc değerini al
+
+        # ceiling.db veritabanına bağlan
+        conn = sqlite3.connect('ceiling.db')
+        cursor = conn.cursor()
+
+        # ceiling tablosundaki tüm verileri al
+        cursor.execute('SELECT Code, Materials, Notes, Local FROM ceiling_data')
+        ceiling_data = cursor.fetchall()
+        conn.close()
+
+        # Hesaplamalar
+        rows = []
+        for row in ceiling_data:
+            code, materials, notes, local = row
+            qty = 0
+
+            if code == "CL_T1":
+                qty = max(8, math.ceil((ceiling_m2 / 100 * 278) / 8) * 8)
+            elif code == "CL_MR61":
+                qty = math.ceil(ceiling_m2 / 100 * 25)
+            elif code == "CL_CT062":
+                qty = math.ceil(ceiling_m2 / 100 * 150)
+            elif code == "CL_CT63":
+                qty = math.ceil(ceiling_m2 / 100 * 150)
+            elif code == "CL_AT44":
+                qty = math.ceil(trim_lm / 3)
+            elif code == "CL_W124":
+                qty = max(1, math.ceil(ceiling_m2 / 100 * 1))
+            elif code == "CL_AB122":
+                qty = max(1, math.ceil(ceiling_m2 / 100 * 1))
+
+            # dPrice hesaplaması
+            d_price = local - (local * ceil_dsc / 100)
+
+            rows.append({
+                "Code": code,
+                "Materials": materials,
+                "Notes": notes,
+                "local": local,
+                "qty": qty,
+                "dPrice": round(d_price, 2)  # dPrice değerini yuvarla
+                # "dPrice":local-(local*ceil_dsc/100)
+            })
+
+        return jsonify({'status': 'success', 'rows': rows})
+    except Exception as e:
+        print("Hata (calculate_ceiling_qty):", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    
+@app.route('/add_ceiling_data', methods=['POST'])
+def add_ceiling_data():
+    try:
+        data = request.get_json()
+        largest_file = data.get('largest_file', '')  # Veritabanı adı
+        ceiling_data = data.get('ceiling_data', [])  # Ceiling verileri
+
+        if not largest_file or not ceiling_data:
+            return jsonify({'status': 'error', 'message': 'Eksik veri gönderildi.'}), 400
+
+        # Veritabanına bağlan
+        db_path = os.path.join('quotes', f"{largest_file}.db")
+        print(f"DB Path: {db_path}")
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # `list` tablosunu oluştur (eğer yoksa)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS list (
+                USER_ID INTEGER,
+                ITEM_ID TEXT NOT NULL,
+                ITEM_NAME TEXT NOT NULL,
+                ADET INTEGER NOT NULL,
+                UNIT_TYPE TEXT DEFAULT 'ADD_ITEM',
+                SIRA DECIMAL(10, 2),
+                PRICE DECIMAL(10, 2),
+                DSPRICE DECIMAL(10, 2),
+                AMOUNTH DECIMAL(10, 2)
+            )
+        ''')
+
+        user_id = session.get('user_id', 0)  # Eğer oturumda user_id yoksa varsayılan olarak 0 kullanılır
+        # print("Tablo oluşturuldu veya zaten mevcut.")
+
+        # Ceiling verilerini işleyip veritabanına ekle
+        for index, row in enumerate(ceiling_data, start=1):
+            item_id = row.get('Code', '')
+            item_name = row.get('Materials', '')
+            adet = row.get('qty', 0)
+            unit_type = "Ceiling"
+            sira = f"3.{index}"
+            price = row.get('local', 0)
+            dsprice = row.get('dPrice', 0)
+            amounth = adet * dsprice
+
+            # print(f"Veri ekleniyor: {user_id}, {item_id}, {item_name}, {adet}, {unit_type}, {sira}, {price}, {dsprice}, {amounth}")
+            cursor.execute('''
+                INSERT INTO list (USER_ID, ITEM_ID, ITEM_NAME, ADET, UNIT_TYPE, SIRA, PRICE, DSPRICE, AMOUNTH)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (user_id, item_id, item_name, adet, unit_type, sira, price, dsprice, amounth))
+
+        # Değişiklikleri kaydet ve bağlantıyı kapat
+        conn.commit()
+        conn.close()
+        print("Ceiling verileri başarıyla eklendi.")
+
+        return jsonify({'status': 'success', 'message': 'Ceiling verileri başarıyla eklendi.'})
+    except sqlite3.Error as e:
+        print("Veritabanı hatası (add_ceiling_data):", str(e))
+        return jsonify({'status': 'error', 'message': f'Veritabanı hatası: {str(e)}'}), 500
+    except Exception as e:
+        print("Beklenmeyen hata (add_ceiling_data):", str(e))
+        return jsonify({'status': 'error', 'message': f'Beklenmeyen hata: {str(e)}'}), 500
+
+@app.route('/save_ceil_selection', methods=['POST'])
+def save_ceil_selection():
+    try:
+        data = request.get_json()
+        quote_number = data.get('quote_number')
+        ceiling_m2 = data.get('ceiling_m2')
+        trim_lm = data.get('trim_lm')
+        ceiling_discount = data.get('ceiling_discount')
+        # selections = data.get('selections', [])  # Selections is optional, default to an empty list
+
+        if not quote_number or ceiling_m2 is None or trim_lm is None or ceiling_discount is None:
+            return jsonify({'status': 'error', 'message': 'Eksik parametreler: quote_number, ceiling_m2, trim_lm, veya ceiling_discount eksik.'}), 400
+
+        # Veritabanına bağlan
+        db_path = os.path.join(BASE_DIR, "ceil_selections.db")
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Tabloyu oluştur (eğer yoksa)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS ceil_selections (
+                Quote_number TEXT NOT NULL,
+                ceiling_m2 REAL,
+                trim_lm REAL,
+                ceiling_discount REAL
+            )
+        ''')
+
+        # Eski kayıtları sil
+        cursor.execute('DELETE FROM ceil_selections WHERE Quote_number = ?', (quote_number,))
+
+        # Yeni seçimleri ekle
+        cursor.execute('''
+            INSERT INTO ceil_selections (Quote_number, ceiling_m2, trim_lm, ceiling_discount)
+            VALUES (?, ?, ?, ?)
+        ''', (quote_number, ceiling_m2, trim_lm, ceiling_discount))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'status': 'success', 'message': 'Ceiling seçimleri başarıyla kaydedildi.'})
+    except Exception as e:
+        print("Hata (save_ceil_selection):", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/load_ceil_selection', methods=['GET'])
+def load_ceil_selection():
+    try:
+        quote_number = request.args.get('quote_number')
+
+        if not quote_number:
+            return jsonify({'status': 'error', 'message': 'Eksik parametreler.'}), 400
+
+        # Veritabanına bağlan
+        db_path = os.path.join(BASE_DIR, "ceil_selections.db")
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Seçimleri al
+        cursor.execute('''
+            SELECT ceiling_m2, trim_lm, ceiling_discount
+            FROM ceil_selections
+            WHERE Quote_number = ?
+        ''', (quote_number,))
+        rows = cursor.fetchall()
+
+        conn.close()
+
+
+
+        # Seçimleri JSON formatında döndür
+        # selections = [
+        #     {
+		#         'ceiling_m2': row[0],
+        #         'trim_lm': row[1],
+        #         'ceiling_discount': row[2]
+
+        #     }
+        #     for row in rows
+        # ]
+        if rows:
+            ceiling_m2 = rows[0][0]
+            trim_lm = rows[0][1]
+            ceiling_discount = rows[0][2]
+            return jsonify({
+                'status': 'success',
+                'ceiling_m2': ceiling_m2,
+                'trim_lm': trim_lm,
+                'ceiling_discount': ceiling_discount
+            })
+        else:
+            return jsonify({'status': 'error', 'message': 'No ceiling selection found.'}), 404
+    except Exception as e:
+        print("Hata (load_ceil_selection):", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/get_customer_by_id', methods=['GET'])
+def get_customer_by_id():
+    customer_id = request.args.get('id')
+    if not customer_id:
+        return jsonify({"status": "error", "message": "Customer ID is required"}), 400
+
+    try:
+        conn = sqlite3.connect('customers.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT customer_name, tel, address, address2, postcode, email, discount FROM customers WHERE id = ?", (customer_id,))
+        customer = cursor.fetchone()
+        conn.close()
+
+        if customer:
+            return jsonify({
+                "status": "success",
+                "customer": {
+                    "name": customer[0],
+                    "tel": customer[1],
+                    "address1": customer[2],
+                    "address2": customer[3],
+                    "postcode": customer[4],
+                    "email": customer[5],
+                    "discount": customer[6]
+                }
+            })
+        else:
+            return jsonify({"status": "error", "message": "Customer not found"}), 404
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/add_or_update_customer', methods=['POST'])
+def add_or_update_customer():
+    try:
+        data = request.get_json()
+        customer_id = data.get('id')  # Eğer müşteri ID'si varsa güncelleme yapılacak
+        # print(f"Gelen müşteri ID'si: {customer_id}")  # Gelen müşteri ID'sini yazdır
+        customer_name = data.get('name')
+        tel = data.get('tel')
+        address1 = data.get('address1')
+        address2 = data.get('address2')
+        postcode = data.get('postcode')
+        email = data.get('email')
+        discount = data.get('discount')
+
+        if not customer_name or not tel:
+            return jsonify({'status': 'error', 'message': 'Müşteri adı ve telefon numarası zorunludur.'}), 400
+
+        conn = sqlite3.connect('customers.db')
+        cursor = conn.cursor()
+
+        if customer_id:
+            # Güncelleme işlemi
+            cursor.execute('''
+                UPDATE customers
+                SET customer_name = ?, tel = ?, address = ?, address2 = ?, postcode = ?, email = ?, discount = ?
+                WHERE id = ?
+            ''', (customer_name, tel, address1, address2, postcode, email, discount, customer_id))
+        else:
+            # Yeni müşteri ekleme işlemi
+            cursor.execute('SELECT MAX(CAST(id AS INTEGER)) FROM customers')  # Listedeki son kaydın ID'sini al
+            last_id = cursor.fetchone()[0] or 0  # Eğer tablo boşsa 0 kullan
+            new_id = str(last_id + 1).zfill(7)  # Yeni ID'yi oluştur ve 7 karaktere sıfırlarla doldur
+            cursor.execute('''
+                INSERT INTO customers (id, customer_name, tel, address, address2, postcode, email, discount)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (new_id, customer_name, tel, address1, address2, postcode, email, discount))
+
+            # Yeni müşteri için veritabanı oluştur
+            customerhes_path = os.path.join(BASE_DIR, 'customerhes')  # customerhes klasörünün yolu
+            os.makedirs(customerhes_path, exist_ok=True)  # Klasörü oluştur (eğer yoksa)
+            new_db_name = f"{new_id}{postcode}.db"
+            new_db_path = os.path.join(customerhes_path, new_db_name)
+            conn_new_db = sqlite3.connect(new_db_path)
+            cursor_new_db = conn_new_db.cursor()
+            cursor_new_db.execute('''
+                CREATE TABLE IF NOT EXISTS customer_data (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Date TEXT,
+                    Customername TEXT,
+                    Customerid TEXT,
+                    Quotenumber TEXT,
+                    Description TEXT,
+                    S_I TEXT,
+                    Amonth REAL
+                )
+            ''')
+            conn_new_db.commit()
+            conn_new_db.close()
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'status': 'success', 'message': 'Müşteri başarıyla eklendi/güncellendi.'})
+    except Exception as e:
+        print("Hata (add_or_update_customer):", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
