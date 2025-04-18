@@ -2775,19 +2775,19 @@ async function loadRefSelection(quoteNumber) {
 
                     // Group name geri yükleniyor
                     if (groupSelect) {
-                        await new Promise(resolve => setTimeout(resolve, 200));
+                        await new Promise(resolve => setTimeout(resolve, 150));
                         groupSelect.value = selection.group_name;
                         groupSelect.dispatchEvent(new Event('change'));
                     }
 
                     // Group name seçildikten sonra item name geri yükleniyor
                     if (itemSelect) {
-                        await new Promise(resolve => setTimeout(resolve, 200)); // Bağımlı seçimlerin yüklenmesi için bekleme
+                        await new Promise(resolve => setTimeout(resolve, 150)); // Bağımlı seçimlerin yüklenmesi için bekleme
                         itemSelect.value = selection.item_name;
                         itemSelect.dispatchEvent(new Event('change'));
                     }
 
-                    await new Promise(resolve => setTimeout(resolve, 200));
+                    await new Promise(resolve => setTimeout(resolve, 150));
 
                     // Item name seçildikten sonra warranty, unpack, remove geri yükleniyor
                     if (warrantySelect) warrantySelect.value = selection.warranty;
