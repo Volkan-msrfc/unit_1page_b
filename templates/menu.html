@@ -2775,6 +2775,7 @@ async function loadRefSelection(quoteNumber) {
 
                     // Group name geri yükleniyor
                     if (groupSelect) {
+                        await new Promise(resolve => setTimeout(resolve, 100));
                         groupSelect.value = selection.group_name;
                         groupSelect.dispatchEvent(new Event('change'));
                     }
