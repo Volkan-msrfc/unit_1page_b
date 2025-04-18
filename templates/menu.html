@@ -1301,7 +1301,7 @@ async function updateWidthData() {
     }
 
     if (!validRowFound) {
-        alert('Unit bos');
+        //alert('Unit bos');
         window.untknt = 0; // Tüm fonksiyonlar için global bir değişken oluşturuyoruz.
         return true; // Hiçbir satır işlenmediyse false döndür
     }else{
@@ -2781,12 +2781,12 @@ async function loadRefSelection(quoteNumber) {
 
                     // Group name seçildikten sonra item name geri yükleniyor
                     if (itemSelect) {
-                        await new Promise(resolve => setTimeout(resolve, 50)); // Bağımlı seçimlerin yüklenmesi için bekleme
+                        await new Promise(resolve => setTimeout(resolve, 100)); // Bağımlı seçimlerin yüklenmesi için bekleme
                         itemSelect.value = selection.item_name;
                         itemSelect.dispatchEvent(new Event('change'));
                     }
 
-                    await new Promise(resolve => setTimeout(resolve, 50));
+                    await new Promise(resolve => setTimeout(resolve, 100));
 
                     // Item name seçildikten sonra warranty, unpack, remove geri yükleniyor
                     if (warrantySelect) warrantySelect.value = selection.warranty;
