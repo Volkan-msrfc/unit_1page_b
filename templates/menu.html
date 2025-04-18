@@ -135,7 +135,7 @@
             padding: 20px;
             border: 1px solid #888;
             width: 100%; /* Modal genişliği */
-            max-width: 700px; /* Maksimum genişlik */
+            max-width: 1200px; /* Maksimum genişlik */
             height: 70%; /* Sabit yükseklik */
             overflow: hidden; /* İçerik taşmasını gizle */
             display: flex;
@@ -157,6 +157,8 @@
             border: none;
             border-radius: 5px;
             cursor: pointer;
+            margin-top: auto; /* Butonu içeriğin altına iter */
+            align-self: center; /* Ortalar */
         }
 
         .modal button:hover {
@@ -620,7 +622,78 @@
         <!-- Diğer Tab İçeriği (Örnek: Refrigeration) -->
         <div id="tab_refrigeration" class="tab-content">
             <h2>Refrigeration</h2>
-            <p>Bu, Refrigeration sekmesinin içeriğidir.</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div>
+                    <label for="customerType">Choose Customer Type:</label>
+                    <select id="customerType">
+                        <option value="Retail">Retail</option>
+                        <option value="Trade">Trade</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="ref_dsc">Discount:</label>
+                    <input type="number" id="ref_dsc" value="0" style="width: 60px;" min="0" max="100" step="1">
+                </div>
+            </div>
+            <table border="1" style="width: 100%; text-align: center; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th>SELECT GROUP</th>
+                        <th>SELECT ITEM</th>
+                        <th>WARRANTY</th>
+                        <th>UNPACK&POSITION</th>
+                        <th>REMOVE&DISPOSE</th>
+                        <th>QUANTITY</th>
+                        <th>PRICE</th>
+                        <th>D.PRICE</th>
+                        <th>SKU</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for i in range(15) %}
+                    <tr>
+                        <td>
+                            <select name="group_{{ i }}" class="group-select">
+                                <option value=""></option> <!-- Varsayılan boş seçenek -->
+                            </select>
+                        </td>
+                        <td>
+                            <select name="item_{{ i }}" class="item-select">
+                                <option value=""></option> <!-- Varsayılan boş seçenek -->
+                            </select>
+                        </td>
+                        <td>
+                            <select name="warranty_{{ i }}" class="warranty-select">
+                                <option value=""></option> <!-- Varsayılan boş seçenek -->
+                            </select>
+                        </td>
+                        <td>
+                            <select name="unpack_{{ i }}" class="unpack-select">
+                                <option value=""></option> <!-- Varsayılan boş seçenek -->
+
+                            </select>
+                        </td>
+                        <td>
+                            <select name="remove_{{ i }}" class="remove-select">
+                                <option value=""></option> <!-- Varsayılan boş seçenek -->
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" name="quantity_{{ i }}" min="1" style="width: 60px;">
+                        </td>
+                        <td>
+                            <label id="price_{{ i }}"></label>
+                        </td>
+                        <td>
+                            <label id="dprice_{{ i }}"></label>
+                        </td>
+                        <td>
+                            <label id="sku_{{ i }}"></label>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
 
         <div id="tab_add_item" class="tab-content">
@@ -728,15 +801,96 @@
             {% endif %}
         </div>
 
+        <div id="tab_ceiling" class="tab-content">
+            <h2>Ceiling</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div>
+                    <label for="ceilingM2">Ceiling M2:</label>
+                    <input type="number" id="ceilingM2" placeholder="Enter M2" style="margin-right: 20px;">
+                    <label for="trimLM">Trim LM:</label>
+                    <input type="number" id="trimLM" placeholder="Enter LM">
+                </div>
+                <div>
+                    <label for="ceilingDiscount">Discount:</label>
+                    <input type="number" id="ceilingDiscount" placeholder="Enter Discount" style="width: 100px;">
+                </div>
+            </div>
+            <table border="1" style="width: 100%; text-align: center; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Materials</th>
+                        <th>Notes</th>
+                        <th>Qty</th>
+                        <th>Local</th>
+                        <th>D.Price</th>
+                    </tr>
+                </thead>
+                <tbody id="ceilingTableBody">
+                    <!-- Veriler backend'den yüklenecek -->
+                </tbody>
+            </table>
+        </div>
+        <script>
+            let ceil_dsc = 0; // Discount değeri için global değişken
+
+            function fetchCeilingData() {
+                const ceilingM2Input = document.getElementById('ceilingM2');
+                const trimLMInput = document.getElementById('trimLM');
+                const discountInput = document.getElementById('ceilingDiscount');
+
+                let ceilingM2 = parseFloat(ceilingM2Input.value) || 0;
+                let trimLM = parseFloat(trimLMInput.value) || 0;
+                ceil_dsc = parseFloat(discountInput.value) || 0; // Discount değerini al
+
+                fetch('/calculate_ceiling_qty', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ ceilingM2, trimLM, ceil_dsc }), // ceil_dsc gönderiliyor
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const tableBody = document.getElementById('ceilingTableBody');
+                        tableBody.innerHTML = ''; // Eski içeriği temizle
+
+                        data.rows.forEach(row => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                                <td>${row.Code}</td>
+                                <td>${row.Materials}</td>
+                                <td>${row.Notes}</td>
+                                <td>${row.qty}</td>
+                                <td>${row.local}</td>
+                                <td>${row.dPrice}</td>
+                            `;
+                            tableBody.appendChild(tr);
+                        });
+                    } else {
+                        console.error('Hata:', data.message);
+                    }
+                })
+                .catch(error => console.error('Hata:', error));
+            }
+
+            document.getElementById('ceilingM2').addEventListener('input', fetchCeilingData);
+            document.getElementById('trimLM').addEventListener('input', fetchCeilingData);
+            document.getElementById('ceilingDiscount').addEventListener('input', fetchCeilingData); // Discount değişikliğinde tetikleniyor
+        </script>
 
         <!-- Diğer içerikler buraya eklenebilir -->
     </div>
 
     <div class="modal" id="customerModal">
-        <div class="modal-content">
-            <h2>Müşteri Bilgileri</h2>
-            <input type="text" id="searchBox" placeholder="Müşteri Arama..." onkeyup="searchCustomer()">
-            <table id="customerTable">
+    <div class="modal-content" style="max-width: 1400px;"> <!-- Modal genişliği artırıldı -->
+    <h2>Müşteri Bilgileri</h2>
+    <input type="text" id="searchBox" placeholder="Müşteri Arama..." onkeyup="searchCustomer()">
+    <div style="display: flex; gap: 20px;">
+        <!-- Sol taraf: Müşteri Tablosu -->
+        <div style="flex: 2;">
+            <table id="customerTable" style="width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr>
                         <th>Customer ID</th>
@@ -750,9 +904,52 @@
                     <!-- Dinamik veri buraya gelir -->
                 </tbody>
             </table>
-            <button onclick="closeModal()">Kapat</button>
+            <button onclick="closeModal()" style="margin-top: 10px;">Kapat</button>
+        </div>
+
+        <!-- Orta çizgi -->
+        <div style="width: 1px; background-color: #ddd;"></div>
+
+        <!-- Sağ taraf: Customer Add/Update -->
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 10px;">
+            <h2>Customer Add/Update</h2>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label for="customerName" style="width: 150px;">Customer Name</label>
+                <input type="text" id="customerName" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label for="customerTel" style="width: 150px;">Tel</label>
+                <input type="text" id="customerTel" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label for="customerAddress1" style="width: 150px;">Address Line1</label>
+                <input type="text" id="customerAddress1" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label for="customerAddress2" style="width: 150px;">Address Line2</label>
+                <input type="text" id="customerAddress2" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label for="customerPostcode" style="width: 150px;">Postcode</label>
+                <input type="text" id="customerPostcode" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label for="customerEmail" style="width: 150px;">Email</label>
+                <input type="text" id="customerEmail" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label for="customerDiscount" style="width: 150px;">Discount</label>
+                <input type="text" id="customerDiscount" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+            </div>
+            <button onclick="addOrUpdateCustomer()" style="margin-top: 10px; padding: 10px; background-color: #007BFF; color: white; border: none; border-radius: 5px; cursor: pointer;">ADD / UPDATE</button>
         </div>
     </div>
+</div>
+</div>
+
+<script>
+
+</script>
 
     <div class="modal" id="proformaModal">
         <div class="modal-content">
@@ -769,7 +966,10 @@
                             <th>User Name</th>
                             <th>Customer ID</th>
                             <th>Customer Name</th>
+                            <th>DidDis</th>
                             <th>Amount</th>
+                            <th>Sold</th>
+                            <th>Inv</th>
                             <th>Created At</th> <!-- Yeni sütun -->
                         </tr>
                     </thead>
@@ -801,6 +1001,7 @@
     <script>
 
 let selectedCustomerID = null;
+let selectedCustomer1ID = null;
 let selectedCustomerName = null;
 let selectedQuoteNumber = null; // Seçili quote numarasını saklamak için global değişken
 
@@ -978,7 +1179,7 @@ async function updateWidthData() {
 
         // Satırdaki değerlerin herhangi biri seçilmiş veya girilmişse işlem yap
         const anyValueEntered = 
-            (unitPieceElement && unitPieceElement.value) ||
+        (unitPieceElement && unitPieceElement.value) ||
             (unittypeElement && unittypeElement.value) ||
             (heightValueElement && heightValueElement.value) ||
             (widthValueElement && widthValueElement.value) ||
@@ -986,7 +1187,7 @@ async function updateWidthData() {
             (qtyValueElement && qtyValueElement.value) ||
             (shelfSizeValueElement && shelfSizeValueElement.value) ||
             (qtyOption8Element && qtyOption8Element.value) ||
-            (shelfSizeOption9Element && shelfSizeOption9Element.value) ||
+            (shelfSizeOption9Element && qtyOption8Element.value) ||
             (qtyOption10Element && qtyOption10Element.value) ||
             (shelfSizeOption11Element && shelfSizeOption11Element.value) ||
             (plane40Element && plane40Element.value) ||
@@ -995,7 +1196,7 @@ async function updateWidthData() {
             (perf30Element && perf30Element.value) ||
             (plane20Element && plane20Element.value) ||
             (perf20Element && perf20Element.value) ||
-            (plane10Element && plane10Element.value) ||
+            (plane10Element && perf10Element.value) ||
             (perf10Element && perf10Element.value);
 
         // Eğer hiçbir değer girilmediyse bu satırı atla
@@ -1177,7 +1378,7 @@ async function showAddItemData() {
         const responseData = await response.json();
 
         if (responseData.status === "success") {
-            alert("Veriler başarıyla gönderildi!");
+            //alert("Veriler başarıyla gönderildi!");
         } else {
             throw new Error("Bir hata oluştu: " + responseData.message);
         }
@@ -1221,13 +1422,24 @@ async function mainFunction() {
     // largestFile değerini güncelle
     document.getElementById('largestFile').textContent = nextNumber
 
-
-
-    // 1. updateWidthData çağrısı
+        // 1. updateWidthData çağrısı
     const updateResult = await updateWidthData();
-
     if (!updateResult) {
         console.error('updateWidthData başarısız oldu. İşlem sonlandırıldı.');
+        await fetch('/reset_islmdvm', { method: 'POST' });
+        return;
+    }
+
+    
+
+
+
+    // 1. AddRefData çağrısı
+    try {
+        console.log("AddRefData fonksiyonu çağrıldı.");
+        await AddRefData(); // İşlemin tamamlanmasını bekle
+    } catch (error) {
+        console.error('AddRefData başarısız oldu. İşlem sonlandırıldı.', error);
         await fetch('/reset_islmdvm', { method: 'POST' });
         return;
     }
@@ -1242,42 +1454,63 @@ async function mainFunction() {
         return;
     }
 
+    // Ceiling verilerini gönder
+    try {
+        console.log("addCeilingData fonksiyonu çağrıldı.");
+        await addCeilingData(); // Ceiling verilerini gönder
+    } catch (error) {
+        console.error('addCeilingData başarısız oldu. İşlem sonlandırıldı.', error);
+        await fetch('/reset_islmdvm', { method: 'POST' });
+        return;
+    }
+    
+       // 3. Kullanıcıdan indirim değerini al
+       const discountInput = document.getElementById('discountInput');
+    const dsc = parseFloat(discountInput.value) || 0; // Kullanıcının girdiği değeri al
+
+    // 4. apply_discount çağrısı
+    try {
+    const response = await fetch('/apply_discount', {
+    method: 'POST',
+    headers: {
+    'Content-Type': 'application/json',
+    },
+        body: JSON.stringify({ quote_number: nextNumber, dsc: dsc }) // dsc = 5
+    });
+
+    const result = await response.json();
+    if (result.status !== 'success') {
+        console.error('apply_discount başarısız oldu:', result.message);
+        await fetch('/reset_islmdvm', { method: 'POST' });
+        return;
+    }
+    console.log(result.message);
+    } catch (error) {
+        console.error('apply_discount sırasında hata oluştu:', error);
+        await fetch('/reset_islmdvm', { method: 'POST' });
+        return;
+    }
+
     // 3. loadQuoteList çağrısı
-    if ((window.untknt || 0) + (window.aditmknt || 0) <= 0) {
+    if ((window.untknt || 0) + (window.aditmknt || 0) + (window.adrefknt || 0)+ (window.adclknt || 0)<= 0) {
         alert("Proforma oluşturulacak bir değer yok!");
         await fetch('/reset_islmdvm', { method: 'POST' });
     } else {
         console.log("loadQuoteList fonksiyonu çağrılıyor.");
 
-    // 3. Kullanıcıdan indirim değerini al
-    const discountInput = document.getElementById('discountInput');
-    const dsc = parseFloat(discountInput.value) || 0; // Kullanıcının girdiği değeri al
-
-    // 4. apply_discount çağrısı
-        try {
-        const response = await fetch('/apply_discount', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ quote_number: nextNumber, dsc: dsc }) // dsc = 5
-        });
-
-        const result = await response.json();
-        if (result.status !== 'success') {
-            console.error('apply_discount başarısız oldu:', result.message);
-            return;
-        }
-        console.log(result.message);
-        } catch (error) {
-        console.error('apply_discount sırasında hata oluştu:', error);
-        return;
-        }
-
         await loadQuoteList(nextNumber); // İşlemin tamamlanmasını bekle
-        await callPrepUpQt(nextNumber);
+        await callPrepUpQt(nextNumber,dsc);
         await saveUniteSelection(nextNumber);
+        await saveAddItemSelection(nextNumber);
+
+        //if ((window.adrefknt || 0)<= 0) {
+        //await fetch('/reset_islmdvm', { method: 'POST' });
+        //} else {
+        await saveRefSelection(nextNumber); // Yeni fonksiyon çağrısı
+        //}
+        await saveCeilSelection(nextNumber)
         await fetch('/reset_islmdvm', { method: 'POST' });
+        
     }
 }
 
@@ -1459,8 +1692,20 @@ document.addEventListener('DOMContentLoaded', function () {
 // Modal açma
 function openModal() {
     selectedCustomerID = null; // Modal açıldığında ID'yi sıfırla
+    selectedCustomer1ID = null;
     document.getElementById("selectedCustomer").innerHTML = ""; // Seçilen müşteri bilgilerini temizle
     document.getElementById("customerModal").style.display = "flex";
+    document.getElementById("searchBox").value = ""; // Arama kutusunu temizle
+    //document.getElementById("customerName").value = "";
+            // Güncelleme kısmındaki input kutularını temizle
+    document.getElementById("customerName").value = "";
+    document.getElementById("customerTel").value = "";
+    document.getElementById("customerAddress1").value = "";
+    document.getElementById("customerAddress2").value = "";
+    document.getElementById("customerPostcode").value = "";
+    document.getElementById("customerEmail").value = "";
+    document.getElementById("customerDiscount").value = "";
+
     fetchCustomerData(); // Modal açıldığında müşteri verilerini çek
 }
 
@@ -1484,31 +1729,117 @@ function fetchCustomerData() {
                     tr.appendChild(td);
                 });
                 tr.addEventListener("dblclick", () => selectCustomer(customer)); // Satırı tıklanabilir hale getir
+                tr.addEventListener("click", () => select1Customer(customer));
                 tableBody.appendChild(tr);
             });
         });
 }
-
-// Müşteri seçme
 function selectCustomer(customer) {
-    // Global değişkene müşteri ID'sini ata
-    selectedCustomerID = customer[0];
-    selectedCustomerName = customer[1];
+        // Global değişkene müşteri ID'sini ata
+        selectedCustomerID = customer[0];
+        selectedCustomerName = customer[1];
+        selectedCustomer1ID = null;
 
-    // Seçilen müşteri bilgilerini ekrana yaz
-    document.getElementById("selectedCustomer").innerHTML = `
-        <strong>Customer Name:</strong> ${customer[1]} <br>
-        <strong>Tel:</strong> ${customer[2]} <br>
-        <strong>Address:</strong> ${customer[3]} <br>
-        <strong>Postcode:</strong> ${customer[4]}
-    `;
+        // Seçilen müşteri bilgilerini ekrana yaz
+        document.getElementById("selectedCustomer").innerHTML = `
+            <strong>Customer Name:</strong> ${customer[1]} <br>
+            <strong>Tel:</strong> ${customer[2]} <br>
+            <strong>Address:</strong> ${customer[3]} <br>
+            <strong>Postcode:</strong> ${customer[4]}
+        `;
 
-    // Backend'e müşteri bilgilerini gönder
-    setCustomerInfo(customer);
+        // Backend'e müşteri bilgilerini gönder
+        setCustomerInfo(customer);
+        
 
-    // Modal'ı kapat
-    closeModal();
-}
+        // Modal'ı kapat
+        closeModal();
+    }
+
+    function select1Customer(customer) {
+        selectedCustomer1ID = customer[0]; // Seçilen müşterinin ID'sini al
+        //alert(`Selected Customer ID: ${selectedCustomer1ID}`); // ID'yi alert olarak göster
+
+        // ...existing code...
+        fetch(`/get_customer_by_id?id=${selectedCustomer1ID}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    // Customer Add/Update alanını doldur
+                    document.getElementById("customerName").value = data.customer.name || "";
+                    document.getElementById("customerTel").value = data.customer.tel || "";
+                    document.getElementById("customerAddress1").value = data.customer.address1 || "";
+                    document.getElementById("customerAddress2").value = data.customer.address2 || "";
+                    document.getElementById("customerPostcode").value = data.customer.postcode || "";
+                    document.getElementById("customerEmail").value = data.customer.email || "";
+                    document.getElementById("customerDiscount").value = data.customer.discount || "";
+                } else {
+                    alert("Müşteri bilgileri alınamadı: " + data.message);
+                }
+            })
+            .catch(error => console.error("Müşteri bilgileri alınırken hata oluştu:", error));
+    }
+
+    function addOrUpdateCustomer() {
+        //alert(`selectedCustomer1ID: ${selectedCustomer1ID}, selectedCustomerID: ${selectedCustomerID}`); // Değerleri göster
+        const customerData = {
+            id: selectedCustomer1ID || null, // Eğer seçili müşteri yoksa null
+            name: document.getElementById("customerName").value,
+            tel: document.getElementById("customerTel").value,
+            address1: document.getElementById("customerAddress1").value,
+            address2: document.getElementById("customerAddress2").value,
+            postcode: document.getElementById("customerPostcode").value,
+            email: document.getElementById("customerEmail").value,
+            discount: document.getElementById("customerDiscount").value,
+        };
+        //alert(`xselectedCustomer1ID: ${selectedCustomer1ID}, xselectedCustomerID: ${selectedCustomerID}`); // Değerleri göster
+        fetch("/add_or_update_customer", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(customerData),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === "success") {
+                //alert("Customer added/updated successfully!");
+                selectedCustomerID = null; // Modal açıldığında ID'yi sıfırla
+                selectedCustomer1ID = null;
+                document.getElementById("customerName").value = "";
+                document.getElementById("customerTel").value = "";
+                document.getElementById("customerAddress1").value = "";
+                document.getElementById("customerAddress2").value = "";
+                document.getElementById("customerPostcode").value = "";
+                document.getElementById("customerEmail").value = "";
+                document.getElementById("customerDiscount").value = "";
+                fetchCustomerData(); // Tabloyu güncelle
+            } else {
+                alert("Error: " + data.message);
+            }
+        })
+        .catch(error => console.error("Error:", error));
+    }
+//      // Müşteri seçme
+// function selectCustomer(customer) {
+//     // Global değişkene müşteri ID'sini ata
+//     selectedCustomerID = customer[0];
+//     selectedCustomerName = customer[1];
+
+//     // Seçilen müşteri bilgilerini ekrana yaz
+//     document.getElementById("selectedCustomer").innerHTML = `
+//         <strong>Customer Name:</strong> ${customer[1]} <br>
+//         <strong>Tel:</strong> ${customer[2]} <br>
+//         <strong>Address:</strong> ${customer[3]} <br>
+//         <strong>Postcode:</strong> ${customer[4]}
+//     `;
+
+//     // Backend'e müşteri bilgilerini gönder
+//     setCustomerInfo(customer);
+
+//     // Modal'ı kapat
+//     closeModal();
+// }
 
 // Arama fonksiyonu
 function searchCustomer() {
@@ -1606,13 +1937,19 @@ function openProformaModal() {
                 // Satıra tıklama olayı ekle
                 tr.addEventListener('click', () => {
                     const quoteNumber = row[0]; // Birinci sütundaki numarayı al
+                    const discountValue = row[5]; // Discount değerini al
                     selectedQuoteNumber = row[0]; // Birinci sütundaki quote numarasını al
-                    const dbName = `${quoteNumber}`; // Dosya adını oluştur  sondaki .db yi sil
+                    const dbName = `${quoteNumber}`; // Dosya adını oluştur
+
+                    // Discount değerini dsc alanına yaz
+                    document.getElementById('discountInput').value = discountValue;
 
                     fetchCustomerDataByQuote(quoteNumber);
-                
                     loadQuoteList(dbName); // get_quote_list'i çağır
-                    loadUniteSelection(dbName);
+                    loadUniteSelection(dbName); // Unite seçimlerini yükle
+                    loadAddItemSelection(dbName); // Add Item seçimlerini yükle
+                    loadRefSelection(dbName); 
+                    loadCeilSelection(dbName); // Ceiling seçimlerini yükle
                     closeProformaModal(); // Modalı kapat
                 });
 
@@ -1674,7 +2011,7 @@ async function loadQuoteList(dbName) {
                 <td>${row[5]}</td>
                 <td>${parseFloat(row[6]).toFixed(2)}</td>
                 <td>${parseFloat(row[7]).toFixed(2)}</td>
-                <td>${parseFloat(row[8]).toFixed(2)}</td>
+                <td>${parseFloat(row[8]).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             `;
             tableBody.appendChild(tr);
 
@@ -1701,15 +2038,46 @@ async function loadQuoteList(dbName) {
             subtotalRow.innerHTML = `
                 <td colspan="5" style="font-weight: bold; text-align: right;"> (${unitType}):</td>
                 <td></td>
-                <td style="font-weight: bold;">${subtotals[unitType].price.toFixed(2)}</td>
-                <td style="font-weight: bold;">${subtotals[unitType].dPrice.toFixed(2)}</td>
-                <td style="font-weight: bold;">${subtotals[unitType].amount.toFixed(2)}</td>
+                <td style="font-weight: bold;">${subtotals[unitType].price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td style="font-weight: bold;">${subtotals[unitType].dPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td style="font-weight: bold;">${subtotals[unitType].amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             `;
 
             // Alt toplam satırını ilgili `unit_type`'ın son satırının altına ekle
             const lastRow = rowsByUnitType[unitType][rowsByUnitType[unitType].length - 1];
             lastRow.after(subtotalRow);
         });
+
+        // Total, Vat ve G.Total hesaplama ve ekleme
+        const totalPrice = Object.values(subtotals).reduce((sum, item) => sum + item.price, 0);
+        const totalDPrice = Object.values(subtotals).reduce((sum, item) => sum + item.dPrice, 0);
+        const totalAmount = Object.values(subtotals).reduce((sum, item) => sum + item.amount, 0);
+        const vat = totalAmount * 0.2; // %20 KDV
+        const grandTotal = totalAmount + vat;
+
+        const totalRow = document.createElement('tr');
+        totalRow.innerHTML = `
+            <td colspan="5" style="font-weight: bold; text-align: right;">Total:</td>
+            <td></td>
+            <td style="font-weight: bold;">${totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td style="font-weight: bold;">${totalDPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td style="font-weight: bold;">${totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        `;
+        tableBody.appendChild(totalRow);
+
+        const vatRow = document.createElement('tr');
+        vatRow.innerHTML = `
+            <td colspan="8" style="font-weight: bold; text-align: right;">Vat (20%):</td>
+            <td style="font-weight: bold;">${vat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        `;
+        tableBody.appendChild(vatRow);
+
+        const grandTotalRow = document.createElement('tr');
+        grandTotalRow.innerHTML = `
+            <td colspan="8" style="font-weight: bold; text-align: right;">G.Total:</td>
+            <td style="font-weight: bold;">${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        `;
+        tableBody.appendChild(grandTotalRow);
     } catch (error) {
         console.error('Hata:', error);
         document.getElementById('statusMessage').textContent = 'Liste yüklenirken hata oluştu.';
@@ -1808,14 +2176,14 @@ async function fetchCustomerDataByQuote(quoteNumber) {
 }
 
 
-async function callPrepUpQt(quoteNumber) {
+async function callPrepUpQt(quoteNumber,dsc) {
     try {
         const response = await fetch('/prep_up_qt', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ quote_number: quoteNumber }),
+            body: JSON.stringify({ quote_number: quoteNumber, dsc: dsc }), // dsc = 5
         });
 
         const data = await response.json();
@@ -1848,7 +2216,736 @@ async function fetchServerTime() {
     }
 }
 
-    </script>
+async function saveAddItemSelection(quoteNumber) {
+    const rows = Array.from(document.querySelectorAll('#tab_add_item tbody tr'));
+    const selections = rows.map(row => {
+        const inputs = Array.from(row.querySelectorAll('input'));
+        return inputs.map(input => input.value || null); // Input değerlerini al
+    });
+
+    // Selections verilerini gösteren alert mesajı
+    //alert("Kaydedilecek Selections Verileri:\n" + JSON.stringify(selections, null, 2));
+
+    try {
+        const response = await fetch('/save_aditm_selection', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                quote_number: quoteNumber,
+                selections: selections,
+            }),
+        });
+
+        const data = await response.json();
+        if (data.status === 'success') {
+            console.log('Add Item seçimleri başarıyla kaydedildi.');
+        } else {
+            console.error('Add Item seçimleri kaydedilirken hata oluştu:', data.message);
+        }
+    } catch (error) {
+        console.error('Add Item seçimleri kaydedilirken hata oluştu:', error);
+    }
+}
+
+async function loadAddItemSelection(quoteNumber) {
+    try {
+        const response = await fetch(`/load_aditm_selection?quote_number=${quoteNumber}`);
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            const selections = data.selections;
+            const rows = Array.from(document.querySelectorAll('#tab_add_item tbody tr'));
+
+            //console.log("Gelen veriler:", selections); // Gelen verileri logla
+
+            rows.forEach((row, index) => {
+                const inputs = Array.from(row.querySelectorAll('input'));
+                const selection = selections[index] || {}; // Seçim nesnesini al
+
+                //console.log(`Satır ${index} için seçimler:`, selection); // Satır bazında seçimleri logla
+
+                // Input alanlarına değerleri ata
+                if (inputs.length >= 5) {
+                    inputs[0].value = selection.item_name || ''; // Item Name
+                    inputs[1].value = selection.quantity || ''; // Quantity
+                    inputs[2].value = selection.price || ''; // Price
+                    inputs[3].value = selection.discounted_price || ''; // After Discount
+                    inputs[4].value = selection.depo_code || ''; // Depo Code
+                }
+            });
+
+            console.log('Add Item seçimleri başarıyla yüklendi.');
+        } else {
+            console.error('Add Item seçimleri yüklenirken hata oluştu:', data.message);
+        }
+    } catch (error) {
+        console.error('Add Item seçimleri yüklenirken hata oluştu:', error);
+    }
+}
+
+
+
+function clearAddItemPage() {
+    const rows = Array.from(document.querySelectorAll('#tab_add_item tbody tr'));
+    rows.forEach(row => {
+        const inputs = Array.from(row.querySelectorAll('input'));
+        inputs.forEach(input => {
+            input.value = ''; // Tüm inputları temizle
+        });
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    // Group seçimlerini doldur
+    const groupSelects = document.querySelectorAll('.group-select');
+    groupSelects.forEach(select => {
+        fetch('/get_refrigeration_groups')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    data.groups.forEach(group => {
+                        const option = document.createElement('option');
+                        option.value = group;
+                        option.textContent = group;
+                        select.appendChild(option);
+                    });
+                } else {
+                    console.error('Group verileri alınırken hata oluştu:', data.message);
+                }
+            })
+            .catch(error => console.error('Group verileri alınırken hata oluştu:', error));
+    });
+
+    // Group, item ve customer type değişikliklerini dinle
+    document.querySelectorAll('.group-select, .item-select, #customerType').forEach(element => {
+        element.addEventListener('change', function () {
+            const row = this.closest('tr');
+            const groupSelect = row ? row.querySelector('.group-select') : null;
+            const itemSelect = row ? row.querySelector('.item-select') : null;
+            const customerType = document.getElementById('customerType').value;
+            const priceLabel = row ? row.querySelector('label[id^="price_"]') : null;
+            const ref1price = priceLabel
+            const dpriceLabel = row ? row.querySelector('label[id^="dprice_"]') : null;
+            const discount = parseFloat(document.getElementById('ref_dsc').value) || 0; // Get ref_dsc value
+
+            // Group değiştiğinde item ve sonraki seçim kutularını sıfırla
+            if (this.classList.contains('group-select')) {
+                if (itemSelect) {
+                    itemSelect.innerHTML = '<option value=""></option>';
+                    itemSelect.value = ''; // Item seçimini sıfırla
+                }
+                const inputsAndSelects = Array.from(row.querySelectorAll('select, input')).slice(1); // Group'tan sonraki tüm elemanlar
+                inputsAndSelects.forEach(inputOrSelect => {
+                    if (inputOrSelect.tagName === 'SELECT') {
+                        inputOrSelect.value = ''; // Seçimi sıfırla
+                    } else if (inputOrSelect.tagName === 'INPUT') {
+                        inputOrSelect.value = ''; // Giriş kutusunu sıfırla
+                    }
+                });
+                if (priceLabel) priceLabel.textContent = ''; // Fiyatı sıfırla
+                    dpriceLabel.textContent = '';
+
+                const selectedGroup = groupSelect.value;
+                if (selectedGroup) {
+                    fetch(`/get_refrigeration_items?group=${encodeURIComponent(selectedGroup)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                data.items.forEach(item => {
+                                    const option = document.createElement('option');
+                                    option.value = item;
+                                    option.textContent = item;
+                                    itemSelect.appendChild(option);
+                                });
+                            } else {
+                                console.error('Item verileri alınırken hata oluştu:', data.message);
+                            }
+                        })
+                        .catch(error => console.error('Item verileri alınırken hata oluştu:', error));
+                }
+            }
+
+            // Item değiştiğinde sonraki seçim kutularını ve giriş kutularını sıfırla
+            if (this.classList.contains('item-select')) {
+                const inputsAndSelects = Array.from(row.querySelectorAll('select, input')).slice(2); // Item'den sonraki tüm elemanlar
+                inputsAndSelects.forEach(inputOrSelect => {
+                    if (inputOrSelect.tagName === 'SELECT') {
+                        inputOrSelect.value = ''; // Seçimi sıfırla
+                    } else if (inputOrSelect.tagName === 'INPUT') {
+                        inputOrSelect.value = ''; // Giriş kutusunu sıfırla
+                    }
+                });
+            }
+
+            // Group, item veya customer type değiştiğinde fiyatı güncelle veya sıfırla
+            const selectedGroup = groupSelect ? groupSelect.value : null;
+            const selectedItem = itemSelect ? itemSelect.value : null;
+
+            if (selectedGroup && selectedItem && customerType) {
+                fetch(`/get_refrigeration_price?model=${encodeURIComponent(selectedItem)}&customer_type=${encodeURIComponent(customerType)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            priceLabel.textContent = data.price.toFixed(2); // Display price
+                            dpriceLabel.textContent = (data.price - (data.price * discount / 100)).toFixed(2); // Apply discount
+                        } else {
+                            console.error('Fiyat alınırken hata oluştu:', data.message);
+                            priceLabel.textContent = ''; // Clear price on error
+                            dpriceLabel.textContent = ''; // Clear discounted price on error
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Fiyat alınırken hata oluştu:', error);
+                        priceLabel.textContent = ''; // Clear price on error
+                        dpriceLabel.textContent = ''; // Clear discounted price on error
+                    });
+            } else {
+                if (priceLabel) priceLabel.textContent = ''; // Clear price if no selection
+                if (dpriceLabel) dpriceLabel.textContent = ''; // Clear discounted price if no selection
+            }
+        });
+    });
+
+    // Customer type değiştiğinde fiyatı güncelle
+    document.getElementById('customerType').addEventListener('change', function () {
+        const discount = parseFloat(document.getElementById('ref_dsc').value) || 0; // Discount tanımlandı
+        document.querySelectorAll('tr').forEach(row => {
+            const groupSelect = row.querySelector('.group-select');
+            const itemSelect = row.querySelector('.item-select');
+            const priceLabel = row.querySelector('label[id^="price_"]');
+            const dpriceLabel = row.querySelector('label[id^="dprice_"]');
+
+            const warrantyValue = parseFloat(row.querySelector('.warranty-select')?.value) || 0;
+            const unpackValue = parseFloat(row.querySelector('.unpack-select')?.value) || 0;
+            const removeValue = parseFloat(row.querySelector('.remove-select')?.value) || 0;
+            
+            const customerType = this.value;
+
+            if (groupSelect && itemSelect && priceLabel && groupSelect.value && itemSelect.value) {
+                fetch(`/get_refrigeration_price?model=${encodeURIComponent(itemSelect.value)}&customer_type=${encodeURIComponent(customerType)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            priceLabel.textContent = (data.price + warrantyValue + unpackValue + removeValue).toFixed(2); // Fiyatı güncelle
+                            dpriceLabel.textContent = (data.price - (data.price * discount / 100) + warrantyValue + unpackValue + removeValue).toFixed(2); // Apply discount
+                        } else {
+                            console.error('Fiyat alınırken hata oluştu:', data.message);
+                            priceLabel.textContent = ''; // Hata durumunda fiyatı temizle
+                            dpriceLabel.textContent = '';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Fiyat alınırken hata oluştu:', error);
+                        priceLabel.textContent = ''; // Hata durumunda fiyatı temizle
+                        dpriceLabel.textContent = '';
+                    });
+            }
+        });
+    });
+
+    // Function to update dprice for all rows
+    function updateAllDPrices() {
+        const discount = parseFloat(document.getElementById('ref_dsc').value) || 0; // Get ref_dsc value
+        document.querySelectorAll('tr').forEach(row => {
+            const priceLabel = row.querySelector('label[id^="price_"]');
+            const dpriceLabel = row.querySelector('label[id^="dprice_"]');
+            const warrantyValue = parseFloat(row.querySelector('.warranty-select')?.value) || 0;
+            const unpackValue = parseFloat(row.querySelector('.unpack-select')?.value) || 0;
+            const removeValue = parseFloat(row.querySelector('.remove-select')?.value) || 0;
+
+            if (priceLabel && dpriceLabel && priceLabel.textContent) {
+                const basePrice = parseFloat(priceLabel.textContent)-(warrantyValue+unpackValue+removeValue); // Base price before additions
+                //alert(basePrice);
+                const discountedPrice = (basePrice - (basePrice * discount / 100)).toFixed(2); // Calculate discounted price
+                dpriceLabel.textContent = (parseFloat(discountedPrice) + warrantyValue + unpackValue + removeValue).toFixed(2); // Add additional values
+            }
+        });
+    }
+
+    // Update dprice when ref_dsc changes
+    document.getElementById('ref_dsc').addEventListener('input', updateAllDPrices);
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+
+    document.querySelectorAll('.item-select').forEach(itemSelect => {
+        itemSelect.addEventListener('change', function () {
+            const discount = parseFloat(document.getElementById('ref_dsc').value) || 0; // Discount tanımlandı
+            const row = this.closest('tr');
+            const selectedItem = this.value;
+            const warrantySelect = row.querySelector('.warranty-select');
+            const unpackSelect = row.querySelector('.unpack-select');
+            const removeSelect = row.querySelector('.remove-select');
+            const priceLabel = row.querySelector('label[id^="price_"]');
+            const dpriceLabel = row.querySelector('label[id^="dprice_"]');
+            const skuLabel = row.querySelector('label[id^="sku_"]');
+
+            if (selectedItem) {
+                fetch(`/get_refrigeration_item_details?model=${encodeURIComponent(selectedItem)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            // Populate warranty, unpack, and remove values with an empty option
+                            warrantySelect.innerHTML = `<option value=""></option><option value="${data.warranty}">${data.warranty}</option>`;
+                            unpackSelect.innerHTML = `<option value=""></option><option value="${data.unpack}">${data.unpack}</option>`;
+                            removeSelect.innerHTML = `<option value=""></option><option value="${data.remove}">${data.remove}</option>`;
+
+                            // Update price and dprice
+                            const basePrice = parseFloat(priceLabel.textContent) || 0;
+                            priceLabel.textContent = basePrice.toFixed(2);
+                            dpriceLabel.textContent = (basePrice - (basePrice * discount / 100)).toFixed(2);
+
+                            // Update SKU with TradePrice and Kar
+                            const tradePrice = parseFloat(data.tradePrice) || 0;
+                            const kar = parseFloat(data.kar) || 0;
+                            //skuLabel.textContent = `${selectedItem} ${tradePrice.toFixed(2)}-${kar.toFixed(2)}`;
+                            skuLabel.textContent = `SKU ${tradePrice}-${kar}`;
+                        } else {
+                            console.error('Item details alınırken hata oluştu:', data.message);
+                            warrantySelect.innerHTML = '<option value=""></option>';
+                            unpackSelect.innerHTML = '<option value=""></option>';
+                            removeSelect.innerHTML = '<option value=""></option>';
+                            skuLabel.textContent = ''; // Clear SKU on error
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Item details alınırken hata oluştu:', error);
+                        warrantySelect.innerHTML = '<option value=""></option>';
+                        unpackSelect.innerHTML = '<option value=""></option>';
+                        removeSelect.innerHTML = '<option value=""></option>';
+                        skuLabel.textContent = ''; // Clear SKU on error
+                    });
+            } else {
+                warrantySelect.innerHTML = '<option value=""></option>';
+                unpackSelect.innerHTML = '<option value=""></option>';
+                removeSelect.innerHTML = '<option value=""></option>';
+                priceLabel.textContent = '';
+                dpriceLabel.textContent = '';
+                skuLabel.textContent = ''; // Clear SKU if no selection
+            }
+        });
+    });
+
+    document.querySelectorAll('.warranty-select, .unpack-select, .remove-select').forEach(select => {
+        select.addEventListener('change', function () {
+            const discount = parseFloat(document.getElementById('ref_dsc').value) || 0; // Discount tanımlandı
+            const row = this.closest('tr');
+            const priceLabel = row.querySelector('label[id^="price_"]');
+            const dpriceLabel = row.querySelector('label[id^="dprice_"]');
+            const warrantyValue = parseFloat(row.querySelector('.warranty-select').value) || 0;
+            const unpackValue = parseFloat(row.querySelector('.unpack-select').value) || 0;
+            const removeValue = parseFloat(row.querySelector('.remove-select').value) || 0;
+
+            const basePrice = parseFloat(priceLabel.dataset.basePrice) || parseFloat(priceLabel.textContent) || 0;
+
+            // Calculate updated price
+            const updatedPrice = basePrice + warrantyValue + unpackValue + removeValue;
+
+            // Store the base price in a data attribute for future reference
+            priceLabel.dataset.basePrice = basePrice;
+
+            priceLabel.textContent = updatedPrice.toFixed(2);
+            dpriceLabel.textContent = ((basePrice - (basePrice * discount / 100)) + warrantyValue + unpackValue + removeValue).toFixed(2);
+        });
+    });
+
+});
+
+document.querySelectorAll('.warranty-select, .unpack-select, .remove-select').forEach(select => {
+    select.addEventListener('change', function () {
+        const discount = parseFloat(document.getElementById('ref_dsc').value) || 0; // Discount tanımlandı
+        const customerType = document.getElementById('customerType').value; // Customer type alındı
+        const row = this.closest('tr');
+        const priceLabel = row.querySelector('label[id^="price_"]');
+        const dpriceLabel = row.querySelector('label[id^="dprice_"]');
+        const warrantyValue = parseFloat(row.querySelector('.warranty-select').value) || 0;
+        const unpackValue = parseFloat(row.querySelector('.unpack-select').value) || 0;
+        const removeValue = parseFloat(row.querySelector('.remove-select').value) || 0;
+        const itemSelect = row.querySelector('.item-select');
+
+        if (itemSelect && itemSelect.value && customerType) {
+            fetch(`/get_refrigeration_price?model=${encodeURIComponent(itemSelect.value)}&customer_type=${encodeURIComponent(customerType)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const basePrice = data.price; // Customer type'a göre fiyat alındı
+                        const updatedPrice = basePrice + warrantyValue + unpackValue + removeValue;
+
+                        // Store the base price in a data attribute for future reference
+                        priceLabel.dataset.basePrice = basePrice;
+
+                        priceLabel.textContent = updatedPrice.toFixed(2);
+                        dpriceLabel.textContent = ((basePrice - (basePrice * discount / 100)) + warrantyValue + unpackValue + removeValue).toFixed(2);
+                    } else {
+                        console.error('Fiyat alınırken hata oluştu:', data.message);
+                        priceLabel.textContent = ''; // Hata durumunda fiyatı temizle
+                        dpriceLabel.textContent = '';
+                    }
+                })
+                .catch(error => {
+                    console.error('Fiyat alınırken hata oluştu:', error);
+                    priceLabel.textContent = ''; // Hata durumunda fiyatı temizle
+                    dpriceLabel.textContent = '';
+                });
+        } else {
+            console.error('Gerekli bilgiler eksik: itemSelect veya customerType');
+        }
+    });
+});
+
+async function AddRefData() {
+    const rows = document.querySelectorAll('#tab_refrigeration tbody tr'); // Refrigeration tablosundaki satırları seç
+    const largestFile = document.getElementById('largestFile').textContent.trim(); // largestFile değerini al
+
+    const refData = []; // Gönderilecek tüm verileri tutacak dizi
+    let validRowFound = false; // Geçerli bir satır bulunup bulunmadığını kontrol etmek için
+
+    rows.forEach((row) => {
+        const sku = row.querySelector('label[id^="sku_"]')?.textContent.trim(); // SKU değeri
+        const itemName = row.querySelector('.item-select')?.value.trim(); // Seçilen item
+        const quantity = row.querySelector('input[name^="quantity_"]')?.value.trim(); // Girilen quantity
+        const price = row.querySelector('label[id^="price_"]')?.textContent.trim(); // Price değeri
+        const dprice = row.querySelector('label[id^="dprice_"]')?.textContent.trim(); // D.Price değeri
+
+        // Eğer 1., 2., 6., 7., 8., ve 9. kolonlar doluysa, veriyi ekle
+        if (sku && itemName && quantity && price && dprice) {
+            refData.push({
+                sku: sku,
+                itemName: itemName,
+                quantity: parseInt(quantity, 10), // Sayıya çevir
+                price: parseFloat(price || 0), // Sayıya çevir, boşsa 0
+                dprice: parseFloat(dprice || 0), // Sayıya çevir, boşsa 0
+                unitType: "Add Refrigeration" // Sabit değer
+            });
+            validRowFound = true; // Geçerli bir satır bulundu
+        }
+    });
+
+    // Eğer geçerli bir satır bulunmadıysa işlemi durdur
+    if (!validRowFound) {
+        console.log("Refrigeration tablosunda işlenecek geçerli veri yok.");
+        window.adrefknt = 0; // Tüm fonksiyonlar için global bir değişken oluşturuyoruz.
+        return true;
+    } else {
+        window.adrefknt = 1;
+    }
+
+    // API'ye gönderilecek veri
+    const data = {
+        ref_data: refData, // Toplanan tüm satırlar
+        largest_file: largestFile // largestFile değeri burada kullanılıyor
+    };
+
+    // API'ye POST isteği gönder
+    try {
+        const response = await fetch('/add_ref_data', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+
+        const responseData = await response.json();
+
+        if (responseData.status === "success") {
+            console.log("Refrigeration verileri başarıyla gönderildi!");
+        } else {
+            throw new Error("Bir hata oluştu: " + responseData.message);
+        }
+    } catch (error) {
+        console.error('API Hatası:', error);
+        alert('Refrigeration verileri gönderilirken hata oluştu.');
+        throw error; // Hata fırlatarak işlemi durdur
+    }
+}
+
+async function saveRefSelection(quoteNumber) {
+    const customerType = document.getElementById('customerType')?.value || '';
+    const refDsc = parseFloat(document.getElementById('ref_dsc')?.value) || 0;
+
+    const rows = Array.from(document.querySelectorAll('#tab_refrigeration tbody tr'));
+    const selections = rows.map(row => {
+        const groupSelect = row.querySelector('.group-select')?.value || '';
+        const itemSelect = row.querySelector('.item-select')?.value || '';
+        const quantityInput = row.querySelector('input[name^="quantity_"]')?.value || 0;
+        const warrantySelect = row.querySelector('.warranty-select')?.value || '';
+        const unpackSelect = row.querySelector('.unpack-select')?.value || '';
+        const removeSelect = row.querySelector('.remove-select')?.value || '';
+        const priceLabel = row.querySelector('label[id^="price_"]')?.textContent || 0.0;
+        const discountedPriceLabel = row.querySelector('label[id^="dprice_"]')?.textContent || 0.0;
+
+        // Tüm satırları kaydet, boş olanlar dahil
+        return {
+            group_name: groupSelect,
+            item_name: itemSelect,
+            warranty: warrantySelect,
+            unpack: unpackSelect,
+            remove: removeSelect,
+            quantity: parseInt(quantityInput, 10),
+            price: parseFloat(priceLabel),
+            discounted_price: parseFloat(discountedPriceLabel)
+        };
+    });
+
+    try {
+        const response = await fetch('/save_ref_selection', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                quote_number: quoteNumber,
+                customer_type: customerType,
+                ref_dsc: refDsc,
+                selections: selections,
+            }),
+        });
+
+        const data = await response.json();
+        if (data.status === 'success') {
+            console.log('Refrigeration seçimleri başarıyla kaydedildi.');
+        } else {
+            console.error('Refrigeration seçimleri kaydedilirken hata oluştu:', data.message);
+        }
+    } catch (error) {
+        console.error('Refrigeration seçimleri kaydedilirken hata oluştu:', error);
+    }
+}
+
+async function loadRefSelection(quoteNumber) {
+    // Tüm seçimleri sıfırla
+    const rows = document.querySelectorAll('#tab_refrigeration tbody tr');
+    rows.forEach(row => {
+        const dpriceLabel = row.querySelector('label[id^="dprice_"]');
+        const groupSelect = row.querySelector('.group-select');
+        const itemSelect = row.querySelector('.item-select');
+        const warrantySelect = row.querySelector('.warranty-select');
+        const unpackSelect = row.querySelector('.unpack-select');
+        const removeSelect = row.querySelector('.remove-select');
+        const quantityInput = row.querySelector('input[name^="quantity_"]');
+        const priceLabel = row.querySelector('label[id^="price_"]');
+        const sku = row.querySelector('label[id^="sku_"]'); // SKU değeri
+
+        if (groupSelect) groupSelect.value = '';
+        if (itemSelect) itemSelect.innerHTML = '<option value=""></option>';
+        if (warrantySelect) warrantySelect.innerHTML = '<option value=""></option>';
+        if (unpackSelect) unpackSelect.innerHTML = '<option value=""></option>';
+        if (removeSelect) removeSelect.innerHTML = '<option value=""></option>';
+        if (quantityInput) quantityInput.value = '';
+        if (priceLabel) priceLabel.textContent = '';
+        if (dpriceLabel) dpriceLabel.textContent = '';
+        if (sku) sku.textContent = ''; // SKU değerini temizle
+    });
+
+    // ...existing code...
+    try {
+        const response = await fetch(`/load_ref_selection?quote_number=${quoteNumber}`);
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            const selections = data.selections;
+
+            // Customer type ve ref_dsc geri yükleniyor
+            const customerTypeElement = document.getElementById('customerType');
+            const refDscElement = document.getElementById('ref_dsc');
+            if (selections.length > 0) {
+                customerTypeElement.value = selections[0].customer_type || '';
+                refDscElement.value = selections[0].ref_dsc || 0;
+                customerTypeElement.dispatchEvent(new Event('change'));
+                refDscElement.dispatchEvent(new Event('input'));
+            }
+
+            // Sadece quantity > 0 olan satırlar için işlem yapılıyor
+            for (const selection of selections) {
+                if (selection.quantity > 0) {
+                    const row = document.querySelector(`#tab_refrigeration tbody tr:nth-child(${selection.row_index + 1})`);
+                    if (!row) continue;
+
+                    const groupSelect = row.querySelector('.group-select');
+                    const itemSelect = row.querySelector('.item-select');
+                    const warrantySelect = row.querySelector('.warranty-select');
+                    const unpackSelect = row.querySelector('.unpack-select');
+                    const removeSelect = row.querySelector('.remove-select');
+                    const quantityInput = row.querySelector('input[name^="quantity_"]');
+                    const priceLabel = row.querySelector('label[id^="price_"]');
+                    const dpriceLabel = row.querySelector('label[id^="dprice_"]');
+
+                    // Group name geri yükleniyor
+                    if (groupSelect) {
+                        groupSelect.value = selection.group_name;
+                        groupSelect.dispatchEvent(new Event('change'));
+                    }
+
+                    // Group name seçildikten sonra item name geri yükleniyor
+                    if (itemSelect) {
+                        await new Promise(resolve => setTimeout(resolve, 50)); // Bağımlı seçimlerin yüklenmesi için bekleme
+                        itemSelect.value = selection.item_name;
+                        itemSelect.dispatchEvent(new Event('change'));
+                    }
+
+                    await new Promise(resolve => setTimeout(resolve, 50));
+
+                    // Item name seçildikten sonra warranty, unpack, remove geri yükleniyor
+                    if (warrantySelect) warrantySelect.value = selection.warranty;
+                    if (unpackSelect) unpackSelect.value = selection.unpack;
+                    if (removeSelect) removeSelect.value = selection.remove;
+
+                    // Quantity, price ve dprice geri yükleniyor
+                    if (quantityInput) quantityInput.value = selection.quantity;
+                    if (priceLabel) priceLabel.textContent = selection.price.toFixed(2);
+                    if (dpriceLabel) dpriceLabel.textContent = selection.discounted_price.toFixed(2);
+                }
+            }
+
+            const { customer_type, ref_dsc } = data;
+
+            // customer_type ve ref_dsc değerlerini ilgili alanlara yerleştir
+            document.getElementById('customerType').value = customer_type;
+            document.getElementById('ref_dsc').value = ref_dsc;
+
+            console.log('Refrigeration seçimleri başarıyla yüklendi.');
+        } else {
+            console.error('Refrigeration seçimleri yüklenirken hata oluştu:', data.message);
+        }
+    } catch (error) {
+        console.error('Refrigeration seçimleri yüklenirken hata oluştu:', error);
+    }
+}
+
+async function addCeilingData() {
+    const rows = document.querySelectorAll('#ceilingTableBody tr'); // Ceiling tablosundaki satırları seç
+    const largestFile = document.getElementById('largestFile').textContent.trim(); // largestFile değerini al
+
+    const ceilingData = []; // Gönderilecek tüm verileri tutacak dizi
+    let validRowFound = false; // Geçerli bir satır bulunup bulunmadığını kontrol etmek için
+
+    rows.forEach((row) => {
+        const code = row.children[0]?.textContent.trim(); // Code
+        const materials = row.children[1]?.textContent.trim(); // Materials
+        const qty = parseFloat(row.children[3]?.textContent.trim()) || 0; // Qty
+        const local = parseFloat(row.children[4]?.textContent.trim()) || 0; // Local
+        const dPrice = parseFloat(row.children[5]?.textContent.trim()) || 0; // D.Price
+
+        if (code && materials) {
+            ceilingData.push({
+                Code: code,
+                Materials: materials,
+                qty: qty,
+                local: local,
+                dPrice: dPrice
+            });
+            validRowFound = true; // Geçerli bir satır bulundu
+        }
+    });
+
+    // Eğer geçerli bir satır bulunmadıysa işlemi durdur
+    if (!validRowFound) {
+        console.log("Ceiling tablosunda işlenecek geçerli veri yok.");
+        window.adclknt = 0; // Tüm fonksiyonlar için global bir değişken oluşturuyoruz.
+        return true;
+    } else {
+        window.adclknt = 1;
+    }
+
+    // API'ye POST isteği gönder
+    try {
+        const response = await fetch('/add_ceiling_data', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                largest_file: largestFile,
+                ceiling_data: ceilingData
+            }),
+        });
+
+        const responseData = await response.json();
+
+        if (responseData.status === "success") {
+            console.log("Ceiling verileri başarıyla gönderildi!");
+        } else {
+            throw new Error("Bir hata oluştu: " + responseData.message);
+        }
+    } catch (error) {
+        console.error('API Hatası:', error);
+        alert('Ceiling verileri gönderilirken hata oluştu.');
+    }
+}
+
+async function saveCeilSelection(quoteNumber) {
+    const ceilingM2 = parseFloat(document.getElementById('ceilingM2')?.value) || 0;
+    const trimLM = parseFloat(document.getElementById('trimLM')?.value) || 0;
+    const ceilingDiscount = parseFloat(document.getElementById('ceilingDiscount')?.value) || 0;
+
+    try {
+        const response = await fetch('/save_ceil_selection', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                quote_number: quoteNumber,
+                ceiling_m2: ceilingM2,
+                trim_lm: trimLM,
+                ceiling_discount: ceilingDiscount,
+            }),
+        });
+
+        const data = await response.json();
+        if (data.status === 'success') {
+            console.log('Ceiling seçimleri başarıyla kaydedildi.');
+        } else {
+            console.error('Ceiling seçimleri kaydedilirken hata oluştu:', data.message);
+        }
+    } catch (error) {
+        console.error('Ceiling seçimleri kaydedilirken hata oluştu:', error);
+    }
+}
+
+async function loadCeilSelection(quoteNumber) {
+    // Ceiling sayfasını tamamen temizle
+    document.getElementById('ceilingM2').value = '';
+    document.getElementById('trimLM').value = '';
+    document.getElementById('ceilingDiscount').value = '';
+    const tableBody = document.getElementById('ceilingTableBody');
+    if (tableBody) {
+        tableBody.innerHTML = ''; // Tabloyu temizle
+    }
+
+    // ...existing code...
+    try {
+        const response = await fetch(`/load_ceil_selection?quote_number=${quoteNumber}`);
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            const { ceiling_m2, trim_lm, ceiling_discount } = data;
+
+            // Eğer tüm değerler boşsa fonksiyonu sonlandır
+            if (!ceiling_m2 && !trim_lm && !ceiling_discount) {
+                console.log('Ceiling seçimleri boş, işlem yapılmadı.');
+                return;
+            }
+
+            document.getElementById('ceilingM2').value = ceiling_m2 || '';
+            document.getElementById('trimLM').value = trim_lm || '';
+            document.getElementById('ceilingDiscount').value = ceiling_discount || '';
+
+            // Değerler yüklendikten sonra ceiling verilerini güncelle
+            fetchCeilingData();
+            console.log('Ceiling seçimleri başarıyla yüklendi.');
+        } else {
+            console.error('Ceiling seçimleri yüklenirken hata oluştu:', data.message);
+        }
+    } catch (error) {
+        console.error('Ceiling seçimleri yüklenirken hata oluştu:', error);
+    }
+}
+
+</script>
 
 </body>
 </html>
