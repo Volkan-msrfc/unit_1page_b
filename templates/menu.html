@@ -127,6 +127,7 @@
             background-color: rgba(0, 0, 0, 0.5); /* Yarı şeffaf arka plan */
             justify-content: center;
             align-items: center;
+            z-index: 1050; /* Modalın diğer öğelerin üstünde görünmesi için z-index artırıldı */
         }
 
         .modal-content {
@@ -140,6 +141,8 @@
             overflow: hidden; /* İçerik taşmasını gizle */
             display: flex;
             flex-direction: column;
+            z-index: 1051; /* Modal içeriği için z-index artırıldı */
+            position: relative; /* Modal içeriğinin diğer öğelerle çakışmasını önlemek için */
         }
 
         .modal input {
@@ -187,6 +190,7 @@
             max-height: 820px; /* Tablonun maksimum yüksekliği */
             overflow-y: auto; /* Yalnızca dikey kaydırma */
             border: 1px solid #ddd; /* Çerçeve ekleyin */
+            z-index: 1; /* Tablo başlığının modalın altında kalması için z-index düşük tutuldu */
         }
 
         .scrollable-table table {
@@ -198,7 +202,7 @@
             position: sticky; /* Sabit pozisyon */
             top: 0; /* Tablo başlığı yukarıda sabitlenir */
             background-color: #f2f2f2; /* Arka plan rengi */
-            z-index: 1; /* Başlığı diğer elemanların üstünde tut */
+            z-index: 1049; /* Tablo başlığının modalın altında kalması için z-index düşürüldü */
             border: 1px solid #ddd; /* Başlık hücre çerçevesi */
             padding: 8px; /* İçerik aralığı */
             text-align: center; /* Ortala */
@@ -226,9 +230,9 @@
      </div>
      <button class="header-button" onclick="openModal()">Müşteri Bilgileri</button> <!-- Yeni Buton -->
 
-     <div id="selectedCustomer" style="margin-left: 0px; font-size: 14px;">
+     <!--<div id="selectedCustomer" style="margin-left: 0px; font-size: 14px;">-->
+     <div id="selectedCustomer" style="display: flex; gap: 40px;"></div>
          <!-- Seçilen müşteri bilgileri burada görünecek -->
-     </div>
      <span id="serverTime" style="display: block; margin-top: 10px; font-size: 14px; color: gray;">
         <!-- Tarih burada gösterilecek -->
     </span>
@@ -741,11 +745,30 @@
             <h2 id="tableHeader" style="display: flex; justify-content: space-between; align-items: center;">
                 <span>Quote list: Yükleniyor...</span>
             </h2>
-            <div style="display: flex; gap: 100px; align-items: center; margin-top: 20px;">
-                <button id="updateWidthBtn">Make Proforma</button>
-                <button id="openProformaBtn" onclick="openProformaModal()">Open Proforma</button>
-                <label for="discountInput">Discount:</label>
-                <input type="number" id="discountInput" value="0" style="width: 60px;" min="0" max="100" step="1">
+
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+
+                <!-- quoteDate sağa hizalandı -->
+                <div style="display: flex; justify-content: flex-end;">
+                    <span id="quoteDate" style="padding: 5px 10px; font-size: 14px; color: gray;">Quote date: Yükleniyor...</span>
+                </div>
+            
+                <!-- Diğer butonlar -->
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; gap: 20px; align-items: center;">
+                        <button id="updateWidthBtn">Make Proforma</button>
+                        <button id="openProformaBtn" onclick="openProformaModal()">Open Proforma</button>
+                        <label for="discountInput">Discount:</label>
+                        <input type="number" id="discountInput" value="0" style="width: 60px;" min="0" max="100" step="1">
+                    </div>
+            
+                    <!-- Sell butonu sağda -->
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <button id="sellBtn" onclick="sellModalcnt()" style="padding: 5px 10px;">Sell</button>
+                        <button id="invBtn" onclick="generateInvoice(false)" style="padding: 5px 10px;">Inv</button>
+                    </div>
+                </div>
+            
             </div>
 
             <p id="statusMessage"></p>
@@ -769,6 +792,28 @@
                     <!-- Veri buraya yüklenecek -->
                 </tbody>
             </table>
+        </div>
+
+        <!-- Sell Modal -->
+        <div class="modal" id="sellModal">
+            <div class="modal-content" style="max-width: 400px; text-align: center; height: 20%;"> <!-- Yükseklik azaltıldı -->
+                <h2>Do you approve the sale?</h2>
+
+                <div style="display: flex; justify-content: center; margin-top: auto; margin-bottom: 10px;">
+                <label>
+                    <input type="checkbox" id="checkboxS" onclick="toggleCheckbox('S')"> Sale
+                </label>
+                <label>
+                    <input type="checkbox" id="checkboxI" onclick="toggleCheckbox('I')"> Invoice
+                </label>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; margin-top: auto; margin-bottom: 10px;"> <!-- Butonlar daha aşağıya taşındı -->
+                    <button onclick="approveSale()" style="padding: 10px 20px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">Yes</button>
+                    <button onclick="closeSellModal(),ClearChckBox()" style="padding: 10px 20px; background-color: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;">No</button>
+
+                </div>
+            </div>
         </div>
 
         <div id="tab_goruntule" class="tab-content">
@@ -885,18 +930,19 @@
 
     <div class="modal" id="customerModal">
     <div class="modal-content" style="max-width: 1400px;"> <!-- Modal genişliği artırıldı -->
-    <h2>Müşteri Bilgileri</h2>
-    <input type="text" id="searchBox" placeholder="Müşteri Arama..." onkeyup="searchCustomer()">
+    <h2>Customer List</h2>
+    <input type="text" id="searchBox" placeholder="Search Customer..." onkeyup="searchCustomer()">
     <div style="display: flex; gap: 20px;">
         <!-- Sol taraf: Müşteri Tablosu -->
         <div style="flex: 2;">
             <table id="customerTable" style="width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr>
-                        <th>Customer ID</th>
+                        <th>C. ID</th>
                         <th>Customer Name</th>
                         <th>Tel</th>
-                        <th>Address</th>
+                        <th>Address1</th>
+                        <th>Address2</th>
                         <th>Postcode</th>
                     </tr>
                 </thead>
@@ -914,15 +960,15 @@
         <div style="flex: 1; display: flex; flex-direction: column; gap: 10px;">
             <h2>Customer Add/Update</h2>
             <div style="display: flex; align-items: center; gap: 10px;">
-                <label for="customerName" style="width: 150px;">Customer Name</label>
+                <label for="customerName" style="width: 150px;">Customer Name *</label>
                 <input type="text" id="customerName" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
             </div>
             <div style="display: flex; align-items: center; gap: 10px;">
-                <label for="customerTel" style="width: 150px;">Tel</label>
+                <label for="customerTel" style="width: 150px;">Tel *</label>
                 <input type="text" id="customerTel" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
             </div>
             <div style="display: flex; align-items: center; gap: 10px;">
-                <label for="customerAddress1" style="width: 150px;">Address Line1</label>
+                <label for="customerAddress1" style="width: 150px;">Address Line1 *</label>
                 <input type="text" id="customerAddress1" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
             </div>
             <div style="display: flex; align-items: center; gap: 10px;">
@@ -930,7 +976,7 @@
                 <input type="text" id="customerAddress2" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
             </div>
             <div style="display: flex; align-items: center; gap: 10px;">
-                <label for="customerPostcode" style="width: 150px;">Postcode</label>
+                <label for="customerPostcode" style="width: 150px;">Postcode *</label>
                 <input type="text" id="customerPostcode" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
             </div>
             <div style="display: flex; align-items: center; gap: 10px;">
@@ -991,7 +1037,7 @@
         <div class="tab" onclick="openTab('tab_ceiling')">Ceiling</div>
         <div class="tab" onclick="openTab('tab_add_item')">Add Item</div>
         
-        <div class="tab" onclick="openTab('tab_view_pdf')">View PDF</div>
+        <div class="tab" onclick="openTab('tab_reports')">Report</div>
         <div class="tab" onclick="openTab('tab_goruntule')">Goruntule</div>
     </div>
 
@@ -1004,6 +1050,7 @@ let selectedCustomerID = null;
 let selectedCustomer1ID = null;
 let selectedCustomerName = null;
 let selectedQuoteNumber = null; // Seçili quote numarasını saklamak için global değişken
+let newQuoteNum = null;
 
 function setCustomerInfo(customer) {
     // Backend'e müşteri bilgilerini gönder
@@ -1196,7 +1243,7 @@ async function updateWidthData() {
             (perf30Element && perf30Element.value) ||
             (plane20Element && plane20Element.value) ||
             (perf20Element && perf20Element.value) ||
-            (plane10Element && perf10Element.value) ||
+            (plane10Element && plane10Element.value) ||
             (perf10Element && perf10Element.value);
 
         // Eğer hiçbir değer girilmediyse bu satırı atla
@@ -1413,6 +1460,7 @@ async function mainFunction() {
     // Eş zamanlı tıklamaları kontrol et
     //await checkConcurrentClicks();
     const nextNumber = await quotenumkont();
+    newQuoteNum = nextNumber; // nextNumber'ı global değişkene ata
     if (!nextNumber) {
         console.error("quotenumkont işlemi başarısız. İşlem durduruldu.");
         await fetch('/reset_islmdvm', { method: 'POST' });
@@ -1444,6 +1492,16 @@ async function mainFunction() {
         return;
     }
 
+    // Ceiling verilerini gönder
+    try {
+        console.log("addCeilingData fonksiyonu çağrıldı.");
+        await addCeilingData(); // Ceiling verilerini gönder
+    } catch (error) {
+        console.error('addCeilingData başarısız oldu. İşlem sonlandırıldı.', error);
+        await fetch('/reset_islmdvm', { method: 'POST' });
+        return;
+    }
+
     // 2. showAddItemData çağrısı
     try {
         console.log("showAddItemData fonksiyonu çağrıldı.");
@@ -1454,15 +1512,6 @@ async function mainFunction() {
         return;
     }
 
-    // Ceiling verilerini gönder
-    try {
-        console.log("addCeilingData fonksiyonu çağrıldı.");
-        await addCeilingData(); // Ceiling verilerini gönder
-    } catch (error) {
-        console.error('addCeilingData başarısız oldu. İşlem sonlandırıldı.', error);
-        await fetch('/reset_islmdvm', { method: 'POST' });
-        return;
-    }
     
        // 3. Kullanıcıdan indirim değerini al
        const discountInput = document.getElementById('discountInput');
@@ -1497,18 +1546,16 @@ async function mainFunction() {
         await fetch('/reset_islmdvm', { method: 'POST' });
     } else {
         console.log("loadQuoteList fonksiyonu çağrılıyor.");
-
+        
+        await createTableprofdelv(nextNumber);
         await loadQuoteList(nextNumber); // İşlemin tamamlanmasını bekle
+        await loadProformaDeliveryInfo(nextNumber);
         await callPrepUpQt(nextNumber,dsc);
         await saveUniteSelection(nextNumber);
         await saveAddItemSelection(nextNumber);
-
-        //if ((window.adrefknt || 0)<= 0) {
-        //await fetch('/reset_islmdvm', { method: 'POST' });
-        //} else {
         await saveRefSelection(nextNumber); // Yeni fonksiyon çağrısı
-        //}
-        await saveCeilSelection(nextNumber)
+        await saveCeilSelection(nextNumber);
+        await fetchCustomerDataByQuote(newQuoteNum);
         await fetch('/reset_islmdvm', { method: 'POST' });
         
     }
@@ -1703,6 +1750,7 @@ function openModal() {
     document.getElementById("customerAddress1").value = "";
     document.getElementById("customerAddress2").value = "";
     document.getElementById("customerPostcode").value = "";
+    document.getElementById("customerPostcode").disabled = false;
     document.getElementById("customerEmail").value = "";
     document.getElementById("customerDiscount").value = "";
 
@@ -1735,26 +1783,78 @@ function fetchCustomerData() {
         });
 }
 function selectCustomer(customer) {
-        // Global değişkene müşteri ID'sini ata
-        selectedCustomerID = customer[0];
-        selectedCustomerName = customer[1];
-        selectedCustomer1ID = null;
+    selectedCustomerID = customer[0];
+    selectedCustomerName = customer[1];
+    selectedCustomer1ID = null;
 
-        // Seçilen müşteri bilgilerini ekrana yaz
-        document.getElementById("selectedCustomer").innerHTML = `
-            <strong>Customer Name:</strong> ${customer[1]} <br>
-            <strong>Tel:</strong> ${customer[2]} <br>
-            <strong>Address:</strong> ${customer[3]} <br>
-            <strong>Postcode:</strong> ${customer[4]}
-        `;
+    document.getElementById("selectedCustomer").innerHTML = `
+        <div>
+            <strong>Proforma To</strong><br>
+            <strong>Customer Name:</strong> ${customer[1]}<br>
+            <strong>Tel:</strong> ${customer[2]}<br>
+            <strong>Address Line1:</strong> ${customer[3]}<br>
+            <strong>Address Line2:</strong> ${customer[4]}<br>
+            <strong>Postcode:</strong> ${customer[5]}
+        </div>
 
-        // Backend'e müşteri bilgilerini gönder
-        setCustomerInfo(customer);
-        
+    `;
+    // beckende musteri bilgilerini gonder    
+    setCustomerInfo(customer);
+    //modali kapat
+    closeModal();
+}
 
-        // Modal'ı kapat
-        closeModal();
+async function selectCustomerDlv(customer) {
+    selectedCustomerID = customer[0];
+    selectedCustomerName = customer[1];
+    selectedCustomer1ID = null;
+
+    // İlk div: Proforma To bilgileri
+    document.getElementById("selectedCustomer").innerHTML = `
+        <div style="width: 100; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            <strong>Proforma To</strong><br>
+            <strong>Customer Name:</strong> ${customer[1]}<br>
+            <strong>Tel:</strong> ${customer[2]}<br>
+            <strong>Address1:</strong> ${customer[3]}<br>
+            <strong>Address2:</strong> ${customer[4]}<br>
+            <strong>Postcode:</strong> ${customer[5]}
+        </div>
+        <div id="deliverTo" style="width: 100; margin-right: 100; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            <strong>Deliver To</strong><br>
+            <strong>Customer Name:</strong> <span id="deliverName"></span><br>
+            <strong>Tel:</strong> <span id="deliverTel"></span><br>
+            <strong>Address1:</strong> <span id="deliverAddress1"></span><br>
+            <strong>Address2:</strong> <span id="deliverAddress2"></span><br>
+            <strong>Postcode:</strong> <span id="deliverPostcode"></span>
+        </div>
+    `;
+
+    // Backend'den Deliver To bilgilerini al
+    try {
+        const quoteNumber = selectedQuoteNumber ?? newQuoteNum;
+        const response = await fetch(`/get_delivery_info?quote_number=${quoteNumber}`);
+        //const response = await fetch(`/get_delivery_info?quote_number=${selectedQuoteNumber}`);
+        const data = await response.json();
+
+        if (data.status === "success") {
+            const deliveryInfo = data.delivery_info;
+            document.getElementById("deliverName").textContent = deliveryInfo.Dname || "";
+            document.getElementById("deliverTel").textContent = deliveryInfo.Dtel || "";
+            document.getElementById("deliverAddress1").textContent = deliveryInfo.Daddress1 || "";
+            document.getElementById("deliverAddress2").textContent = deliveryInfo.Daddress2 || "";
+            document.getElementById("deliverPostcode").textContent = deliveryInfo.Dpostcode || "";
+        } else {
+            console.error("Deliver To bilgileri alınırken hata oluştu:", data.message);
+        }
+    } catch (error) {
+        console.error("Deliver To bilgileri alınırken hata oluştu:", error);
     }
+
+    // Backend'e müşteri bilgilerini gönder
+    setCustomerInfo(customer);
+    closeModal();
+}
+
 
     function select1Customer(customer) {
         selectedCustomer1ID = customer[0]; // Seçilen müşterinin ID'sini al
@@ -1771,6 +1871,7 @@ function selectCustomer(customer) {
                     document.getElementById("customerAddress1").value = data.customer.address1 || "";
                     document.getElementById("customerAddress2").value = data.customer.address2 || "";
                     document.getElementById("customerPostcode").value = data.customer.postcode || "";
+                    document.getElementById("customerPostcode").disabled = true; // Postcode kutucuğunu değiştirilemez yap
                     document.getElementById("customerEmail").value = data.customer.email || "";
                     document.getElementById("customerDiscount").value = data.customer.discount || "";
                 } else {
@@ -1780,19 +1881,30 @@ function selectCustomer(customer) {
             .catch(error => console.error("Müşteri bilgileri alınırken hata oluştu:", error));
     }
 
+    function toTitleCase(str) {
+    return str.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
+    }
+
     function addOrUpdateCustomer() {
-        //alert(`selectedCustomer1ID: ${selectedCustomer1ID}, selectedCustomerID: ${selectedCustomerID}`); // Değerleri göster
-        const customerData = {
-            id: selectedCustomer1ID || null, // Eğer seçili müşteri yoksa null
-            name: document.getElementById("customerName").value,
-            tel: document.getElementById("customerTel").value,
-            address1: document.getElementById("customerAddress1").value,
-            address2: document.getElementById("customerAddress2").value,
-            postcode: document.getElementById("customerPostcode").value,
-            email: document.getElementById("customerEmail").value,
-            discount: document.getElementById("customerDiscount").value,
-        };
-        //alert(`xselectedCustomer1ID: ${selectedCustomer1ID}, xselectedCustomerID: ${selectedCustomerID}`); // Değerleri göster
+    const nameInput = document.getElementById("customerName").value.trim();
+    const telInput = document.getElementById("customerTel").value.trim();
+    const address1Input = document.getElementById("customerAddress1").value.trim();
+    const address2Input = document.getElementById("customerAddress2").value.trim();
+    const postcodeInput = document.getElementById("customerPostcode").value.trim().toUpperCase().replace(/\s+/g, '');
+    const emailInput = document.getElementById("customerEmail").value.trim();
+    const discountInput = document.getElementById("customerDiscount").value.trim();
+
+    const customerData = {
+        id: selectedCustomer1ID || null,
+        name: toTitleCase(nameInput),
+        tel: telInput,
+        address1: toTitleCase(address1Input),
+        address2: toTitleCase(address2Input),
+        postcode: postcodeInput,
+        email: emailInput.toLowerCase(), // email'ler genelde küçük harf olur
+        discount: discountInput,
+    };
+        
         fetch("/add_or_update_customer", {
             method: "POST",
             headers: {
@@ -1814,32 +1926,14 @@ function selectCustomer(customer) {
                 document.getElementById("customerEmail").value = "";
                 document.getElementById("customerDiscount").value = "";
                 fetchCustomerData(); // Tabloyu güncelle
+                document.getElementById("customerPostcode").disabled = false;
             } else {
                 alert("Error: " + data.message);
             }
         })
         .catch(error => console.error("Error:", error));
     }
-//      // Müşteri seçme
-// function selectCustomer(customer) {
-//     // Global değişkene müşteri ID'sini ata
-//     selectedCustomerID = customer[0];
-//     selectedCustomerName = customer[1];
 
-//     // Seçilen müşteri bilgilerini ekrana yaz
-//     document.getElementById("selectedCustomer").innerHTML = `
-//         <strong>Customer Name:</strong> ${customer[1]} <br>
-//         <strong>Tel:</strong> ${customer[2]} <br>
-//         <strong>Address:</strong> ${customer[3]} <br>
-//         <strong>Postcode:</strong> ${customer[4]}
-//     `;
-
-//     // Backend'e müşteri bilgilerini gönder
-//     setCustomerInfo(customer);
-
-//     // Modal'ı kapat
-//     closeModal();
-// }
 
 // Arama fonksiyonu
 function searchCustomer() {
@@ -1939,10 +2033,24 @@ function openProformaModal() {
                     const quoteNumber = row[0]; // Birinci sütundaki numarayı al
                     const discountValue = row[5]; // Discount değerini al
                     selectedQuoteNumber = row[0]; // Birinci sütundaki quote numarasını al
+                    const Sing1 = row[7];
+                    const Sing2 = row[8];
                     const dbName = `${quoteNumber}`; // Dosya adını oluştur
 
                     // Discount değerini dsc alanına yaz
                     document.getElementById('discountInput').value = discountValue;
+
+                    // Eğer Sing1 veya Sing2 doluysa "Make Proforma" butonunu kilitle
+                    const makeProformaButton = document.getElementById('updateWidthBtn');
+                    if (Sing1 || Sing2) {
+                        makeProformaButton.disabled = true;
+                        makeProformaButton.style.cursor = 'not-allowed';
+                        makeProformaButton.title = 'This quote is already processed.';
+                    } else {
+                        makeProformaButton.disabled = false;
+                        makeProformaButton.style.cursor = 'pointer';
+                        makeProformaButton.title = '';
+                    }
 
                     fetchCustomerDataByQuote(quoteNumber);
                     loadQuoteList(dbName); // get_quote_list'i çağır
@@ -1950,6 +2058,7 @@ function openProformaModal() {
                     loadAddItemSelection(dbName); // Add Item seçimlerini yükle
                     loadRefSelection(dbName); 
                     loadCeilSelection(dbName); // Ceiling seçimlerini yükle
+                    updateQuoteDate(quoteNumber); // Tarihi güncelle
                     closeProformaModal(); // Modalı kapat
                 });
 
@@ -2159,12 +2268,14 @@ async function fetchCustomerDataByQuote(quoteNumber) {
                 data.customer_id,    // ID
                 data.customer_name,  // Name
                 data.tel,            // Tel
-                data.address,        // Address
+                data.address1,        // Address1
+                data.address2,        // Address2
                 data.postcode        // Postcode
             ];
 
             // selectCustomer fonksiyonunu tetikle
-            selectCustomer(customer);
+            //selectCustomer(customer);
+            selectCustomerDlv(customer);
         } else {
             console.error('Müşteri bilgileri alınırken hata oluştu:', data.message);
             alert(data.message); // Hata mesajını kullanıcıya göster
@@ -2207,7 +2318,7 @@ async function fetchServerTime() {
         const data = await response.json();
         if (data.status === 'success') {
             const serverTimeElement = document.getElementById('serverTime');
-            serverTimeElement.textContent = `Server Time: ${data.time}`; // Tarih ve saati göster
+            serverTimeElement.textContent = `Server Time: ${data.server_time}`; // `server_time` kullanıldı
         } else {
             console.error('Tarih ve saat alınırken hata oluştu:', data.message);
         }
@@ -2215,6 +2326,8 @@ async function fetchServerTime() {
         console.error('Tarih ve saat alınırken hata oluştu:', error);
     }
 }
+
+document.addEventListener('DOMContentLoaded', fetchServerTime); // Sayfa yüklendiğinde çağır
 
 async function saveAddItemSelection(quoteNumber) {
     const rows = Array.from(document.querySelectorAll('#tab_add_item tbody tr'));
@@ -2429,7 +2542,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     .then(data => {
                         if (data.status === 'success') {
                             priceLabel.textContent = (data.price + warrantyValue + unpackValue + removeValue).toFixed(2); // Fiyatı güncelle
-                            dpriceLabel.textContent = (data.price - (data.price * discount / 100) + warrantyValue + unpackValue + removeValue).toFixed(2); // Apply discount
+                            dpriceLabel.textContent = (data.price - (data.price * discount / 100) + warrantyValue + unpackValue + removeValue).toFixed(2);
                         } else {
                             console.error('Fiyat alınırken hata oluştu:', data.message);
                             priceLabel.textContent = ''; // Hata durumunda fiyatı temizle
@@ -2616,7 +2729,7 @@ async function AddRefData() {
                 itemName: itemName,
                 quantity: parseInt(quantity, 10), // Sayıya çevir
                 price: parseFloat(price || 0), // Sayıya çevir, boşsa 0
-                dprice: parseFloat(dprice || 0), // Sayıya çevir, boşsa 0
+                dprice: parseFloat(dprice || 0), // Sayıya çevir, boşsa 0,
                 unitType: "Add Refrigeration" // Sabit değer
             });
             validRowFound = true; // Geçerli bir satır bulundu
@@ -2946,7 +3059,729 @@ async function loadCeilSelection(quoteNumber) {
     }
 }
 
+
+    function sellModalcnt() {
+        const tableBody = document.querySelector('#quoteListTable tbody');
+        if (tableBody && tableBody.children.length > 0) {
+            // Tablo doluysa modalı aç
+            openSellModal();
+        } else {
+            // Tablo boşsa modalı kapat
+            alert("No data in the table!");
+            closeSellModal();
+        }
+    }
+
+
+    // Sell Modal açma
+    function openSellModal() {
+        document.getElementById('sellModal').style.display = 'flex';
+    }
+
+    // Sell Modal kapama
+    function closeSellModal() {
+        document.getElementById('sellModal').style.display = 'none';
+
+        // Checkbox'ların tiklerini temizle
+        //checkboxI.checked = false; // 'I' kutucuğunun seçimini kaldır
+        //checkboxS.checked = false;
+    }
+
+    function ClearChckBox() {
+        // Checkbox'ların tiklerini temizle
+        checkboxI.checked = false; // 'I' kutucuğunun seçimini kaldır
+        checkboxS.checked = false;
+    }
+
+    // Satışı onaylama
+    function approveSale() {
+        //alert("Sale approved!"); // Burada satış işlemi için gerekli işlemleri yapabilirsiniz.
+        closeSellModal();
+    }
+
+    async function salecustdet() {
+    try {
+        const tableRows = Array.from(document.querySelectorAll('#quoteListTable tbody tr'));
+        const quoteNumber = document.getElementById('tableHeader').textContent.split(':')[1].trim(); // Proforma tablosunun database ismi alınıyor
+
+        // Checkbox'lardan seçili olanın değerini al
+        //const checkboxS = document.getElementById("checkboxS");
+        //const checkboxI = document.getElementById("checkboxI");
+        let s_i = null;
+
+        if (checkboxS.checked) {
+            s_i = 'S';
+        } else if (checkboxI.checked) {
+            s_i = 'I';
+        }
+
+        if (!s_i) {
+            alert("Lütfen bir seçenek seçin (S veya I).");
+            return;
+        }
+
+        // Veritabanından customer_id ve customer_name değerlerini çek
+        const customerResponse = await fetch(`/get_customer_by_quote_number?quote_number=${quoteNumber}`);
+        const customerData = await customerResponse.json();
+
+        if (customerData.status !== 'success') {
+            alert('Müşteri bilgileri alınamadı: ' + customerData.message);
+            return;
+        }
+
+        const customerId = customerData.customer_id;
+        const customerName = customerData.customer_name;
+        const postcode = document.getElementById('selectedCustomer').textContent.match(/Postcode:\s*(\S+)/)?.[1] || '';
+        
+        // G.Total satırını kontrol et
+        const gTotalRow = tableRows[tableRows.length - 1];
+        if (!gTotalRow) {
+            alert('G.Total satırı bulunamadı!');
+            return;
+        }
+
+        const gTotal = parseFloat(gTotalRow.querySelector('td:last-child')?.textContent.replace(/,/g, '')) || 0;
+
+        // Description oluştur
+        const descriptionSet = new Set();
+        tableRows.forEach(row => {
+            const sira = row.querySelector('td:nth-child(6)')?.textContent.trim();
+            if (sira) {
+                const mainNumber = sira.split('.')[0];
+                descriptionSet.add(mainNumber);
+            }
+        });
+        const description = Array.from(descriptionSet).join(',');
+
+        const payload = {
+            date: new Date().toISOString().split('T')[0],
+            quote_number: quoteNumber,
+            customer_id: customerId,
+            customer_name: customerName,
+            postcode: postcode,
+            description: description,
+            s_i: s_i, // Checkbox'tan gelen değer
+            g_total: gTotal
+        };
+
+        // Gönderilen verileri alert ile göster
+        //alert('Gönderilen Veriler:\n' + JSON.stringify(payload, null, 2));
+
+        const response = await fetch('/sale_cust_det', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        });
+
+        const result = await response.json();
+        if (result.status === 'success') {
+            //alert('Satış bilgileri başarıyla kaydedildi.');
+            closeSellModal();
+        } else {
+            console.error('Hata:', result.message);
+            alert('Hata: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Hata (salecustdet):', error);
+        alert('Satış bilgileri kaydedilirken bir hata oluştu.');
+    }
+}
+
+async function decreaseStock() {
+    try {
+        const tableRows = Array.from(document.querySelectorAll('#quoteListTable tbody tr'));
+
+        for (const row of tableRows) {
+            const sira = row.querySelector('td:nth-child(6)')?.textContent.trim(); // Sıra numarası
+            const itemId = row.querySelector('td:nth-child(2)')?.textContent.trim(); // Item ID
+            const model = row.querySelector('td:nth-child(3)')?.textContent.trim(); // Item ID
+            const qty = parseInt(row.querySelector('td:nth-child(4)')?.textContent.trim()) || 0; // Quantity
+
+            if (!sira || !itemId || qty <= 0) continue; // Geçersiz veri varsa atla
+
+            if (sira.startsWith('1')) {
+                // Sıra numarası 1 ile başlıyorsa prc_tbl'deki quantity değerini düş
+                await fetch('/update_prc_tbl_quantity', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ item_id: itemId, qty: qty }),
+                });
+            } else if (sira.startsWith('2')) {
+                // Sıra numarası 2 ile başlıyorsa refrigeration.db'deki Qty değerini düş
+                await fetch('/update_refrigeration_quantity', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ model_: model, qty: qty }),
+                });
+            }
+        }
+
+        //alert('Stok güncelleme işlemi tamamlandı.');
+    } catch (error) {
+        console.error('Hata (decreaseStock):', error);
+        alert('Stok güncelleme sırasında bir hata oluştu.');
+    }
+}
+
+
 </script>
 
+<div id="tab_reports" class="tab-content">
+    <!--<h2>Sales</h2>-->
+    <div style="margin-bottom: 20px;">
+        <label for="salesSelection">Select Category:</label>
+        <select id="salesSelection" onchange="handleSalesSelection()">
+            <option value="C.Accounts">C.Accounts</option>
+            <option value="Shelving">Shelving</option>
+            <option value="Refrigeration">Refrigeration</option>
+        </select>
+        <button id="customerAccountsButton" onclick="openAccountsModal()" style="margin-left: 20px;">Customer Accounts</button>
+    </div>
+    <div id="CAccountsTable" class="sales-table">
+        <table border="1" style="width: 100%; text-align: center; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Customer Name</th>
+                    <th>Customer Id</th>
+                    <th>Quote Number</th>
+                    <th>Description</th>
+                    <th>S_I</th>
+                    <th>Amounth</th>
+                </tr>
+            </thead>
+            <tbody id="salesTableBody">
+                <!-- Dinamik veri buraya yüklenecek -->
+            </tbody>
+        </table>
+    </div>
+    <div id="ShelvingTable" class="sales-table" style="display: none;">
+        <table border="1" style="width: 100%; text-align: center; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name1</th>
+                    <th>Name2</th>
+                    <th>Quantity</th>
+                    <th>Code</th>
+                    <th>Import</th>
+                    <th>Local</th>
+                    <th>Kg</th>
+                </tr>
+            </thead>
+            <tbody id="ShelvingTableBody">
+                <!-- Dinamik veri buraya yüklenecek -->
+            </tbody>
+        </table>
+    </div>
+    <div id="RefrigerationTable" class="sales-table" style="display: none;">
+        <table border="1" style="width: 100%; text-align: center; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>G.Name</th>
+                    <th>Model</th>
+                    <th>R.Price</th>
+                    <th>T.Price</th>
+                    <th>Kar</th>
+                    <th>Maliyet</th>
+                    <th>Kg</th>
+                    <th>Qty</th>
+                    <th>Warranty</th>
+                    <th>Unpack</th>
+                    <th>Remove</th>
+                </tr>
+            </thead>
+            <tbody id="RefrigerationTableBody">
+                <!-- Dinamik veri buraya yüklenecek -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    function handleSalesSelection() {
+        const selection = document.getElementById("salesSelection").value;
+        const tables = document.querySelectorAll(".sales-table");
+        const customerButton = document.getElementById("customerAccountsButton");
+
+        tables.forEach(table => {
+            table.style.display = "none"; // Tüm tabloları gizle
+        });
+
+        if (selection === "C.Accounts") {
+            document.getElementById("CAccountsTable").style.display = "block";
+            customerButton.style.display = "inline-block"; // Customer Accounts butonunu göster
+        } else if (selection === "Shelving") {
+            document.getElementById("ShelvingTable").style.display = "block";
+            customerButton.style.display = "none"; // Customer Accounts butonunu gizle
+            fetchShelvingData(); // Shelving verilerini çek
+        } else if (selection === "Refrigeration") {
+            document.getElementById("RefrigerationTable").style.display = "block";
+            customerButton.style.display = "none"; // Customer Accounts butonunu gizle
+            fetchRefrigerationData(); // Refrigeration verilerini çek
+        }
+    }
+
+    function fetchShelvingData() {
+        fetch('/get_prc_tbl_data')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    const tableBody = document.getElementById("ShelvingTableBody");
+                    tableBody.innerHTML = ""; // Eski tablo içeriğini temizle
+
+                    data.rows.forEach(row => {
+                        const tr = document.createElement("tr");
+                        row.forEach(cell => {
+                            const td = document.createElement("td");
+                            td.textContent = cell;
+                            tr.appendChild(td);
+                        });
+                        tableBody.appendChild(tr);
+                    });
+                } else {
+                    alert(`Error: ${data.message}`);
+                }
+            })
+            .catch(error => {
+                console.error("Shelving verileri alınırken hata oluştu:", error);
+                alert("An error occurred while fetching shelving data.");
+            });
+    }
+
+    function fetchRefrigerationData() {
+        fetch('/get_refrigeration_data')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    const tableBody = document.getElementById("RefrigerationTableBody");
+                    tableBody.innerHTML = ""; // Eski tablo içeriğini temizle
+
+                    data.rows.forEach(row => {
+                        const tr = document.createElement("tr");
+                        row.forEach(cell => {
+                            const td = document.createElement("td");
+                            td.textContent = cell;
+                            tr.appendChild(td);
+                        });
+                        tableBody.appendChild(tr);
+                    });
+                } else {
+                    alert(`Error: ${data.message}`);
+                }
+            })
+            .catch(error => {
+                console.error("Refrigeration verileri alınırken hata oluştu:", error);
+                alert("An error occurred while fetching refrigeration data.");
+            });
+    }
+</script>
+
+<!-- Customer Accounts Modal -->
+<div class="modal" id="accountsModal">
+    <div class="modal-content" style="max-width: 800px;">
+        <h2>Customer Accounts</h2>
+        <input type="text" id="accountsSearchBox" placeholder="Search Customers..." onkeyup="searchAccounts()">
+        <div class="scrollable-table">
+            <table id="accountsTable">
+                <thead>
+                    <tr>
+                        <th>Customer ID</th>
+                        <th>Customer Name</th>
+                        <th>Tel</th>
+                        <th>Address line1</th>
+                        <th>Address line2</th>
+                        <th>Postcode</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Dinamik veri buraya yüklenecek -->
+                </tbody>
+            </table>
+        </div>
+        <button onclick="closeAccountsModal()">Close</button>
+    </div>
+</div>
+
+<script>
+    // Accounts Modal açma
+    function openAccountsModal() {
+        document.getElementById("accountsModal").style.display = "flex";
+        fetchAccountsData(); // Modal açıldığında müşteri verilerini çek
+    }
+
+    // Accounts Modal kapama
+    function closeAccountsModal() {
+        document.getElementById("accountsModal").style.display = "none";
+    }
+
+    // Müşteri verilerini çekme
+    function fetchAccountsData() {
+        fetch("/fetch_customers")
+            .then(response => response.json())
+            .then(data => {
+                const tableBody = document.getElementById("accountsTable").querySelector("tbody");
+                tableBody.innerHTML = ""; // Eski satırları temizle
+                data.forEach(customer => {
+                    const tr = document.createElement("tr");
+                    customer.forEach(cell => {
+                        const td = document.createElement("td");
+                        td.textContent = cell;
+                        tr.appendChild(td);
+                    });
+                    tr.addEventListener("click", () => handleCustomerRowClick(customer)); // Satıra tıklama olayı
+                    tableBody.appendChild(tr);
+                });
+            })
+            .catch(error => console.error("Müşteri verileri alınırken hata oluştu:", error));
+    }
+
+    // Satıra tıklama olayı
+    function handleCustomerRowClick(customer) {
+        const customerId = customer[0]; // Müşteri ID
+        const postcode = customer[5]; // Posta kodu
+        const dbName = `${customerId}${postcode}.db`; // ID ve posta kodunu birleştirip .db ekle
+        //alert(`Generated DB Name: ${dbName}`); // Alert ile göster
+
+        // Sales sayfasında tabloyu oluştur
+        fetchSalesData(dbName);
+        closeAccountsModal(); // Modalı kapat
+    }
+
+    // Sales sayfasında tabloyu oluşturmak için veri çekme
+    function fetchSalesData(dbName) {
+        fetch(`/get_customer_db?db_name=${encodeURIComponent(dbName)}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Database not found: ${dbName}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === "success") {
+                    const tableBody = document.getElementById("salesTableBody");
+                    tableBody.innerHTML = ""; // Eski satırları temizle
+
+                    data.rows.forEach(row => {
+                        const tr = document.createElement("tr");
+                        row.forEach(cell => {
+                            const td = document.createElement("td");
+                            td.textContent = cell;
+                            tr.appendChild(td);
+                        });
+                        tableBody.appendChild(tr);
+                    });
+                } else {
+                    alert(`Error: ${data.message}`);
+                }
+            })
+            .catch(error => {
+                console.error("Sales verileri alınırken hata oluştu:", error);
+                alert(error.message); // Hata mesajını kullanıcıya göster
+            });
+    }
+
+    // Arama fonksiyonu
+    function searchAccounts() {
+        const input = document.getElementById("accountsSearchBox").value.toUpperCase();
+        const table = document.getElementById("accountsTable");
+        const tr = table.getElementsByTagName("tr");
+
+        for (let i = 1; i < tr.length; i++) { // İlk satır başlık olduğu için 1'den başla
+            const tds = tr[i].getElementsByTagName("td");
+            let visible = false;
+            for (let td of tds) {
+                if (td.textContent.toUpperCase().includes(input)) {
+                    visible = true;
+                    break;
+                }
+            }
+            tr[i].style.display = visible ? "" : "none";
+        }
+    }
+</script>
+
+
+<script>
+    function toggleCheckbox(selected) {
+        const checkboxS = document.getElementById("checkboxS");
+        const checkboxI = document.getElementById("checkboxI");
+
+        if (selected === 'S') {
+            checkboxI.checked = false; // 'I' kutucuğunun seçimini kaldır
+        } else if (selected === 'I') {
+            checkboxS.checked = false; // 'S' kutucuğunun seçimini kaldır
+        }
+    }
+
+/////fazlalik satismodulu burdaydi
+</script>
+<!-- ...existing code... -->
+
+<script>
+    async function updateQuoteSI() {
+        try {
+            const quoteNumber = document.getElementById('tableHeader').textContent.split(':')[1].trim(); // Proforma tablosunun database ismi alınıyor
+
+            // Checkbox'lardan seçili olanın değerini al
+            const checkboxS = document.getElementById("checkboxS");
+            const checkboxI = document.getElementById("checkboxI");
+            let s_i = null;
+
+            if (checkboxS.checked) {
+                s_i = 'S';
+            } else if (checkboxI.checked) {
+                s_i = 'I';
+            }
+
+            if (!s_i) {
+                alert("Lütfen bir seçenek seçin (S veya I).");
+                return;
+            }
+
+            // Backend'e güncelleme isteği gönder
+            const response = await fetch('/update_quote_si', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    quote_number: quoteNumber,
+                    s_i: s_i
+                }),
+            });
+
+            const result = await response.json();
+            if (result.status === 'success') {
+                console.log('Quote S/I değeri başarıyla güncellendi.');
+            } else {
+                console.error('Hata:', result.message);
+                alert('Hata: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Hata (updateQuoteSI):', error);
+            alert('Quote S/I değeri güncellenirken bir hata oluştu.');
+        }
+    }
+
+
+</script>
+
+<script>
+    async function fetchServerDate() {
+        try {
+            const response = await fetch('/get_server_time'); // Sunucudan tarih ve saat bilgisini al
+            if (!response.ok) {
+                throw new Error('Sunucudan tarih ve saat alınamadı.');
+            }
+
+            const data = await response.json();
+            if (data.status === 'success') {
+                document.getElementById('quoteDate').textContent = `Quote Date: ${data.server_time}`;
+            } else {
+                console.error('Tarih ve saat alınırken hata oluştu:', data.message);
+            }
+        } catch (error) {
+            console.error('Tarih ve saat alınırken hata oluştu:', error);
+        }
+    }
+
+    async function updateQuoteDate(quoteNumber) {
+        try {
+            const response = await fetch(`/get_quote_date?quote_number=${quoteNumber}`);
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                document.getElementById('quoteDate').textContent = `Quote Date: ${data.quote_date}`;
+            } else {
+                console.error('Quote tarihi alınırken hata oluştu:', data.message);
+            }
+        } catch (error) {
+            console.error('Quote tarihi alınırken hata oluştu:', error);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', fetchServerDate); // Sayfa yüklendiğinde server tarihini al
+</script>
+<script>
+    async function checkSign() {
+        try {
+            const quoteNumber = document.getElementById('tableHeader').textContent.split(':')[1].trim(); // Proforma tablosunun database ismi alınıyor
+            
+            //alert(`Quote Number: ${quoteNumber}`); // Bu satırı ekledik
+    
+            const response = await fetch(`/check_sign?quote_number=${quoteNumber}`);
+            const data = await response.json();
+    
+            if (data.status === 'exists') {
+                alert("The sale has already been made");
+                checkboxI.checked = false; // 'I' kutucuğunun seçimini kaldır
+                checkboxS.checked = false;
+                return false; // İşlemleri iptal etmek için false döndür
+            }
+    
+            return true; // İşlem başarılıysa true döndür
+        } catch (error) {
+            console.error('Hata (checkSign):', error);
+            return false; // Hata durumunda false döndür
+        }
+    }
+    
+    // "Yes" butonuna tıklama olayı
+    document.querySelector('#sellModal button:first-child').addEventListener('click', async () => {
+        try {
+            const isValid = await checkSign();
+            if (!isValid) {
+                console.log("İşlem iptal edildi.");
+                return; // İşlemleri durdur
+            }
+            await salecustdet();
+            await decreaseStock();
+            await updateQuoteSI(); // Yeni fonksiyon çağrıldı
+            if (checkboxI.checked === true) {
+                generateInvoice(true); // Sell için PDF oluştur
+            }
+    
+            checkboxI.checked = false; // 'I' kutucuğunun seçimini kaldır
+            checkboxS.checked = false;
+        } catch (error) {
+            console.error('İşlem iptal edildi:', error);
+        }
+    });
+    </script>
+    
+    <script>
+        async function generateInvoice(isSell) {
+            
+            const quoteNumber = document.getElementById('tableHeader').textContent.split(':')[1].trim();
+            if (!quoteNumber) {
+                alert("Quote list boş!");
+                return;
+            }
+    
+            try {
+                const response = await fetch('/generate_invoice', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ quote_number: quoteNumber, is_sell: isSell }),
+                });
+    
+                const data = await response.json();
+                if (data.status === 'success') {
+                    alert('Fatura başarıyla oluşturuldu ve kaydedildi.');
+                } else {
+                    alert('Fatura oluşturulurken hata oluştu: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Hata:', error);
+                alert('Fatura oluşturulurken bir hata oluştu.');
+            }
+        }
+    
+    
+    
+        function openSellModal() {
+            document.getElementById('sellModal').style.display = 'flex';
+        }
+    
+        function closeSellModal() {
+            document.getElementById('sellModal').style.display = 'none';
+        }
+    
+        function ClearChckBox() {
+            document.getElementById('checkboxS').checked = false;
+            document.getElementById('checkboxI').checked = false;
+        }
+    </script>
+<script>
+    // ...existing code...
+
+    async function createTableprofdelv(nextNumber) {
+        try {
+            const response = await fetch('/createTableprofdelv', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    quote_number: nextNumber,
+                    customer_id: selectedCustomerID
+                }),
+            });
+
+            const data = await response.json();
+            if (data.status === 'success') {
+                console.log('createTableprofdelv başarıyla tamamlandı.');
+            } else {
+                console.error('createTableprofdelv sırasında hata oluştu:', data.message);
+            }
+        } catch (error) {
+            console.error('createTableprofdelv isteği sırasında hata oluştu:', error);
+        }
+    }
+
+    // ...existing code...
+</script>
+<script>
+    // ...existing code...
+
+    async function loadProformaDeliveryInfo(quoteNumber) {
+        try {
+            const response = await fetch(`/get_delivery_info?quote_number=${quoteNumber}`);
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                const proformaName = document.getElementById('proformaName');
+                const proformaTel = document.getElementById('proformaTel');
+                const proformaAddress1 = document.getElementById('proformaAddress1');
+                const proformaAddress2 = document.getElementById('proformaAddress2');
+                const proformaPostcode = document.getElementById('proformaPostcode');
+
+                const deliverName = document.getElementById('deliverName');
+                const deliverTel = document.getElementById('deliverTel');
+                const deliverAddress1 = document.getElementById('deliverAddress1');
+                const deliverAddress2 = document.getElementById('deliverAddress2');
+                const deliverPostcode = document.getElementById('deliverPostcode');
+
+                // Elementlerin varlığını kontrol et ve değerleri ata
+                if (proformaName) proformaName.textContent = data.delivery_info.name || '';
+                if (proformaTel) proformaTel.textContent = data.delivery_info.tel || '';
+                if (proformaAddress1) proformaAddress1.textContent = data.delivery_info.address1 || '';
+                if (proformaAddress2) proformaAddress2.textContent = data.delivery_info.address2 || '';
+                if (proformaPostcode) proformaPostcode.textContent = data.delivery_info.postcode || '';
+
+                if (deliverName) deliverName.textContent = data.delivery_info.Dname || '';
+                if (deliverTel) deliverTel.textContent = data.delivery_info.Dtel || '';
+                if (deliverAddress1) deliverAddress1.textContent = data.delivery_info.Daddress1 || '';
+                if (deliverAddress2) deliverAddress2.textContent = data.delivery_info.Daddress2 || '';
+                if (deliverPostcode) deliverPostcode.textContent = data.delivery_info.Dpostcode || '';
+            } else {
+                console.error('Delivery info yüklenirken hata oluştu:', data.message);
+            }
+        } catch (error) {
+            console.error('Delivery info yüklenirken hata oluştu:', error);
+        }
+    }
+
+    // // Proforma sekmesi yüklendiğinde delivery info'yu yükle
+    // document.addEventListener('DOMContentLoaded', () => {
+    //     const quoteNumber = document.getElementById('tableHeader').textContent.split(':')[1]?.trim();
+    //     if (quoteNumber) {
+    //         loadProformaDeliveryInfo(quoteNumber);
+    //     }
+    // });
+
+    // ...existing code...
+</script>
+<!-- ...existing code... -->
 </body>
 </html>
