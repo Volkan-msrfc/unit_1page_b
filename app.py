@@ -11,6 +11,13 @@ import re
 from datetime import datetime
 import json
 import math
+from fpdf import FPDF
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
+from io import BytesIO
 
 app = Flask(__name__)
 
@@ -171,9 +178,9 @@ def logout():
     session.pop('user', None)  # Kullanıcıyı oturumdan çıkar
     return redirect(url_for('login'))  # Login sayfasına yönlendir
 
-@app.route('/proforma', methods=['GET', 'POST'])
-def proforma():
-    return render_template('proforma.html')  # proforma.html şablonunu döner
+# @app.route('/proforma', methods=['GET', 'POST'])
+# def proforma():
+#     return render_template('proforma.html')  # proforma.html şablonunu döner
 
 @app.route('/update_width', methods=['POST'])
 def update_width():
@@ -1118,16 +1125,11 @@ def add_item_data():
         # Eğer veri gelmemişse hata döndür
         if not add_item_data:
             return jsonify({"status": "error", "message": "Hiçbir veri alınmadı."}), 400
-
-        # Hedef dizin ve veritabanı adı
-        #target_dir = r"/home/render/quotes"
-        #os.makedirs(target_dir, exist_ok=True)
-        #new_db_path = os.path.join(target_dir, f"{largest_file}.db")
         
         # Hedef veritabanı dosyası
         new_db_path = os.path.join(QUOTE_DB_PATH, f"{largest_file}.db")
         sr = 4.0
-
+        item_id=101
         # Yeni veritabanı bağlantısı
         conn_quote = sqlite3.connect(new_db_path)
         cursor_quote = conn_quote.cursor()
@@ -1159,6 +1161,7 @@ def add_item_data():
             qty = int(item.get('qty', 0))  # Sayısal değer olarak kaydet
             price = float(item.get('price', 0))  # Sayısal değer olarak kaydet
             dsprice = float(item.get('dsprice', 0))  # Sayısal değer olarak kaydet
+            item_id = int(item_id + 1)
 
             # Kar değerini metin olarak al ve içinden sadece rakamsal kısmı ayıkla
             kar_text = str(item.get('kar', '0')).strip()
@@ -1173,10 +1176,10 @@ def add_item_data():
 
             cursor_quote.execute('''
                 INSERT INTO list (USER_ID, ITEM_ID, ITEM_NAME, ADET, UNIT_TYPE, SIRA, PRICE, DSPRICE, AMOUNTH)
-                VALUES (?, 0, ?, ?, 'ADD_ITEM', ?, ?, ?, ?)                 
+                VALUES (?, ?, ?, ?, 'ADD_ITEM', ?, ?, ?, ?)                 
 
 
-            ''', (user_id, item_name, qty, sr, price, dsprice, qty*dsprice))      #, price, dsprice))
+            ''', (user_id, item_id, item_name, qty, sr, price, dsprice, qty*dsprice))      #, price, dsprice))
 
          
 
@@ -1189,17 +1192,27 @@ def add_item_data():
         print("Veritabanı hatası:", str(e))
         return jsonify({"status": "error", "message": f"Veritabanı hatası: {str(e)}"}), 500
     except Exception as e:
-        print("Beklenmeyen hata:", str(e))
         return jsonify({"status": "error", "message": f"Beklenmeyen hata: {str(e)}"}), 500
 
 @app.route("/fetch_customers", methods=["GET"])
 def fetch_customers():
     connection = sqlite3.connect("customers.db")
     cursor = connection.cursor()
-    cursor.execute("SELECT id, customer_name, tel, address, postcode FROM customers")
+    # cursor.execute("SELECT id, customer_name, tel, address1, address2, postcode FROM customers")
+    cursor.execute("SELECT id, customer_name, tel, address, address2, postcode FROM customers")
     customers = cursor.fetchall()
     connection.close()
     return jsonify(customers)
+
+# @app.route("/fetch_customers_dlvr", methods=["GET"])
+# def fetch_customers_dlvr():
+#     connection = sqlite3.connect("prf_adr_dlvr.db")
+#     cursor = connection.cursor()
+#     cursor.execute("SELECT id, customer_name, tel, address, postcode FROM customers")
+#     cursor.execute('SELECT name, tel, address, address1, postcode, Dname, Dtel, Daddress, Daddress1, Dpostcode WHERE Quote_number = ?', (quote_number,))
+#     customers = cursor.fetchall()
+#     connection.close()
+#     return jsonify(customers)
 
 @app.route('/get_quote_files', methods=['GET'])
 def get_quote_files():
@@ -1336,7 +1349,7 @@ def get_customer_by_quote():
 
         # Customer ID'ye göre müşteri bilgilerini al
         cursor_customers.execute('''
-            SELECT id, customer_name, tel, address, postcode
+            SELECT id, customer_name, tel, address, address2, postcode
             FROM customers
             WHERE id = ?
         ''', (customer_id,))
@@ -1352,8 +1365,9 @@ def get_customer_by_quote():
             'customer_id': customer[0],
             'customer_name': customer[1],
             'tel': customer[2],
-            'address': customer[3],
-            'postcode': customer[4]
+            'address1': customer[3],
+            'address2': customer[4],
+            'postcode': customer[5]
         })
     except Exception as e:
         print("Hata (get_customer_by_quote):", str(e))
@@ -1925,18 +1939,6 @@ def load_ceil_selection():
 
         conn.close()
 
-
-
-        # Seçimleri JSON formatında döndür
-        # selections = [
-        #     {
-		#         'ceiling_m2': row[0],
-        #         'trim_lm': row[1],
-        #         'ceiling_discount': row[2]
-
-        #     }
-        #     for row in rows
-        # ]
         if rows:
             ceiling_m2 = rows[0][0]
             trim_lm = rows[0][1]
@@ -1998,8 +2000,8 @@ def add_or_update_customer():
         email = data.get('email')
         discount = data.get('discount')
 
-        if not customer_name or not tel:
-            return jsonify({'status': 'error', 'message': 'Müşteri adı ve telefon numarası zorunludur.'}), 400
+        # if not customer_name or not tel:
+        #     return jsonify({'status': 'error', 'message': 'Müşteri adı ve telefon numarası zorunludur.'}), 400
 
         conn = sqlite3.connect('customers.db')
         cursor = conn.cursor()
@@ -2012,6 +2014,22 @@ def add_or_update_customer():
                 WHERE id = ?
             ''', (customer_name, tel, address1, address2, postcode, email, discount, customer_id))
         else:
+            # Eksik alan kontrolü
+            if not customer_name or not tel or not address1 or not postcode:
+                conn.close()
+                return jsonify({'status': 'error', 'message': 'Eksik veri: Yıldızlı alanların doldurulması zorunludur.'}), 400
+
+            # Yeni müşteri eklemeden önce kontrol
+            cursor.execute('''
+                SELECT id FROM customers
+                WHERE customer_name = ? AND tel = ? AND address = ? AND postcode = ?
+            ''', (customer_name, tel, address1, postcode))
+            existing_customer = cursor.fetchone()
+
+            if existing_customer:
+                conn.close()
+                return jsonify({'status': 'error', 'message': 'Müşteri zaten kayıtlı.'}), 400
+
             # Yeni müşteri ekleme işlemi
             cursor.execute('SELECT MAX(CAST(id AS INTEGER)) FROM customers')  # Listedeki son kaydın ID'sini al
             last_id = cursor.fetchone()[0] or 0  # Eğer tablo boşsa 0 kullan
@@ -2049,6 +2067,593 @@ def add_or_update_customer():
         return jsonify({'status': 'success', 'message': 'Müşteri başarıyla eklendi/güncellendi.'})
     except Exception as e:
         print("Hata (add_or_update_customer):", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/sale_cust_det', methods=['POST'])
+def sale_cust_det():
+    try:
+        data = request.get_json()
+        date = data.get('date')
+        quote_number = data.get('quote_number')
+        customer_id = data.get('customer_id')
+        customer_name = data.get('customer_name')
+        postcode = data.get('postcode')
+        description = data.get('description')
+        s_i = data.get('s_i')
+        g_total = data.get('g_total')
+
+        if not all([date, quote_number, customer_id, customer_name, postcode, description, s_i, g_total]):
+            return jsonify({'status': 'error', 'message': 'Eksik parametreler.'}), 400
+
+        # customer_id'yi 7 karakter olacak şekilde sıfırlarla doldur
+        customer_id = str(customer_id).zfill(7)
+
+        # Veritabanı adı oluştur
+        db_name = f"{customer_id}{postcode}.db"
+        db_path = os.path.join(BASE_DIR, 'customerhes', db_name)
+
+        # Veritabanına bağlan
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Veriyi customer_data tablosuna ekle
+        cursor.execute('''
+            INSERT INTO customer_data (Date, Customername, Customerid, Quotenumber, Description, S_I, Amonth)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (date, customer_name, customer_id, quote_number, description, s_i, g_total))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'status': 'success', 'message': 'Veriler başarıyla kaydedildi.'})
+    except Exception as e:
+        print("Hata (sale_cust_det):", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/get_customer_by_quote_number', methods=['GET'])
+def get_customer_by_quote_number():
+    quote_number = request.args.get('quote_number')
+    if not quote_number:
+        return jsonify({'status': 'error', 'message': 'Quote number is required'}), 400
+
+    try:
+        conn = sqlite3.connect('quotes.db')
+        cursor = conn.cursor()
+
+        # Veritabanından customer_id ve customer_name bilgilerini al
+        cursor.execute("""
+            SELECT customer_id, customer_name
+            FROM quotes
+            WHERE quote_number = ?
+        """, (quote_number,))
+        result = cursor.fetchone()
+
+        conn.close()
+
+        if result:
+            customer_id, customer_name = result
+            return jsonify({'status': 'success', 'customer_id': customer_id, 'customer_name': customer_name})
+        else:
+            return jsonify({'status': 'error', 'message': 'Quote not found'}), 404
+
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/get_customer_db', methods=['GET'])
+def get_customer_db():
+    try:
+        db_name = request.args.get('db_name')
+        if not db_name:
+            return jsonify({'status': 'error', 'message': 'Eksik parametre: db_name'}), 400
+
+        # Veritabanı yolunu oluştur
+        db_path = os.path.join(BASE_DIR, 'customerhes', db_name)
+
+        # Veritabanının varlığını kontrol et
+        if not os.path.exists(db_path):
+            return jsonify({'status': 'error', 'message': f'{db_name} veritabanı bulunamadı.'}), 404
+
+        # Veritabanına bağlan ve verileri al
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute('SELECT Date, Customername, Customerid, Quotenumber, Description, S_I, Amonth FROM customer_data')
+        rows = cursor.fetchall()
+        conn.close()
+
+        return jsonify({'status': 'success', 'rows': rows})
+    except Exception as e:
+        print("Hata (get_customer_db):", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/update_prc_tbl_quantity', methods=['POST'])
+def update_prc_tbl_quantity():
+    try:
+        data = request.json
+        itemId = data.get('item_id')
+        qty = data.get('qty')
+
+        if not itemId or qty is None:
+            return jsonify({'status': 'error', 'message': 'Invalid input data'}), 400
+
+        conn = sqlite3.connect('prc_tbl.db')  # prc_tbl veritabanına bağlan
+        cursor = conn.cursor()
+
+        cursor.execute("UPDATE prc_tbl SET quantity = quantity - ? WHERE id = ?", (qty, itemId))
+        conn.commit()
+
+        if cursor.rowcount == 0:
+            return jsonify({'status': 'error', 'message': 'Item not found or quantity not updated'}), 404
+
+        return jsonify({'status': 'success', 'message': 'Quantity updated successfully'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/update_refrigeration_quantity', methods=['POST'])
+def update_refrigeration_quantity():
+    try:
+        data = request.json
+        Model= data.get('model_')
+        qty = data.get('qty')
+
+        # Gelen değerleri konsola yazdır
+        # print(f"Received item_id: {item_id}, qty: {qty}")
+
+        if not Model or qty is None:
+            return jsonify({'status': 'error', 'message': 'Invalid input data'}), 400
+
+        conn = sqlite3.connect('refrigeration.db')  # refrigeration veritabanına bağlan
+        cursor = conn.cursor()
+
+        cursor.execute("UPDATE refrigeration SET Qty = Qty - ? WHERE Model = ?", (qty, Model))
+        conn.commit()
+
+        if cursor.rowcount == 0:
+            return jsonify({'status': 'error', 'message': 'Item not found or quantity not updated'}), 404
+
+        return jsonify({'status': 'success', 'message': 'Quantity updated successfully'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/get_prc_tbl_data', methods=['GET'])
+def get_prc_tbl_data():
+    try:
+        # Veritabanına bağlan
+        conn = sqlite3.connect('prc_tbl.db')
+        cursor = conn.cursor()
+
+        # Verileri çek
+        cursor.execute("SELECT id, name1, name2, quantity, code, import, local, kg FROM prc_tbl")
+        rows = cursor.fetchall()
+
+        # Bağlantıyı kapat
+        conn.close()
+
+        # Verileri JSON formatında döndür
+        return jsonify({"status": "success", "rows": rows})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+@app.route('/get_refrigeration_data', methods=['GET'])
+def get_refrigeration_data():
+    try:
+        # Veritabanına bağlan
+        conn = sqlite3.connect('refrigeration.db')
+        cursor = conn.cursor()
+
+        # Verileri çek
+        cursor.execute('''
+            SELECT ID, GroupName, Model, RetailPrice, TradePrice, Kar, Maliyet, Kg, Qty, Warranty, UnpackPosition, RemoveDispose
+            FROM REFRIGERATION
+        ''')
+        rows = cursor.fetchall()
+
+        # Bağlantıyı kapat
+        conn.close()
+
+        # Verileri JSON formatında döndür
+        return jsonify({"status": "success", "rows": rows})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+@app.route('/update_quote_si', methods=['POST'])
+def update_quote_si():
+    try:
+        data = request.get_json()
+        quote_number = data.get('quote_number')
+        s_i = data.get('s_i')  # 'S' veya 'I' değeri
+
+        if not quote_number or not s_i:
+            return jsonify({'status': 'error', 'message': 'Eksik parametreler.'}), 400
+
+        # quotes.db veritabanına bağlan
+        quotes_db_path = os.path.join(BASE_DIR, "quotes.db")
+        conn = sqlite3.connect(quotes_db_path)
+        cursor = conn.cursor()
+
+        # `Sold` veya `Inv` kolonunu güncelle
+        if s_i == 'S':
+            cursor.execute('UPDATE quotes SET Sold = ? WHERE Quote_number = ?', ('S', quote_number))
+        elif s_i == 'I':
+            cursor.execute('UPDATE quotes SET Inv = ? WHERE Quote_number = ?', ('I', quote_number))
+        else:
+            return jsonify({'status': 'error', 'message': 'Geçersiz S/I değeri.'}), 400
+
+        # Değişiklikleri kaydet ve bağlantıyı kapat
+        conn.commit()
+        conn.close()
+
+        return jsonify({'status': 'success', 'message': f'{quote_number} için {s_i} değeri güncellendi.'})
+    except Exception as e:
+        print("Hata (update_quote_si):", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/get_quote_date', methods=['GET'])
+def get_quote_date():
+    quote_number = request.args.get('quote_number')
+    if not quote_number:
+        return jsonify({'status': 'error', 'message': 'Quote number is required'}), 400
+
+    try:
+        # Veritabanına bağlan
+        conn = sqlite3.connect('quotes.db')  # quotes.db yerine doğru veritabanı adını yazın
+        cursor = conn.cursor()
+
+        # Tarihi sorgula
+        cursor.execute("SELECT created_at FROM quotes WHERE quote_number = ?", (quote_number,))
+        result = cursor.fetchone()
+
+        if result:
+            return jsonify({'status': 'success', 'quote_date': result[0]})  # Anahtar 'quote_date' olarak değiştirildi
+        else:
+            return jsonify({'status': 'error', 'message': 'Quote not found'}), 404
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/check_sign', methods=['GET'])
+def check_sign():
+    quote_number = request.args.get('quote_number')
+    if not quote_number:
+        return jsonify({"status": "error", "message": "Quote number is required"}), 400
+
+    try:
+        conn = sqlite3.connect('quotes.db')
+        cursor = conn.cursor()
+
+        # S veya I kolonlarının dolu olup olmadığını kontrol et
+        cursor.execute("SELECT Sold, Inv FROM quotes WHERE quote_number = ?", (quote_number,))
+        result = cursor.fetchone()
+
+        if result and (result[0] or result[1]):  # S veya I doluysa
+            return jsonify({"status": "exists"})
+        else:
+            return jsonify({"status": "not_exists"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
+        conn.close()
+
+# Özelleştirilmiş PDF sınıfı
+from fpdf import FPDF
+
+class InvoicePDF(FPDF):
+    def header(self):
+        self.set_font('Arial', '', 9)
+        self.cell(90, 4, 'Easyshelf Direct Ltd.', ln=1)
+        self.cell(100, 4, '205-207 Leabridge Road', ln=1)
+        self.cell(100, 4, 'E10 7PN', ln=1)
+        self.cell(100, 4, 'Telefon: +44 7834519643', ln=1)
+        try:
+            self.image('static/images/logoI.png', x=150, y=9, w=50)
+        except RuntimeError as e:
+            print(f"Logo yüklenemedi: {e}")
+
+        self.set_xy(140, 22)
+        self.set_font('Arial', '', 9)
+        self.cell(60, 5, f'Tarih: {self.invoice_date}', align='R')
+        self.ln(5)
+        self.set_draw_color(200, 200, 200)
+        self.line(10, self.get_y(), 200, self.get_y())
+        self.ln(1)
+
+    def footer(self):
+        self.set_y(-20)
+        self.set_draw_color(200, 200, 200)
+        self.line(10, self.get_y(), 200, self.get_y())
+        self.set_font('Arial', 'I', 8)
+        self.set_text_color(100, 100, 100)
+        self.cell(0, 10, 'My Company Ltd. | www.mycompany.com | +90 555 555 55 55', ln=True, align='C')
+        self.cell(0, 10, f'Page {self.page_no()}', align='C')
+
+
+@app.route('/generate_invoice', methods=['POST'])
+def generate_invoice():
+    data = request.json
+    quote_number = data.get('quote_number')
+    date = data.get('date', datetime.now().strftime('%d-%m-%Y'))
+    # recipient_email = data.get('easyfatal12@gmail.com')  # Alıcı e-posta adresi
+    recipient_email = 'volkanballi@gmail.com'
+
+    if not quote_number or not recipient_email:
+        return jsonify({'status': 'error', 'message': 'Quote number and recipient email are required.'}), 400
+
+    try:
+        # Veritabanı yolları
+        db_path = os.path.join(QUOTE_DB_PATH, f"{quote_number}.db")
+        delivery_db_path = os.path.join(BASE_DIR, "prf_adr_dlvr.db")
+
+        # Veritabanı dosyalarının varlığını kontrol et
+        if not os.path.exists(db_path):
+            return jsonify({'status': 'error', 'message': f'{quote_number}.db not found.'}), 404
+        if not os.path.exists(delivery_db_path):
+            return jsonify({'status': 'error', 'message': 'Delivery info database not found.'}), 404
+
+        # Veritabanından liste verilerini al
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute('SELECT ITEM_NAME, ADET, DSPRICE, AMOUNTH FROM list')
+        rows = cursor.fetchall()
+        conn.close()
+
+        # Veritabanından teslimat bilgilerini al
+        conn = sqlite3.connect(delivery_db_path)
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT name, tel, address1, address2, postcode, Dname, Dtel, Daddress1, Daddress2, Dpostcode
+            FROM delivery_info
+            WHERE quotenum = ?
+        ''', (quote_number,))
+        delivery_info = cursor.fetchone()
+        conn.close()
+
+        if not delivery_info:
+            return jsonify({'status': 'error', 'message': 'Delivery info not found for the given quote number.'}), 404
+
+           # Invoice numarasını oluştur
+        user_id = str(session.get('user_id', '00')).zfill(2)  # User ID'yi 2 haneli yap
+        mm_yy = datetime.now().strftime('%m%y')  # Tarihten mmYY formatını al
+        prefix = f"{user_id}{mm_yy}"  # Başlangıç 6 hane
+
+        # Invoice klasöründeki mevcut dosyaları kontrol et
+        folder = 'invoice'
+        os.makedirs(folder, exist_ok=True)
+        existing_files = [f for f in os.listdir(folder) if f.startswith(prefix)]
+        if existing_files:
+            # Son 5 hanesi en büyük olanı bul
+            max_suffix = max(int(f[len(prefix):-4]) for f in existing_files if f[len(prefix):-4].isdigit())
+            new_suffix = str(max_suffix + 1).zfill(5)  # 1 artır ve 5 haneli yap
+        else:
+            new_suffix = "00001"  # İlk dosya için başlangıç
+
+        invoice_num = f"{prefix}{new_suffix}"  # Tam invoice numarası
+
+        # PDF oluşturma
+        pdf = InvoicePDF()
+        pdf.invoice_date = date  # header'da kullanacağız
+        pdf.add_page()
+        pdf.set_font('Arial', '', 9)
+        pdf.cell(0, 4, f"Quotation Num: {quote_number}", ln=True)
+        pdf.cell(0, 4, f"Invoice Num: {invoice_num}", ln=True)  # Yeni invoice numarası
+
+        # Proforma To ve Deliver To bölümleri
+        pdf.set_font('Arial', 'B', 9)
+
+        # "Proforma To" başlığı
+        pdf.set_xy(60, 28)  # Sol üst köşe (x=10, y=50)
+        pdf.cell(0, 4, "Proforma To:", ln=0)
+
+        # "Deliver To" başlığı
+        pdf.set_xy(125, 28)  # Sağ üst köşe (x=110, y=50)
+        pdf.cell(0, 4, "Deliver To:", ln=0)
+
+        pdf.set_font('Arial', '', 9)
+
+        # Proforma To bilgileri
+        pdf.set_xy(60, 32)
+        pdf.cell(0, 3, delivery_info[0], ln=0)  # Name
+        pdf.set_xy(60, 36)
+        pdf.cell(0, 3, delivery_info[1], ln=0)  # Tel
+        pdf.set_xy(60, 39.5)
+        pdf.cell(0, 3, delivery_info[2], ln=0)  # Address1
+        pdf.set_xy(60, 43)
+        pdf.cell(0, 3, delivery_info[3], ln=0)  # Address2
+        pdf.set_xy(60, 46.5)
+        pdf.cell(0, 3, delivery_info[4], ln=0)  # Postcode
+
+        # Deliver To bilgileri
+        pdf.set_xy(125, 32)
+        pdf.cell(0, 3, delivery_info[5], ln=0)  # Name
+        pdf.set_xy(125, 36)
+        pdf.cell(0, 3, delivery_info[6], ln=0)  # Tel
+        pdf.set_xy(125, 39.5)
+        pdf.cell(0, 3, delivery_info[7], ln=0)  # Address1
+        pdf.set_xy(125, 43)
+        pdf.cell(0, 3, delivery_info[8], ln=0)  # Address2
+        pdf.set_xy(125, 46.5)
+        pdf.cell(0, 3, delivery_info[9], ln=0)  # Postcode
+
+        
+
+        # Tablo başlıkları
+        pdf.ln(5)
+        pdf.set_font('Arial', 'B', 10)
+        fillH = True
+        pdf.set_fill_color(235, 235, 235)
+        pdf.cell(120, 5, "ITEM_NAME", align='L', fill=fillH)
+        pdf.cell(10, 5, "QTY", align='R', fill=fillH)
+        pdf.cell(30, 5, "D.PRICE", align='R', fill=fillH)
+        pdf.cell(30, 5, "AMOUNTH", align='R', fill=fillH)
+        pdf.ln()
+
+        # Veriler
+        pdf.set_font('Arial', '', 8)
+        fill = False
+        for row in rows:
+            pdf.set_fill_color(235, 235, 235)  # Çok açık gri
+            pdf.cell(120, 4, row[0], align='L', fill=fill)
+            pdf.cell(10, 4, str(row[1]), align='R', fill=fill)
+            pdf.cell(30, 4, f"{row[2]:.2f}", align='R', fill=fill)
+            pdf.cell(30, 4, f"{row[3]:.2f}", align='R', fill=fill)
+            pdf.ln()
+            fill = not fill
+
+
+        # PDF'yi bellekte oluştur
+        pdf_buffer = BytesIO()
+        pdf.output(pdf_buffer)
+        pdf_buffer.seek(0)
+
+        # E-posta gönderme
+        sender_email = "easyfatgon@gmail.com"  # Gönderen e-posta adresi
+        sender_password = "jqsq mkvn zdvm jqzr"  # Gönderen e-posta şifresi
+
+        # E-posta mesajını oluştur
+        msg = MIMEMultipart()
+        msg['From'] = sender_email
+        msg['To'] = recipient_email
+        msg['Subject'] = f"Invoice {quote_number}"
+
+        # E-posta gövdesi
+        body = f"Dear Customer,\n\nPlease find attached the invoice for quotation number {quote_number}.\n\nBest regards,\nYour Company"
+        msg.attach(MIMEText(body, 'plain'))
+
+        # PDF'yi ek olarak ekle
+        attachment = MIMEBase('application', 'octet-stream')
+        attachment.set_payload(pdf_buffer.read())
+        encoders.encode_base64(attachment)
+        attachment.add_header('Content-Disposition', f'attachment; filename=Invoice_{quote_number}.pdf')
+        msg.attach(attachment)
+
+        # SMTP sunucusuna bağlan ve e-posta gönder
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.send_message(msg)
+        server.quit()
+
+        return jsonify({'status': 'success', 'message': f'Invoice sent to {recipient_email}.'})
+
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/createTableprofdelv', methods=['POST'])
+def create_table_profdelv():
+    try:
+        data = request.get_json()
+        quote_number = data.get('quote_number')
+        customer_id = data.get('customer_id')
+
+        if not quote_number or not customer_id:
+            return jsonify({'status': 'error', 'message': 'Eksik parametreler: quote_number veya customer_id eksik.'}), 400
+
+        # prf_adr_dlvr.db dosyasını oluştur veya aç
+        db_path = os.path.join(BASE_DIR, "prf_adr_dlvr.db")
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Tabloyu oluştur (eğer yoksa)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS delivery_info (
+                quotenum TEXT NOT NULL,
+                name TEXT,
+                tel TEXT,
+                address1 TEXT,
+                address2 TEXT,
+                postcode TEXT,
+                Dname TEXT,
+                Dtel TEXT,
+                Daddress1 TEXT,
+                Daddress2 TEXT,
+                Dpostcode TEXT
+            )
+        ''')
+
+        # customers.db'den müşteri bilgilerini al
+        customers_db_path = os.path.join(BASE_DIR, "customers.db")
+        conn_customers = sqlite3.connect(customers_db_path)
+        cursor_customers = conn_customers.cursor()
+
+        cursor_customers.execute('''
+            SELECT customer_name, tel, address, address2, postcode
+            FROM customers
+            WHERE id = ?
+        ''', (customer_id,))
+        customer_data = cursor_customers.fetchone()
+        conn_customers.close()
+
+        if not customer_data:
+            return jsonify({'status': 'error', 'message': f'Customer ID {customer_id} ile eşleşen müşteri bulunamadı.'}), 404
+
+        # Mevcut bir kayıt olup olmadığını kontrol et
+        cursor.execute('SELECT COUNT(*) FROM delivery_info WHERE quotenum = ?', (quote_number,))
+        record_exists = cursor.fetchone()[0] > 0
+
+        if record_exists:
+            # Mevcut kaydı güncelle
+            cursor.execute('''
+                UPDATE delivery_info
+                SET name = ?, tel = ?, address1 = ?, address2 = ?, postcode = ?, 
+                    Dname = ?, Dtel = ?, Daddress1 = ?, Daddress2 = ?, Dpostcode = ?
+                WHERE quotenum = ?
+            ''', (*customer_data, *customer_data, quote_number))
+        else:
+            # Yeni bir kayıt ekle
+            cursor.execute('''
+                INSERT INTO delivery_info (quotenum, name, tel, address1, address2, postcode, Dname, Dtel, Daddress1, Daddress2, Dpostcode)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (quote_number, *customer_data, *customer_data))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'status': 'success', 'message': 'Veriler başarıyla kaydedildi.'})
+    except Exception as e:
+        print("Hata (create_table_profdelv):", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/get_delivery_info', methods=['GET'])
+def get_delivery_info():
+    try:
+        quote_number = request.args.get('quote_number')
+        if not quote_number:
+            return jsonify({'status': 'error', 'message': 'Eksik parametre: quote_number'}), 400
+
+        # prf_adr_dlvr.db'den verileri al
+        db_path = os.path.join(BASE_DIR, "prf_adr_dlvr.db")
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT name, tel, address1, address2, postcode, Dname, Dtel, Daddress1, Daddress2, Dpostcode
+            FROM delivery_info
+            WHERE quotenum = ?
+        ''', (quote_number,))
+        row = cursor.fetchone()
+        conn.close()
+
+        if not row:
+            return jsonify({'status': 'error', 'message': 'Quote number ile eşleşen kayıt bulunamadı.'}), 404
+
+        delivery_info = {
+            "name": row[0],
+            "tel": row[1],
+            "address1": row[2],
+            "address2": row[3],
+            "postcode": row[4],
+            "Dname": row[5],
+            "Dtel": row[6],
+            "Daddress1": row[7],
+            "Daddress2": row[8],
+            "Dpostcode": row[9]
+        }
+
+        return jsonify({'status': 'success', 'delivery_info': delivery_info})
+    except Exception as e:
+        print("Hata (get_delivery_info):", str(e))
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 if __name__ == '__main__':
