@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Aktif Kullanıcılar</title>
+    <style>
+        .container {
+            display: flex;
+            gap: 40px;
+            margin-top: 30px;
+        }
+        .panel {
+            flex: 1;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 20px;
+            background: #f9f9f9;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #bbb;
+            padding: 6px 10px;
+            text-align: left;
+        }
+        th {
+            background: #e0e0e0;
+        }
+        .form-row {
+            margin-bottom: 8px;
+        }
+        .form-row label {
+            display: inline-block;
+            width: 80px;
+        }
+        .form-row input, .form-row select {
+            width: 140px;
+        }
+        .add-btn {
+            background: #007bff;
+            color: #fff;
+            border: none;
+            padding: 7px 18px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .add-btn:hover {
+            background: #0056b3;
+        }
+        #kickBtn {
+            background: #dc3545;
+            margin-bottom: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Kullanıcı Yönetimi</h1>
+    <!-- Kullanıcı ekleme/güncelleme formu -->
+    <form id="addUserForm" method="post" action="{{ url_for('add_user') }}">
+        <input type="hidden" name="id" id="userIdInput">
+        <div class="form-row">
+            <label>Kullanıcı Adı:</label>
+            <input type="text" name="username" id="usernameInput" required>
+            <label>Ad:</label>
+            <input type="text" name="name" id="nameInput" required>
+            <label>Soyad:</label>
+            <input type="text" name="surname" id="surnameInput" required>
+        </div>
+        <div class="form-row">
+            <label>Şifre:</label>
+            <input type="password" name="password" id="passwordInput">
+            <label>Yetki:</label>
+            <select name="authority" id="authorityInput" required>
+                <option value="user">user</option>
+                <option value="poweruser">poweruser</option>
+                <option value="admin">admin</option>
+            </select>
+            <label>Durum:</label>
+            <select name="status" id="statusInput" required>
+                <option value="active">active</option>
+                <option value="passive">passive</option>
+            </select>
+        </div>
+        <button type="submit" class="add-btn" id="submitBtn">Kullanıcı Ekle</button>
+        <button type="button" class="add-btn" id="updateBtn" style="display:none;background:#28a745;">Güncelle</button>
+        <button type="button" class="add-btn" id="cancelBtn" style="display:none;background:#6c757d;">İptal</button>
+        <button type="button" class="add-btn" id="kickBtn">Kullanıcıyı Oturumdan At</button>
+    </form>
+    <div class="container">
+        <!-- Sol panel: Tüm kullanıcılar -->
+        <div class="panel">
+            <h2>Tüm Kullanıcılar</h2>
+            <table id="usersTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Kullanıcı Adı</th>
+                        <th>Ad</th>
+                        <th>Soyad</th>
+                        <th>Yetki</th>
+                        <th>Durum</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in all_users %}
+                    <tr data-user='{{ user|tojson }}'>
+                        <td>{{ user[0] }}</td>
+                        <td>{{ user[1] }}</td>
+                        <td>{{ user[2] }}</td>
+                        <td>{{ user[3] }}</td>
+                        <td>{{ user[5] }}</td>
+                        <td>{{ user[6] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <!-- Sağ panel: Aktif kullanıcılar -->
+        <div class="panel">
+            <h2>Aktif Oturumdaki Kullanıcılar</h2>
+            <ul id="activeUsersList">
+                {% for username, login_time, user_id in users %}
+                    <li data-userid="{{ user_id }}" style="cursor:pointer;">
+                        {{ username }} - Giriş Zamanı: {{ login_time }}
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <a href="{{ url_for('menu') }}">Geri Dön</a>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+let selectedKickUserId = null;
+
+    document.querySelectorAll('#activeUsersList li').forEach(li => {
+        li.addEventListener('click', function() {
+            selectedKickUserId = this.dataset.userid;
+            const kickBtn = document.getElementById('kickBtn');
+            if (selectedKickUserId && kickBtn) {
+                kickBtn.style.display = 'inline-block';  // <-- Burayı düzeltiyoruz
+                kickBtn.textContent = this.textContent + " oturumdan at";
+            }
+        });
+    });
+
+    // Satıra tıklayınca bilgileri yukarıya doldur
+    document.querySelectorAll('#usersTable tbody tr').forEach(tr => {
+        tr.addEventListener('click', function() {
+            const user = JSON.parse(this.dataset.user);
+            document.getElementById('userIdInput').value = user[0];
+            document.getElementById('usernameInput').value = user[1];
+            document.getElementById('nameInput').value = user[2];
+            document.getElementById('surnameInput').value = user[3];
+            document.getElementById('authorityInput').value = user[5];
+            document.getElementById('statusInput').value = user[6];
+            document.getElementById('passwordInput').value = '';
+            document.getElementById('submitBtn').style.display = 'none';
+            document.getElementById('updateBtn').style.display = '';
+            document.getElementById('cancelBtn').style.display = '';
+            document.getElementById('kickBtn').style.display = 'none';
+            selectedKickUserId = null;
+        });
+    });
+
+    // Güncelle butonu
+    document.getElementById('updateBtn').onclick = function() {
+        const id = document.getElementById('userIdInput').value;
+        const username = document.getElementById('usernameInput').value;
+        const name = document.getElementById('nameInput').value;
+        const surname = document.getElementById('surnameInput').value;
+        const authority = document.getElementById('authorityInput').value;
+        const status = document.getElementById('statusInput').value;
+        const password = document.getElementById('passwordInput').value;
+        fetch('{{ url_for("update_user") }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({id, username, name, surname, authority, status, password})
+        }).then(r => {
+            if (r.ok) location.reload();
+            else alert("Güncelleme başarısız!");
+        });
+    };
+
+    // İptal butonu
+    document.getElementById('cancelBtn').onclick = function() {
+        document.getElementById('addUserForm').reset();
+        document.getElementById('userIdInput').value = '';
+        document.getElementById('submitBtn').style.display = '';
+        document.getElementById('updateBtn').style.display = 'none';
+        document.getElementById('cancelBtn').style.display = 'none';
+        document.getElementById('kickBtn').style.display = 'none';
+        selectedKickUserId = null;
+    };
+
+    // Oturumdan at butonu
+    document.getElementById('kickBtn').onclick = function() {
+        if (!selectedKickUserId) return;
+        if (!confirm("Seçili kullanıcıyı oturumdan atmak istediğinize emin misiniz?")) return;
+        fetch('/kick_user/' + selectedKickUserId, {method: 'POST'})
+            .then(r => {
+                if (r.ok) location.reload();
+                else alert("Kullanıcı oturumdan atılamadı!");
+            });
+    };
+});
+</script>
+</body>
+</html>
