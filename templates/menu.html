@@ -208,7 +208,55 @@
             text-align: center; /* Ortala */
         }
 
-        
+        .unite-table {
+            max-height: 1000px; /* Tablonun maksimum yüksekliği */
+            overflow-x: auto; /* Yalnızca dikey kaydırma */
+
+        }
+
+        .unite-table th,
+        .unite-table td {
+            padding: 2px 3px !important;
+            font-size: 13px !important;
+            min-width: 0 !important;
+            /*max-width: 60px;*/
+            white-space: nowrap;
+        }
+       .unite-table th {
+            position: sticky; /* Sabit pozisyon */
+            top: 0; /* Tablo başlığı yukarıda sabitlenir */
+            background-color: #f2f2f2; /* Arka plan rengi */
+            z-index: 1049; /* Tablo başlığının modalın altında kalması için z-index düşürüldü */
+
+        }
+
+        .refrigeration-table th,
+        .refrigeration-table td {
+            padding: 2px 3px !important;
+            font-size: 13px !important;
+            min-width: 0 !important;
+            /*max-width: 60px;*/
+            white-space: nowrap;
+        }
+        .refrigeration-table th {
+            position: sticky;
+            top: 0;
+            background-color: #f2f2f2;
+            z-index: 1049;
+        }
+
+
+        /* .unite-table select,
+        .unite-table input[type="text"],
+        .unite-table input[type="number"] {
+            padding: 2px 3px !important;
+            font-size: 13px !important;
+            width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box;
+            margin: 0;
+            height: 22px;
+        } */
 
 
     </style>
@@ -227,7 +275,16 @@
          
          <!--<p id="largestFile">Quotation Number: {{ largest_file }}</p>-->
          <p id="largestFile">{{ largest_file }}</p>
+                 {% if session['authority'] == 'admin' %}
+        <div style="margin-bottom: 8px;">
+            <a href="{{ url_for('active_users') }}" 
+            style="color:black; background: red; padding: 3px 7px; border-radius: 5px; text-decoration: none; font-weight: bold; display: inline-block;">
+                USER Control
+            </a>
+        </div>
+        {% endif %}
      </div>
+
      <button class="header-button" onclick="openModal()">Müşteri Bilgileri</button> <!-- Yeni Buton -->
 
      <!--<div id="selectedCustomer" style="margin-left: 0px; font-size: 14px;">-->
@@ -252,7 +309,7 @@
             <!--<button id="updateWidthButton">Update Width</button>-->
 
             <form method="POST">
-                <div class="scrollable-table">
+                <div class="unite-table">
                 <table>
                     <thead>
                         <tr>
@@ -264,7 +321,6 @@
                             <th colspan="3">Back Panel 30</th>
                             <th colspan="3">Back Panel 20</th>
                             <th colspan="3">Back Panel 10</th>
-                            <th colspan="1">Color</th>
                             <th colspan="2">Shelves</th>
                             <th colspan="2">Back Panels</th>
                             <th colspan="2">Post, Baseleg</th>
@@ -301,7 +357,6 @@
                             <th>BP 10</th>
                             <th>Plane 10</th>
                             <th>Perf 10</th>
-                            <th>Color</th>
                             <th>Qty</th>
                             <th>Shelf</th>
                             <th>Qty</th>
@@ -325,14 +380,14 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for i in range(40) %}
+                        {% for i in range(50) %}
                         <tr data-row-index="{{ i }}">
                             <td class="row-number">{{ i + 1 }}</td>
                             <td>
                                 <select name="option1_{{ i }}">
                                     <option value=""></option>
                                     {% for option in options['combobox1'] %}
-                                        <option value="{{ option }}">{{ option }}</option>
+                                        <option value="{{ option|int }}">{{ option|int }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
@@ -348,7 +403,7 @@
                                 <select name="option3_{{ i }}"class="base-select">
                                     <option value=""></option>
                                     {% for option in options['combobox3'] %}
-                                        <option value="{{ option }}">{{ option }}</option>
+                                        <option value="{{ option|int }}">{{ option|int }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
@@ -356,7 +411,7 @@
                                 <select name="option4_{{ i }}" >
                                     <option value=""></option>
                                     {% for option in options['combobox4'] %}
-                                        <option value="{{ option }}">{{ option }}</option>
+                                        <option value="{{ option|int }}">{{ option|int }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
@@ -364,7 +419,7 @@
                                 <select name="option5_{{ i }}">
                                     <option value=""></option>
                                     {% for option in options['combobox5'] %}
-                                        <option value="{{ option }}">{{ option }}</option>
+                                        <option value="{{ option|int }}">{{ option|int }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
@@ -372,7 +427,7 @@
                                 <select name="option6_{{ i }}">
                                     <option value=""></option>
                                     {% for option in options['combobox6'] %}
-                                        <option value="{{ option }}">{{ option }}</option>
+                                        <option value="{{ option|int }}">{{ option|int }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
@@ -380,7 +435,7 @@
                                 <select name="option7_{{ i }}">
                                     <option value=""></option>
                                     {% for option in options['combobox7'] %}
-                                        <option value="{{ option }}">{{ option }}</option>
+                                        <option value="{{ option|int }}">{{ option|int }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
@@ -388,7 +443,7 @@
                                 <select name="option8_{{ i }}">
                                     <option value=""></option>
                                     {% for option in options['combobox8'] %}
-                                        <option value="{{ option }}">{{ option }}</option>
+                                       <option value="{{ option|int }}">{{ option|int }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
@@ -396,7 +451,7 @@
                                 <select name="option9_{{ i }}">
                                     <option value=""></option>
                                     {% for option in options['combobox9'] %}
-                                        <option value="{{ option }}">{{ option }}</option>
+                                        <option value="{{ option|int }}">{{ option|int }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
@@ -404,7 +459,7 @@
                                 <select name="option10_{{ i }}">
                                     <option value=""></option>
                                     {% for option in options['combobox10'] %}
-                                        <option value="{{ option }}">{{ option }}</option>
+                                        <option value="{{ option|int }}">{{ option|int }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
@@ -412,7 +467,7 @@
                                 <select name="option11_{{ i }}">
                                     <option value=""></option>
                                     {% for option in options['combobox11'] %}
-                                        <option value="{{ option }}">{{ option }}</option>
+                                        <option value="{{ option|int }}">{{ option|int }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
@@ -423,7 +478,7 @@
                                 <select name="option13_{{ i }}">
                                     <option value=""></option>
                                     {% for option in options['combobox13'] %}
-                                        <option value="{{ option }}">{{ option }}</option>
+                                        <option value="{{ option|int }}">{{ option|int }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
@@ -431,7 +486,7 @@
                                 <select name="option14_{{ i }}" class="bp-select">
                                     <option value=""></option>
                                     {% for option in options['combobox14'] %}
-                                        <option value="{{ option }}">{{ option }}</option>
+                                        <option value="{{ option|int }}">{{ option|int }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
@@ -442,7 +497,7 @@
                                 <select name="option16_{{ i }}">
                                     <option value=""></option>
                                     {% for option in options['combobox16'] %}
-                                        <option value="{{ option }}">{{ option }}</option>
+                                        <option value="{{ option|int }}">{{ option|int }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
@@ -450,7 +505,7 @@
                                 <select name="option17_{{ i }}">
                                     <option value=""></option>
                                     {% for option in options['combobox17'] %}
-                                        <option value="{{ option }}">{{ option }}</option>
+                                        <option value="{{ option|int }}">{{ option|int }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
@@ -461,7 +516,7 @@
                                 <select name="option19_{{ i }}">
                                     <option value=""></option>
                                     {% for option in options['combobox19'] %}
-                                        <option value="{{ option }}">{{ option }}</option>
+                                        <option value="{{ option|int }}">{{ option|int }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
@@ -469,7 +524,7 @@
                                 <select name="option20_{{ i }}">
                                     <option value=""></option>
                                     {% for option in options['combobox20'] %}
-                                        <option value="{{ option }}">{{ option }}</option>
+                                        <option value="{{ option|int }}">{{ option|int }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
@@ -480,7 +535,7 @@
                                 <select name="option22_{{ i }}">
                                     <option value=""></option>
                                     {% for option in options['combobox22'] %}
-                                        <option value="{{ option }}">{{ option }}</option>
+                                        <option value="{{ option|int }}">{{ option|int }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
@@ -488,129 +543,118 @@
                                 <select name="option23_{{ i }}">
                                     <option value=""></option>
                                     {% for option in options['combobox23'] %}
-                                        <option value="{{ option }}">{{ option }}</option>
-                                    {% endfor %}
-                                </select>
-                            </td>
-                            
-
-
-                             <td>
-                                <select name="option24_{{ i }}">
-                                    <option value=""></option>
-                                    {% for option in options['combobox24'] %}
-                                        <option value="{{ option }}">{{ option }}</option>
+                                        <option value="{{ option|int }}">{{ option|int }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
 
                             <td>
                                 <!-- Label yerine text box (input) ekliyoruz -->
-                                <input type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
+                                <input name="option24_{{ i }}" type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
                             </td>
                             <td>
-                                <select name="option26_{{ i }}">
+                                <select name="option25_{{ i }}">
                                     <option value=""></option>
-                                    {% for option in options['combobox26'] %}
+                                    {% for option in options['combobox25'] %}
                                         <option value="{{ option }}">{{ option }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
                             <td>
-                                <input type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
+                                <input name="option26_{{ i }}" type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
                             </td>
                             <td>
-                                <select name="option28_{{ i }}">
+                                <select name="option27_{{ i }}">
                                     <option value=""></option>
-                                    {% for option in options['combobox28'] %}
+                                    {% for option in options['combobox27'] %}
                                         <option value="{{ option }}">{{ option }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
                             <td>
-                                <input type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
+                                <input name="option28_{{ i }}" type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
                             </td>
                             <td>
-                                <select name="option30_{{ i }}">
+                                <select name="option29_{{ i }}">
                                     <option value=""></option>
-                                    {% for option in options['combobox30'] %}
+                                    {% for option in options['combobox29'] %}
                                         <option value="{{ option }}">{{ option }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
                             <td>
-                                <input type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
+                                <input name="option30_{{ i }}" type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
                             </td>
                             <td>
-                                <select name="option32_{{ i }}">
+                                <select name="option31_{{ i }}">
                                     <option value=""></option>
-                                    {% for option in options['combobox32'] %}
+                                    {% for option in options['combobox31'] %}
                                         <option value="{{ option }}">{{ option }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
                             <td>
-                                <input type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
+                                <input name="option32_{{ i }}" type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
                             </td>
                             <td>
-                                <select name="option34_{{ i }}">
+                                <select name="option33_{{ i }}">
                                     <option value=""></option>
-                                    {% for option in options['combobox34'] %}
+                                    {% for option in options['combobox33'] %}
                                         <option value="{{ option }}">{{ option }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
                             <td>
-                                <input type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
+                                <input name="option34_{{ i }}" type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
                             </td>
                             <td>
-                                <select name="option36_{{ i }}">
+                                <select name="option35_{{ i }}">
                                     <option value=""></option>
-                                    {% for option in options['combobox36'] %}
+                                    {% for option in options['combobox35'] %}
                                         <option value="{{ option }}">{{ option }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
                             <td>
-                                <input type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
+                                <input name="option36_{{ i }}" type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
                             </td>
                             <td>
-                                <select name="option38_{{ i }}">
+                                <select name="option37_{{ i }}">
                                     <option value=""></option>
-                                    {% for option in options['combobox38'] %}
+                                    {% for option in options['combobox37'] %}
                                         <option value="{{ option }}">{{ option }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
                             <td>
-                                <input type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
+                                <input name="option38_{{ i }}" type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
                             </td>
                             <td>
-                                <select name="option40_{{ i }}">
+                                <select name="option39_{{ i }}">
                                     <option value=""></option>
-                                    {% for option in options['combobox40'] %}
+                                    {% for option in options['combobox39'] %}
                                         <option value="{{ option }}">{{ option }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
                             <td>
-                                <input type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
+                                <input name="option40_{{ i }}"type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
                             </td>
                             <td>
-                                <select name="option42_{{ i }}">
+                                <select name="option41_{{ i }}">
                                     <option value=""></option>
-                                    {% for option in options['combobox42'] %}
+                                    {% for option in options['combobox41'] %}
                                         <option value="{{ option }}">{{ option }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
                             <td>
-                                <input type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
+                                <input name="option42_{{ i }}"type="text" class="value-input" style="width: 30px;"  onkeypress="return isNumberKey(event)" /> 
                             </td>
                             <td>
-                                <select name="option44_{{ i }}">
+                                <select name="option43_{{ i }}">
                                     <option value=""></option>
-                                    {% for option in options['combobox44'] %}
+                                    {% for option in options['combobox43'] %}
                                         <option value="{{ option }}">{{ option }}</option>
                                     {% endfor %}
                                 </select>
@@ -640,6 +684,7 @@
                 </div>
             </div>
             <table border="1" style="width: 100%; text-align: center; border-collapse: collapse;">
+            <!-- <table class="refrigeration-table" border="1" style="width: 100%; text-align: center; border-collapse: collapse;"> -->
                 <thead>
                     <tr>
                         <th>SELECT GROUP</th>
@@ -749,8 +794,9 @@
             <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
 
                 <!-- quoteDate sağa hizalandı -->
-                <div style="display: flex; justify-content: flex-end;">
-                    <span id="quoteDate" style="padding: 5px 10px; font-size: 14px; color: gray;">Quote date: Yükleniyor...</span>
+                <div id="quoteDateContainer" style="display: flex; flex-direction: column; align-items: flex-end;">
+                <span id="quoteDate" style="padding: 5px 10px; font-size: 14px; color: gray;">Quote date: Yükleniyor...</span>
+                <!-- KG bilgisi buraya eklenecek -->
                 </div>
             
                 <!-- Diğer butonlar -->
@@ -760,16 +806,155 @@
                         <button id="openProformaBtn" onclick="openProformaModal()">Open Proforma</button>
                         <label for="discountInput">Discount:</label>
                         <input type="number" id="discountInput" value="0" style="width: 60px;" min="0" max="100" step="1">
+                        <label for="deliveryPriceInput">Delivery Price:</label>
+                        <input type="number" id="deliveryPriceInput" value="0" style="width: 80px;" min="0" step="1">
+                    </div>
+
+                    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                        <div style="display: flex; flex-direction: column;">
+                            <label for="shelfColor">Shelf Colour:</label>
+                            <select id="shelfColor"></select>
+                        </div>
+                        <div style="display: flex; flex-direction: column;">
+                            <label for="ticketColor">Ticket Color and Type:</label>
+                            <select id="ticketColor"></select>
+                            <select id="ttype"></select>
+                        </div>
+                        <div style="display: flex; flex-direction: column;">
+                            <label for="slatwall">Slatwall:</label>
+                            <select id="slatwall"></select>
+                        </div>
+                        <div style="display: flex; flex-direction: column;">
+                            <label for="insert">Insert:</label>
+                            <select id="insert"></select>
+                        </div>
+                        <div style="display: flex; flex-direction: column;">
+                            <label for="endcap">End Cap:</label>
+                            <select id="endcap"></select>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label for="viewMode">View Mode:</label>
+                        <select id="viewMode">
+                            <option value="subtotal">Subtotal</option>
+                            <option value="parts">Parts (Old style)</option>
+                        </select>
                     </div>
             
                     <!-- Sell butonu sağda -->
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <button id="sellBtn" onclick="sellModalcnt()" style="padding: 5px 10px;">Sell</button>
                         <button id="invBtn" onclick="generateInvoice(false)" style="padding: 5px 10px;">Inv</button>
+                        <button id="prfBtn" onclick="generateProfroma()" style="padding: 5px 10px;">Prf</button>
                     </div>
                 </div>
             
             </div>
+
+            <script>
+                async function saveColorSelections(quoteNumber) {
+                    const selections = {
+                    shelfColor: document.getElementById('shelfColor')?.value || '',
+                    ticketColor: document.getElementById('ticketColor')?.value || '',
+                    ttype: document.getElementById('ttype')?.value || '',
+                    slatwall: document.getElementById('slatwall')?.value || '',
+                    insert: document.getElementById('insert')?.value || '',
+                    endcap: document.getElementById('endcap')?.value || ''
+                    };
+
+                    // ✅ Seçilen verileri ekrana yazdır
+                //alert(`Gönderilen Teklif Numarası: ${quoteNumber}`);
+                //alert(`Seçilen Renkler:\n${JSON.stringify(selections, null, 2)}`);
+
+            try {
+                const response = await fetch('/save_color_selections', {
+                method: 'POST',
+                headers: {
+                'Content-Type': 'application/json',
+            },
+                body: JSON.stringify({ quote_number: quoteNumber, selections: selections }),
+            });
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    //alert('Renk seçimleri başarıyla kaydedildi.');
+                } else {
+                    alert('Hata: ' + data.message);
+                }
+                } catch (error) {
+                    console.error('Renk seçimleri kaydedilirken hata oluştu:', error);
+                    alert('Renk seçimleri kaydedilirken bir hata oluştu.');
+                }
+            }
+
+                async function loadColorSelections(quoteNumber) {
+                try {
+                    const response = await fetch(`/load_color_selections?quote_number=${quoteNumber}`);
+                    const data = await response.json();
+
+                    if (data.status === 'success') {
+                        const selections = data.selections;
+
+                        // Check if each element exists before setting its value
+                        const shelfColorElement = document.getElementById('shelfColor');
+                        if (shelfColorElement) shelfColorElement.value = selections.shelfColor || '';
+
+                        const ticketColorElement = document.getElementById('ticketColor');
+                        if (ticketColorElement) ticketColorElement.value = selections.ticketColor || '';
+
+                        const ttypeElement = document.getElementById('ttype');
+                        if (ttypeElement) ttypeElement.value = selections.ttype || '';
+
+                        const slatwallElement = document.getElementById('slatwall');
+                        if (slatwallElement) slatwallElement.value = selections.slatwall || '';
+
+                        const insertElement = document.getElementById('insert');
+                        if (insertElement) insertElement.value = selections.insert || '';
+
+                        const endcapElement = document.getElementById('endcap');
+                        if (endcapElement) endcapElement.value = selections.endcap || '';
+                    } else {
+                        console.error('Error loading color selections:', data.message);
+                    }
+                    } catch (error) {
+                        console.error('Error in loadColorSelections:', error);
+                    }
+                }
+
+            </script>
+
+            <script>
+                // Fetch options from color_tbl.db and populate dropdowns
+                async function fetchColorOptions() {
+                    try {
+                        const response = await fetch('/get_color_options');
+                        const data = await response.json();
+
+                        if (data.status === 'success') {
+                            populateDropdown('shelfColor', data.shelf);
+                            populateDropdown('ticketColor', data.ticket);
+                            populateDropdown('ttype', data.type);
+                            populateDropdown('slatwall', data.slatwall);
+                            populateDropdown('insert', data.insert);
+                            populateDropdown('endcap', data.endcap);
+                        } else {
+                            console.error('Error fetching color options:', data.message);
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                    }
+                }
+
+                function populateDropdown(id, options) {
+                    const dropdown = document.getElementById(id);
+                    dropdown.innerHTML = `<option value=""></option>` + // Varsayılan boş seçenek
+                    options.map(option => `<option value="${option}">${option}</option>`).join('');
+                }
+
+                // Call the function on page load
+                fetchColorOptions();
+            </script>
 
             <p id="statusMessage"></p>
         
@@ -777,13 +962,13 @@
             <table id="quoteListTable" border="1" style="margin-top: 20px; width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr>
-                        <th>USER_ID</th>
+                        <th style="display:none;">USER_ID</th>
                         <th>ITEM_ID</th>
                         <th>ITEM_NAME</th>
-                        <th>ADET</th>
-                        <th>UNIT_TYPE</th>
-                        <th>SIRA</th>
-                        <th>PRICE</th>
+                        <th>QTTY</th>
+                        <th style="display:none;">UNIT_TYPE</th>
+                        <th style="display:none;">SIRA</th>
+                        <th style="display:none;">PRICE</th>
                         <th>D.PRICE</th>
                         <th>AMOUNTH</th>
                     </tr>
@@ -1091,7 +1276,7 @@ function setCustomerInfo(customer) {
         document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.trigger-select').forEach((select, index) => {
                 select.addEventListener('change', function() {
-                    toggleRowNumber(index);
+                   // toggleRowNumber(index);
                 });
             });
     
@@ -1108,16 +1293,16 @@ function setCustomerInfo(customer) {
             });
         });
     
-        function toggleRowNumber(index) {
-            const rowNumberCell = document.querySelectorAll('.row-number')[index];
-            const triggerSelect = document.querySelectorAll('.trigger-select')[index];
+        // function toggleRowNumber(index) {
+        //     const rowNumberCell = document.querySelectorAll('.row-number')[index];
+        //     const triggerSelect = document.querySelectorAll('.trigger-select')[index];
             
-            if (triggerSelect.value) {
-                rowNumberCell.textContent = index + 1; 
-            } else {
-                rowNumberCell.textContent = ""; 
-            }
-        }
+        //     if (triggerSelect.value) {
+        //         rowNumberCell.textContent = index + 1; 
+        //     } else {
+        //         rowNumberCell.textContent = ""; 
+        //     }
+        // }
     
         function updateValueDisplay(index) {
         const bpSelect = document.querySelectorAll('.bp-select')[index];
@@ -1191,24 +1376,51 @@ function setCustomerInfo(customer) {
     }
 
 
-
-// 1. İlk fonksiyon: updateWidthData
-async function updateWidthData() {
+    // 1. İlk fonksiyon: updateWidthData
+    async function updateWidthData() {
     const rows = Array.from(document.querySelectorAll('tbody tr'));
-    let validRowFound = false;
-    const errorMessages = [];
+    let validRows = [];
     const largestFile = document.getElementById('largestFile').textContent.trim();
 
-    for (let index = 0; index < 40; index++) {
+    for (let index = 0; index < 50; index++) {
         const row = rows[index];
         const rowIndex = index + 1;
 
-        // İlgili select öğelerinin varlığını kontrol et
         const unitPieceElement = row.querySelector('select[name^="option1_"]');
         const unittypeElement = row.querySelector('select[name^="option2_"]');
         const heightValueElement = row.querySelector('select[name^="option3_"]');
         const widthValueElement = row.querySelector('select[name^="option4_"]');
         const baseShelfValueElement = row.querySelector('select[name^="option5_"]');
+
+        const isEndOrCorner = unittypeElement?.value?.includes('End') ||
+                      unittypeElement?.value?.includes('Corner');
+
+const requiredFields = [
+    { name: 'Unit Piece', el: unitPieceElement },
+    { name: 'Unit Type', el: unittypeElement },
+    { name: 'Height', el: heightValueElement },
+];
+
+if (!isEndOrCorner) {
+    requiredFields.push({ name: 'Width', el: widthValueElement });
+}
+
+const filledFields = requiredFields.filter(item => item.el && item.el.value);
+const missingFields = requiredFields.filter(item => item.el && !item.el.value);
+
+if (filledFields.length > 0 && filledFields.length < requiredFields.length) {
+    const missingNames = missingFields.map(item => item.name).join(', ');
+    alert(`Unite sayfası Satır ${rowIndex}: lütfen doldurun: ${missingNames}`);
+    return false;
+}
+
+
+
+if (filledFields.length === 0) {
+    continue;
+}
+
+        // Devam eden seçimler
         const qtyValueElement = row.querySelector('select[name^="option6_"]');
         const shelfSizeValueElement = row.querySelector('select[name^="option7_"]');
         const qtyOption8Element = row.querySelector('select[name^="option8_"]');
@@ -1224,138 +1436,59 @@ async function updateWidthData() {
         const plane10Element = row.querySelector('select[name^="option22_"]');
         const perf10Element = row.querySelector('select[name^="option23_"]');
 
-        // Satırdaki değerlerin herhangi biri seçilmiş veya girilmişse işlem yap
-        const anyValueEntered = 
-        (unitPieceElement && unitPieceElement.value) ||
-            (unittypeElement && unittypeElement.value) ||
-            (heightValueElement && heightValueElement.value) ||
-            (widthValueElement && widthValueElement.value) ||
-            (baseShelfValueElement && baseShelfValueElement.value) ||
-            (qtyValueElement && qtyValueElement.value) ||
-            (shelfSizeValueElement && shelfSizeValueElement.value) ||
-            (qtyOption8Element && qtyOption8Element.value) ||
-            (shelfSizeOption9Element && qtyOption8Element.value) ||
-            (qtyOption10Element && qtyOption10Element.value) ||
-            (shelfSizeOption11Element && shelfSizeOption11Element.value) ||
-            (plane40Element && plane40Element.value) ||
-            (perf40Element && perf40Element.value) ||
-            (plane30Element && plane30Element.value) ||
-            (perf30Element && perf30Element.value) ||
-            (plane20Element && plane20Element.value) ||
-            (perf20Element && perf20Element.value) ||
-            (plane10Element && plane10Element.value) ||
-            (perf10Element && perf10Element.value);
+        validRows.push({
+            row_index: rowIndex,
+            unit_piece: unitPieceElement.value,
+            unit_type: unittypeElement.value,
+            height: heightValueElement.value,
+            width: widthValueElement.value,
+            base_shelf: baseShelfValueElement?.value || '',
+            qty: qtyValueElement?.value || '',
+            shelf_size: shelfSizeValueElement?.value || '',
+            qty_option8: qtyOption8Element?.value || '',
+            shelf_size_option9: shelfSizeOption9Element?.value || '',
+            qty_option10: qtyOption10Element?.value || '',
+            shelf_size_option11: shelfSizeOption11Element?.value || '',
+            plane40: plane40Element?.value || '',
+            perf40: perf40Element?.value || '',
+            plane30: plane30Element?.value || '',
+            perf30: perf30Element?.value || '',
+            plane20: plane20Element?.value || '',
+            perf20: perf20Element?.value || '',
+            plane10: plane10Element?.value || '',
+            perf10: perf10Element?.value || '',
+            largest_file: largestFile
+        });
+    }
 
-        // Eğer hiçbir değer girilmediyse bu satırı atla
-        if (!anyValueEntered) {
-            continue; // Bu satırı atla ve sıradaki satıra geç
-        }
+    if (validRows.length === 0) {
+        window.untknt = 0;
+        return true;
+    }
 
-        // Gerekli öğeler eksikse hata mesajı ekle ve bu satırı atla
-        if (!unitPieceElement || !unittypeElement || !heightValueElement || !widthValueElement || !baseShelfValueElement) {
-            errorMessages.push(`Satır ${rowIndex}: Gerekli öğeler eksik.`);
-            continue; // Eksik öğe varsa bu satırı atla
-        }
-
-        // Seçilen değerleri al
-        const unitPiece = unitPieceElement.value;
-        const unittype = unittypeElement.value;
-        const heightValue = heightValueElement.value;
-        const widthValue = widthValueElement.value;
-        const baseShelfValue = baseShelfValueElement.value;
-        const qtyValue = qtyValueElement ? qtyValueElement.value : '';
-        const shelfSizeValue = shelfSizeValueElement ? shelfSizeValueElement.value : '';
-        const qtyOption8 = qtyOption8Element ? qtyOption8Element.value : '';
-        const shelfSizeOption9 = shelfSizeOption9Element ? shelfSizeOption9Element.value : '';
-        const qtyOption10 = qtyOption10Element ? qtyOption10Element.value : '';
-        const shelfSizeOption11 = shelfSizeOption11Element ? shelfSizeOption11Element.value : '';
-        const plane40 = plane40Element ? plane40Element.value : '';
-        const perf40 = perf40Element ? perf40Element.value : '';
-        const plane30 = plane30Element ? plane30Element.value : '';
-        const perf30 = perf30Element ? perf30Element.value : '';
-        const plane20 = plane20Element ? plane20Element.value : '';
-        const perf20 = perf20Element ? perf20Element.value : '';
-        const plane10 = plane10Element ? plane10Element.value : '';
-        const perf10 = perf10Element ? perf10Element.value : '';
-
-        // Boş değer kontrolü
-        const allOptionsEmpty =
-            !unitPiece && !unittype && !heightValue && !widthValue && !baseShelfValue &&
-            !qtyValue && !shelfSizeValue &&
-            !qtyOption8 && !shelfSizeOption9 &&
-            !qtyOption10 && !shelfSizeOption11 &&
-            !plane40 && !perf40 &&
-            !plane30 && !perf30 &&
-            !plane20 && !perf20 &&
-            !plane10 && !perf10;
-
-        if (allOptionsEmpty) {
-            continue; // Bu satırı atla ve sıradaki satıra geç
-        }
-        else{
-            //return;
-        }
-
-        validRowFound = true; // İşlenecek bir satır bulundu
-
-        // Fetch çağrısı
-        try {
+    try {
+        for (const data of validRows) {
             const response = await fetch('/update_width', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    row_index: rowIndex, // Satır numarasını ekliyoruz
-                    unit_piece: unitPiece,
-                    unit_type: unittype,
-                    height: heightValue,
-                    width: widthValue,
-                    base_shelf: baseShelfValue,
-                    qty: qtyValue,
-                    shelf_size: shelfSizeValue,
-                    qty_option8: qtyOption8,
-                    shelf_size_option9: shelfSizeOption9,
-                    qty_option10: qtyOption10,
-                    shelf_size_option11: shelfSizeOption11,
-                    plane40: plane40,
-                    perf40: perf40,
-                    plane30: plane30,
-                    perf30: perf30,
-                    plane20: plane20,
-                    perf20: perf20,
-                    plane10: plane10,
-                    perf10: perf10,
-                    largest_file: largestFile // largest_file değerini de ekliyoruz
-                }),
+                body: JSON.stringify(data),
             });
 
             if (!response.ok) {
-                throw new Error('Güncelleme sırasında hata oluştu.');
+                throw new Error(`Satır ${data.row_index} için güncelleme başarısız.`);
             }
-
-            //loadQuoteList();
-        } catch (error) {
-            console.error('Hata:', error);
-            document.getElementById('statusMessage').textContent = 'Güncelleme sırasında hata oluştu.';
-            return false; // Eğer hata varsa işlemi iptal et
         }
-    }
 
-    if (errorMessages.length > 0) {
-        alert(errorMessages.join('\n'));
-        return false; // Hatalar varsa false döndür
-    }
-
-    if (!validRowFound) {
-        //alert('Unit bos');
-        window.untknt = 0; // Tüm fonksiyonlar için global bir değişken oluşturuyoruz.
-        return true; // Hiçbir satır işlenmediyse false döndür
-    }else{
         window.untknt = 1;
-    }
+        return true;
 
-    return true; // İşlem başarıyla tamamlandı
+    } catch (error) {
+        console.error('Hata:', error);
+        document.getElementById('statusMessage').textContent = 'Güncelleme sırasında hata oluştu.';
+        return false;
+    }
 }
 
 // 2. İkinci fonksiyon: showAddItemData
@@ -1432,6 +1565,7 @@ async function showAddItemData() {
     } catch (error) {
         console.error('API Hatası:', error);
         alert('Veri gönderme sırasında hata oluştu.');
+        await fetch('/reset_islmdvm', { method: 'POST' });
         throw error; // Hata fırlatarak işlemi durdur
     }
 }
@@ -1448,6 +1582,32 @@ async function mainFunction() {
     // islmdvm değerini sıfırlamak için bir API çağrısı yap
     await fetch('/reset_islmdvm', { method: 'POST' });
     return; // İşlemleri sonlandır
+    }
+
+    
+        // --- YENİ KONTROL: Unite sekmesinde hiç değer yoksa color kontrolünü atla ---
+    let uniteHasValue = false;
+    const uniteRows = document.querySelectorAll('#tab_unite tbody tr');
+    for (const row of uniteRows) {
+        // Tüm select ve inputları kontrol et
+        const selects = row.querySelectorAll('select');
+        const inputs = row.querySelectorAll('input');
+        for (const el of [...selects, ...inputs]) {
+            if (el.value && el.value.trim() !== '') {
+                uniteHasValue = true;
+                break;
+            }
+        }
+        if (uniteHasValue) break;
+    }
+
+    if (uniteHasValue) {
+        const uptclrcont = await clrCont();
+        if (!uptclrcont) {
+            //console.error('Color cont basarisiz oldu.');
+            await fetch('/reset_islmdvm', { method: 'POST' });
+            return;
+        }
     }
 
     if (data.status === 'busy') {
@@ -1471,14 +1631,21 @@ async function mainFunction() {
     document.getElementById('largestFile').textContent = nextNumber
 
         // 1. updateWidthData çağrısı
-    const updateResult = await updateWidthData();
+    const updateResult = await updateWidthData(nextNumber);
     if (!updateResult) {
         console.error('updateWidthData başarısız oldu. İşlem sonlandırıldı.');
         await fetch('/reset_islmdvm', { method: 'POST' });
         return;
     }
 
-    
+    // const updateResultsecnd = await uniteScndprt(nextNumber);
+    // if (!updateResultsecnd && window.scnduntknt !== 0) {
+    //     console.error('uniteScndprt sırasında teknik bir hata oluştu. İşlem sonlandırıldı.');
+    //     await fetch('/reset_islmdvm', { method: 'POST' });
+    //     return;
+    // }
+
+    await uniteScndprt(nextNumber);
 
 
 
@@ -1541,20 +1708,24 @@ async function mainFunction() {
     }
 
     // 3. loadQuoteList çağrısı
-    if ((window.untknt || 0) + (window.aditmknt || 0) + (window.adrefknt || 0)+ (window.adclknt || 0)<= 0) {
+    if ((window.untknt || 0) + (window.scnduntknt || 0) + (window.aditmknt || 0) + (window.adrefknt || 0)+ (window.adclknt || 0)<= 0) {
         alert("Proforma oluşturulacak bir değer yok!");
         await fetch('/reset_islmdvm', { method: 'POST' });
     } else {
         console.log("loadQuoteList fonksiyonu çağrılıyor.");
         
+        //await renkkontrol(nextNumber);
         await createTableprofdelv(nextNumber);
         await loadQuoteList(nextNumber); // İşlemin tamamlanmasını bekle
         await loadProformaDeliveryInfo(nextNumber);
+        await DpTpl(nextNumber);
+        await KgTpl(nextNumber);
         await callPrepUpQt(nextNumber,dsc);
         await saveUniteSelection(nextNumber);
         await saveAddItemSelection(nextNumber);
         await saveRefSelection(nextNumber); // Yeni fonksiyon çağrısı
         await saveCeilSelection(nextNumber);
+        await saveColorSelections(nextNumber);
         await fetchCustomerDataByQuote(newQuoteNum);
         await fetch('/reset_islmdvm', { method: 'POST' });
         
@@ -1644,44 +1815,44 @@ async function quotenumkont() {
 
 
 document.addEventListener('DOMContentLoaded', function () {
-        // Hedef değerler
-        const targetValues = ["End / Wall Unit", "End / Single Gondola", "End / Double Gondola"];
+    // Hedef değerler
+    const targetValues = ["End / Wall Unit", "End / Single Gondola", "End / Double Gondola", "End / Vegetable Unit"];
 
-        // Tüm trigger-select sınıfındaki select elementlerini dinle
-        const triggerSelects = document.querySelectorAll('.trigger-select');
+    // Tüm trigger-select sınıfındaki select elementlerini dinle
+    const triggerSelects = document.querySelectorAll('.trigger-select');
 
-        triggerSelects.forEach(select => {
-            select.addEventListener('change', function () {
-                const row = select.closest('tr'); // Satırı bul
-                const selectedValue = select.value; // Seçili değeri al
-                
-                // Eğer seçili değer hedef değerlerden biriyse
-                if (targetValues.includes(selectedValue)) {
-                    lockComboboxes(row);
-                } else {
-                    unlockComboboxes(row);
-                }
-            });
+    triggerSelects.forEach(select => {
+        select.addEventListener('change', function () {
+            const row = select.closest('tr'); // Satırı bul
+            const selectedValue = select.value; // Seçili değeri al
+            
+            // Eğer seçili değer hedef değerlerden biriyse
+            if (targetValues.includes(selectedValue)) {
+                lockComboboxes(row);
+            } else {
+                unlockComboboxes(row);
+            }
         });
-
-        // Combobox'ları kilitle
-        function lockComboboxes(row) {
-            row.querySelectorAll('select').forEach((combobox, index) => {
-                if (![0, 1, 2, 4, 22].includes(index)) { // 1., 2., 3., 5. ve 23. combobox'ı atla
-                    combobox.disabled = true;
-                }
-            });
-        }
-
-        // Combobox'ları aç
-        function unlockComboboxes(row) {
-            row.querySelectorAll('select').forEach((combobox, index) => {
-                if (![0, 1, 2, 4, 22].includes(index)) { // 1., 2., 3., 5. ve 23. combobox'ı atla
-                    combobox.disabled = false;
-                }
-            });
-        }
     });
+
+    // Combobox'ları kilitle
+    function lockComboboxes(row) {
+        row.querySelectorAll('select').forEach((combobox, index) => {
+            if (![0, 1, 2, 4].includes(index) && index <= 18) { // 0, 1, 2, 4 hariç 18. combobox'a kadar kilitle
+                combobox.disabled = true;
+            }
+        });
+    }
+
+    // Combobox'ları aç
+    function unlockComboboxes(row) {
+        row.querySelectorAll('select').forEach((combobox, index) => {
+            if (![0, 1, 2, 4].includes(index) && index <= 18) { // 0, 1, 2, 4 hariç 18. combobox'a kadar aç
+                combobox.disabled = false;
+            }
+        });
+    }
+});
 
     document.addEventListener("DOMContentLoaded", function () {
         // Dinlenmesi gereken combobox isimlerini bir array olarak tanımlıyoruz
@@ -1777,6 +1948,7 @@ function fetchCustomerData() {
                     tr.appendChild(td);
                 });
                 tr.addEventListener("dblclick", () => selectCustomer(customer)); // Satırı tıklanabilir hale getir
+                
                 tr.addEventListener("click", () => select1Customer(customer));
                 tableBody.appendChild(tr);
             });
@@ -1786,7 +1958,7 @@ function selectCustomer(customer) {
     selectedCustomerID = customer[0];
     selectedCustomerName = customer[1];
     selectedCustomer1ID = null;
-
+    alert("Customer ID: " + customer[0]); // <-- Burada alert eklendi
     document.getElementById("selectedCustomer").innerHTML = `
         <div>
             <strong>Proforma To</strong><br>
@@ -1827,6 +1999,7 @@ async function selectCustomerDlv(customer) {
             <strong>Address2:</strong> <span id="deliverAddress2"></span><br>
             <strong>Postcode:</strong> <span id="deliverPostcode"></span>
         </div>
+        <button onclick="openDeliveryModal()" style="align-self: flex-start; margin-left: 20px;">Change Delivery Address</button>
     `;
 
     // Backend'den Deliver To bilgilerini al
@@ -2003,72 +2176,76 @@ async function checkConcurrentClicks() {
     }
 }
 
-function openProformaModal() {
+async function openProformaModal() {
     const modal = document.getElementById('proformaModal');
     modal.style.display = 'flex'; // Modalı görünür yap
 
-    // Proforma listesini yükle
-    fetch('/get_quotes')
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                alert(data.error);
-                return;
-            }
+    try {
+        const response = await fetch('/get_quotes');
+        const data = await response.json();
 
-            // Tabloyu doldur
-            const tableBody = document.getElementById('proformaTable').querySelector('tbody');
-            tableBody.innerHTML = ''; // Önceki içeriği temizle
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
 
-            data.rows.forEach(row => {
-                const tr = document.createElement('tr');
-                row.forEach((cell, index) => {
-                    const td = document.createElement('td');
-                    td.textContent = cell;
-                    tr.appendChild(td);
-                });
+        // Tabloyu doldur
+        const tableBody = document.getElementById('proformaTable').querySelector('tbody');
+        tableBody.innerHTML = ''; // Önceki içeriği temizle
 
-                // Satıra tıklama olayı ekle
-                tr.addEventListener('click', () => {
-                    const quoteNumber = row[0]; // Birinci sütundaki numarayı al
-                    const discountValue = row[5]; // Discount değerini al
-                    selectedQuoteNumber = row[0]; // Birinci sütundaki quote numarasını al
-                    const Sing1 = row[7];
-                    const Sing2 = row[8];
-                    const dbName = `${quoteNumber}`; // Dosya adını oluştur
-
-                    // Discount değerini dsc alanına yaz
-                    document.getElementById('discountInput').value = discountValue;
-
-                    // Eğer Sing1 veya Sing2 doluysa "Make Proforma" butonunu kilitle
-                    const makeProformaButton = document.getElementById('updateWidthBtn');
-                    if (Sing1 || Sing2) {
-                        makeProformaButton.disabled = true;
-                        makeProformaButton.style.cursor = 'not-allowed';
-                        makeProformaButton.title = 'This quote is already processed.';
-                    } else {
-                        makeProformaButton.disabled = false;
-                        makeProformaButton.style.cursor = 'pointer';
-                        makeProformaButton.title = '';
-                    }
-
-                    fetchCustomerDataByQuote(quoteNumber);
-                    loadQuoteList(dbName); // get_quote_list'i çağır
-                    loadUniteSelection(dbName); // Unite seçimlerini yükle
-                    loadAddItemSelection(dbName); // Add Item seçimlerini yükle
-                    loadRefSelection(dbName); 
-                    loadCeilSelection(dbName); // Ceiling seçimlerini yükle
-                    updateQuoteDate(quoteNumber); // Tarihi güncelle
-                    closeProformaModal(); // Modalı kapat
-                });
-
-                tableBody.appendChild(tr);
+        data.rows.forEach(row => {
+            const tr = document.createElement('tr');
+            row.forEach((cell, index) => {
+                const td = document.createElement('td');
+                td.textContent = cell;
+                tr.appendChild(td);
             });
-        })
-        .catch(error => {
-            console.error('Hata:', error);
-            alert('Proforma listesi yüklenirken bir hata oluştu.');
+
+            // Satıra tıklama olayı ekle
+            tr.addEventListener('click', async () => {
+                const quoteNumber = row[0]; // Birinci sütundaki numarayı al
+                const discountValue = row[5]; // Discount değerini al
+                selectedQuoteNumber = row[0]; // Birinci sütundaki quote numarasını al
+                const deliveryPriceValue = row[10] || 0; // 10. sütun DeliveryPrice (Delpr) ise
+                const Sing1 = row[7];
+                const Sing2 = row[8];
+                const dbName = `${quoteNumber}`; // Dosya adını oluştur
+
+                // Discount değerini dsc alanına yaz
+                document.getElementById('discountInput').value = discountValue;
+                document.getElementById('deliveryPriceInput').value = deliveryPriceValue;
+
+                // Eğer Sing1 veya Sing2 doluysa "Make Proforma" butonunu kilitle
+                const makeProformaButton = document.getElementById('updateWidthBtn');
+                if (Sing1 || Sing2) {
+                    makeProformaButton.disabled = true;
+                    makeProformaButton.style.cursor = 'not-allowed';
+                    makeProformaButton.title = 'This quote is already processed.';
+                } else {
+                    makeProformaButton.disabled = false;
+                    makeProformaButton.style.cursor = 'pointer';
+                    makeProformaButton.title = '';
+                }
+
+                // Sıralı ve await'li şekilde çağır
+                await fetchCustomerDataByQuote(quoteNumber);
+                await loadUniteSelection(dbName);
+                await loadAddItemSelection(dbName);
+                await loadRefSelection(dbName);
+                await loadCeilSelection(dbName);
+                loadColorSelections(dbName);
+                updateQuoteDate(quoteNumber);
+                loadQuoteList(dbName);
+
+                closeProformaModal(); // Modalı kapat
+            });
+
+            tableBody.appendChild(tr);
         });
+    } catch (error) {
+        console.error('Hata:', error);
+        alert('Proforma listesi yüklenirken bir hata oluştu.');
+    }
 }
 
 function closeProformaModal() {
@@ -2077,7 +2254,9 @@ function closeProformaModal() {
 }
 
 async function loadQuoteList(dbName) {
+let inputsLocked = true;
     try {
+        const viewMode = document.getElementById('viewMode').value;
         const response = await fetch(`/get_quote_list?db_name=${dbName}`);
 
         if (!response.ok) {
@@ -2093,105 +2272,306 @@ async function loadQuoteList(dbName) {
         const tableHeader = document.getElementById('tableHeader');
         tableHeader.textContent = `Quote list: ${db_name}`;
 
-        // Eğer data boşsa tabloyu temizleyip mesaj göster
+        const tableBody = document.getElementById('quoteListTable').querySelector('tbody');
+        tableBody.innerHTML = '';
+
         if (!data || data.length === 0) {
-            const tableBody = document.getElementById('quoteListTable').querySelector('tbody');
-            tableBody.innerHTML = ''; // Tüm veriyi temizle
             alert('Gösterilecek liste verisi bulunamadı.');
             return;
         }
 
-        // Tabloyu doldur
-        const tableBody = document.getElementById('quoteListTable').querySelector('tbody');
-        tableBody.innerHTML = '';
+        if (viewMode === 'parts') {
+            const grouped = {};
 
-        // Alt toplamları hesaplamak için bir nesne oluştur
+            data.forEach(row => {
+                const itemName = row[2];
+                const key = itemName;
+                const adet = row[3];
+                const index = row[9];
+
+                if (!grouped[key]) {
+                    grouped[key] = { ...row };
+                    grouped[key].adet = adet;
+                    grouped[key].amount = row[8];
+                    grouped[key].dbList = [{ index, adet }];
+                } else {
+                    grouped[key].adet += adet;
+                    grouped[key].amount += row[8];
+                    grouped[key].dbList.push({ index, adet });
+                }
+            });
+
+            let totalPrice = 0, totalDPrice = 0, totalAmount = 0;
+
+            Object.values(grouped).forEach(row => {
+                totalPrice += parseFloat(row[6]) || 0;
+                totalDPrice += parseFloat(row[7]) || 0;
+                totalAmount += parseFloat(row.amount) || 0;
+
+                const dbIndexAdetList = row.dbList.map(entry => `${entry.index}-${entry.adet}`).join(', ');
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="display:none;">${row[0]}</td>
+                    <td style="text-align: Left;">${row[1]}</td>
+                    <td style="text-align: Left;">${row[2]}</td>
+                    <td>
+                        <input class="adet-input" type="number" value="${row.adet}" min="0" style="width:60px;" disabled onkeypress="return isNumberKey(event)" />
+                    </td>
+                    <td style="display:none;">${row[4]}</td>
+                    <td style="display:none;">${row[5]}</td>
+                    <td style="display:none;">${parseFloat(row[6]).toFixed(2)}</td>
+                    <td style="text-align: Right;">${parseFloat(row[7]).toFixed(2)}</td>
+                    <td style="text-align: Right;">${parseFloat(row.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td style="display:none;">${dbIndexAdetList}</td>
+                `;
+                tableBody.appendChild(tr);
+            });
+
+            const deliveryPriceInput = document.getElementById('deliveryPriceInput');
+            const deliveryPrice = parseFloat(deliveryPriceInput.value) || 0;
+
+            const vat = (totalAmount+deliveryPrice) * 0.2;
+            const grandTotal = totalAmount + deliveryPrice + vat;
+
+            const totalRow = document.createElement('tr');
+            totalRow.innerHTML = `
+                <td colspan="4" style="font-weight: bold; text-align: right;">Total:</td>
+                <td style="font-weight: bold; text-align: right;">${totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            `;
+            tableBody.appendChild(totalRow);
+
+           // Delivery Price satırı
+
+            const deliveryRow = document.createElement('tr');
+            deliveryRow.innerHTML = `
+                <td colspan="4" style="font-weight: bold; text-align: right;">Delivery:</td>
+                <td style="font-weight: bold; text-align: right;">${deliveryPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            `;
+            tableBody.appendChild(deliveryRow);
+
+            // VAT ve Grand Total satırları
+            const vatRow = document.createElement('tr');
+            vatRow.innerHTML = `
+                <td colspan="4" style="font-weight: bold; text-align: right;">Vat (20%):</td>
+                <td style="font-weight: bold; text-align: right;">${vat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            `;
+            tableBody.appendChild(vatRow);
+
+            const grandTotalRow = document.createElement('tr');
+            grandTotalRow.innerHTML = `
+                <td colspan="4" style="font-weight: bold; text-align: right;">G.Total:</td>
+                <td style="font-weight: bold; text-align: right;">${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            `;
+            tableBody.appendChild(grandTotalRow);
+
+            return;
+        }
+
+        // Subtotal mode (viewMode !== 'parts')
         const subtotals = {};
-        const rowsByUnitType = {}; // Her unit_type için satırları saklamak için
+        const rowsByGroup = {};
 
-        data.forEach((row, index) => {
+        let totalPrice = 0, totalDPrice = 0, totalAmount = 0;
+
+        data.forEach(row => {
             const tr = document.createElement('tr');
+            const adet = row[3];
+            const index = row[9];
+
             tr.innerHTML = `
-                <td>${row[0]}</td>
-                <td>${row[1]}</td>
-                <td>${row[2]}</td>
-                <td>${row[3]}</td>
-                <td>${row[4]}</td>
-                <td>${row[5]}</td>
-                <td>${parseFloat(row[6]).toFixed(2)}</td>
-                <td>${parseFloat(row[7]).toFixed(2)}</td>
-                <td>${parseFloat(row[8]).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td style="display:none;">${row[0]}</td>
+                <td style="text-align: Left;">${row[1]}</td>
+                <td style="text-align: Left;">${row[2]}</td>
+                <td>
+                    <input class="adet-input" type="number" value="${adet}" min="0" style="width:60px;" disabled onkeypress="return isNumberKey(event)" />
+                </td>
+                <td style="display:none;">${row[4]}</td>
+                <td style="display:none;">${row[5]}</td>
+                <td style="display:none;">${parseFloat(row[6]).toFixed(2)}</td>
+                <td style="text-align: Right;">${parseFloat(row[7]).toFixed(2)}</td>
+                <td style="text-align: Right;">${parseFloat(row[8]).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td style="display:none;">${index}-${adet}</td>
             `;
             tableBody.appendChild(tr);
 
-            // Alt toplamları hesapla
-            const unitType = row[4]; // `unit_type` sütunu
-            const price = parseFloat(row[6]) || 0; // `price` sütunu
-            const dPrice = parseFloat(row[7]) || 0; // `d.price` sütunu
-            const amount = parseFloat(row[8]) || 0; // `amount` sütunu
+            totalPrice += parseFloat(row[6]) || 0;
+            totalDPrice += parseFloat(row[7]) || 0;
+            totalAmount += parseFloat(row[8]) || 0;
 
-            if (!subtotals[unitType]) {
-                subtotals[unitType] = { price: 0, dPrice: 0, amount: 0 };
-                rowsByUnitType[unitType] = []; // Her unit_type için bir dizi oluştur
+            const siraRaw = String(row[5]);
+            const sira = parseInt(siraRaw.includes('.') ? siraRaw.replace('.', '') : siraRaw, 10);
+            if (sira >= 3500) return;
+
+            const unitType = row[4];
+            const groupKey = `SIRA-${sira}`;
+            const amount = parseFloat(row[8]) || 0;
+
+            if (!subtotals[groupKey]) {
+                subtotals[groupKey] = { amount: 0, unitType: unitType };
+                rowsByGroup[groupKey] = [];
             }
 
-            subtotals[unitType].price += price;
-            subtotals[unitType].dPrice += dPrice;
-            subtotals[unitType].amount += amount;
-            rowsByUnitType[unitType].push(tr); // Satırı ilgili unit_type dizisine ekle
+            subtotals[groupKey].amount += amount;
+            rowsByGroup[groupKey].push(tr);
         });
 
-        // Alt toplamları ilgili `unit_type`'ın altına ekle
-        Object.keys(rowsByUnitType).forEach(unitType => {
+        Object.keys(rowsByGroup).forEach(groupKey => {
+            const groupId = groupKey.replace(/[^a-zA-Z0-9-_]/g, '-');
+            const rows = rowsByGroup[groupKey];
+            const { unitType, amount } = subtotals[groupKey];
+
+            rows.forEach(tr => {
+                tr.classList.add(groupId, 'group-row');
+                tr.style.display = 'none';
+            });
+
+            // Sıra numarasının son hanesini bul
+            let siraNo = "";
+            const firstRow = rows[0];
+            let uniteSecondColValue = "";
+            if (firstRow) {
+                // Sıra numarası (6. kolon, index 5)
+                const siraCell = firstRow.children[5];
+                if (siraCell) {
+                    const siraText = siraCell.textContent.trim();
+                    const siraParts = siraText.split('.');
+
+                    if (siraParts[0].startsWith('1')) {
+                        siraNo = siraParts[0].slice(-1); // Sadece son karakter
+                    } else {
+                        siraNo = siraParts[0]; // Tamamı
+                    }
+                }
+            }
+
+            // Unite tablosunda ilgili satırın 2. kolonundaki değeri ve 4,5,6. kolonları bul
+            let uniteColValues = [];
+            let bPlusText = "";
+            let shelfSum = 0;
+            let showShelfSum = true;
+            let isDouble = false;
+            if (siraNo) {
+                const uniteRow = document.querySelector(`#tab_unite tbody tr[data-row-index="${parseInt(siraNo)-1}"]`);
+                if (uniteRow) {
+                    // 2. kolon (index 1)
+                    const col2 = uniteRow.children[1];
+                    if (col2) {
+                        const select = col2.querySelector('select');
+                        uniteSecondColValue = select ? select.value : (col2.textContent.trim() || "");
+                    }
+                    // 4,5,6. kolonlar: index 3,4,5
+                    for (let i = 3; i <= 5; i++) {
+                        const col = uniteRow.children[i];
+                        let val = "";
+                        if (col) {
+                            const select = col.querySelector('select');
+                            val = select ? select.value : (col.textContent.trim() || "");
+                        }
+                        uniteColValues.push(val);
+                    }
+                    // 6. kolon (index 5) için B+ kontrolü
+                    if (uniteColValues[2]) {
+                        bPlusText = " ---- B + ";
+                    }
+                    // "Double" kontrolü
+                    isDouble = (unitType && unitType.toLowerCase().includes("double")) || (uniteSecondColValue && uniteSecondColValue.toLowerCase().includes("double"));
+                    // 7,9,11. kolonların (index 6,8,10) değerlerini topla
+                    let sum = 0;
+                    [6, 8, 10].forEach(idx => {
+                        const col = uniteRow.children[idx];
+                        let val = 0;
+                        if (col) {
+                            const select = col.querySelector('select');
+                            val = select ? parseInt(select.value) || 0 : parseInt(col.textContent.trim()) || 0;
+                        }
+                        sum += val;
+                    });
+                    shelfSum = isDouble ? Math.round(sum / 2) : sum;
+                    // Eğer başlık "End" ile başlıyorsa B+ ve shelfSum gösterilmesin
+                    if (unitType && unitType.trim().toLowerCase().startsWith("end")) {
+                        bPlusText = "";
+                        showShelfSum = false;
+                    }
+                }
+            }
+
+            const uniteColText = uniteColValues.filter(Boolean).join('x');
+
             const subtotalRow = document.createElement('tr');
+            subtotalRow.classList.add('subtotal-header');
+            subtotalRow.style.cursor = 'pointer';
             subtotalRow.innerHTML = `
-                <td colspan="5" style="font-weight: bold; text-align: right;"> (${unitType}):</td>
-                <td></td>
-                <td style="font-weight: bold;">${subtotals[unitType].price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                <td style="font-weight: bold;">${subtotals[unitType].dPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                <td style="font-weight: bold;">${subtotals[unitType].amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td colspan="1"></td>
+                <td colspan="1" style="font-weight: bold; text-align: Left;">
+                    ${uniteSecondColValue ? uniteSecondColValue + "x" : ""}
+                    ${unitType} ${uniteColText ? uniteColText : ""}
+                    ${bPlusText && showShelfSum && shelfSum > 0 ? bPlusText + shelfSum + " Shelf" : ""}
+                    ${!bPlusText && showShelfSum && shelfSum > 0 ? shelfSum + " Shelf" : ""}
+                </td>
+                <td colspan="2"></td>
+                <td style="font-weight: bold;text-align: Right;">
+                    ${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </td>
             `;
 
-            // Alt toplam satırını ilgili `unit_type`'ın son satırının altına ekle
-            const lastRow = rowsByUnitType[unitType][rowsByUnitType[unitType].length - 1];
+            subtotalRow.addEventListener('click', () => {
+                const groupRows = document.querySelectorAll(`.${groupId}`);
+                groupRows.forEach(row => {
+                    row.style.display = (row.style.display === 'none') ? '' : 'none';
+                });
+            });
+
+            const lastRow = rows[rows.length - 1];
             lastRow.after(subtotalRow);
         });
 
-        // Total, Vat ve G.Total hesaplama ve ekleme
-        const totalPrice = Object.values(subtotals).reduce((sum, item) => sum + item.price, 0);
-        const totalDPrice = Object.values(subtotals).reduce((sum, item) => sum + item.dPrice, 0);
-        const totalAmount = Object.values(subtotals).reduce((sum, item) => sum + item.amount, 0);
-        const vat = totalAmount * 0.2; // %20 KDV
-        const grandTotal = totalAmount + vat;
+            const deliveryPriceInput = document.getElementById('deliveryPriceInput');
+            const deliveryPrice = parseFloat(deliveryPriceInput.value) || 0;
 
-        const totalRow = document.createElement('tr');
-        totalRow.innerHTML = `
-            <td colspan="5" style="font-weight: bold; text-align: right;">Total:</td>
-            <td></td>
-            <td style="font-weight: bold;">${totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            <td style="font-weight: bold;">${totalDPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            <td style="font-weight: bold;">${totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-        `;
-        tableBody.appendChild(totalRow);
+            const vat = (totalAmount+deliveryPrice) * 0.2;
+            const grandTotal = totalAmount + deliveryPrice + vat;
 
-        const vatRow = document.createElement('tr');
-        vatRow.innerHTML = `
-            <td colspan="8" style="font-weight: bold; text-align: right;">Vat (20%):</td>
-            <td style="font-weight: bold;">${vat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-        `;
-        tableBody.appendChild(vatRow);
+            const totalRow = document.createElement('tr');
+            totalRow.innerHTML = `
+                <td colspan="4" style="font-weight: bold; text-align: right;">Total:</td>
+                <td style="font-weight: bold; text-align: right;">${totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            `;
+            tableBody.appendChild(totalRow);
 
-        const grandTotalRow = document.createElement('tr');
-        grandTotalRow.innerHTML = `
-            <td colspan="8" style="font-weight: bold; text-align: right;">G.Total:</td>
-            <td style="font-weight: bold;">${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-        `;
-        tableBody.appendChild(grandTotalRow);
+           // Delivery Price satırı
+
+            const deliveryRow = document.createElement('tr');
+            deliveryRow.innerHTML = `
+                <td colspan="4" style="font-weight: bold; text-align: right;">Delivery:</td>
+                <td style="font-weight: bold; text-align: right;">${deliveryPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            `;
+            tableBody.appendChild(deliveryRow);
+
+            // VAT ve Grand Total satırları
+            const vatRow = document.createElement('tr');
+            vatRow.innerHTML = `
+                <td colspan="4" style="font-weight: bold; text-align: right;">Vat (20%):</td>
+                <td style="font-weight: bold; text-align: right;">${vat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            `;
+            tableBody.appendChild(vatRow);
+
+            const grandTotalRow = document.createElement('tr');
+            grandTotalRow.innerHTML = `
+                <td colspan="4" style="font-weight: bold; text-align: right;">G.Total:</td>
+                <td style="font-weight: bold; text-align: right;">${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            `;
+            tableBody.appendChild(grandTotalRow);
+
     } catch (error) {
         console.error('Hata:', error);
         document.getElementById('statusMessage').textContent = 'Liste yüklenirken hata oluştu.';
     }
+
+    DpTpl(dbName);
+    KgTpl(dbName);
 }
+
 
 // Sayfa yüklendiğinde sunucudan tarih ve saat bilgisini çek
 document.addEventListener('DOMContentLoaded', fetchServerTime);
@@ -2200,7 +2580,8 @@ async function saveUniteSelection(quoteNumber) {
     const rows = Array.from(document.querySelectorAll('#tab_unite tbody tr'));
     const selections = rows.map(row => {
         const selects = Array.from(row.querySelectorAll('select'));
-        return selects.map(select => select.value || null); // Seçili değerleri al
+        const inputs = Array.from(row.querySelectorAll('input')); // Text box'ları da dahil et
+        return [...selects, ...inputs].map(input => input.value || null); // Seçili değerleri al
     });
 
     try {
@@ -2238,9 +2619,10 @@ async function loadUniteSelection(quoteNumber) {
 
             rows.forEach((row, index) => {
                 const selects = Array.from(row.querySelectorAll('select'));
+                const inputs = Array.from(row.querySelectorAll('input')); // Text box'ları da dahil et
                 const selection = selections[index] || [];
-                selects.forEach((select, i) => {
-                    select.value = selection[i] || ''; // Seçimleri geri yükle
+                [...selects, ...inputs].forEach((input, i) => {
+                    input.value = selection[i] || ''; // Seçimleri geri yükle
                 });
 
                 // Seçimler yüklendikten sonra hesaplama fonksiyonunu çağır
@@ -2253,6 +2635,37 @@ async function loadUniteSelection(quoteNumber) {
         }
     } catch (error) {
         console.error('Seçimler yüklenirken hata oluştu:', error);
+    }
+
+    // Kilit sistemini tetikleme
+    const targetValues = ["End / Wall Unit", "End / Single Gondola", "End / Double Gondola", "End / Vegetable Unit"];
+    const triggerSelects = document.querySelectorAll('.trigger-select');
+
+    triggerSelects.forEach(select => {
+        const row = select.closest('tr'); // Satırı bul
+        const selectedValue = select.value; // Seçili değeri al
+
+        if (targetValues.includes(selectedValue)) {
+            lockComboboxes(row);
+        } else {
+            unlockComboboxes(row);
+        }
+    });
+
+    function lockComboboxes(row) {
+        row.querySelectorAll('select').forEach((combobox, index) => {
+            if (![0, 1, 2, 4].includes(index) && index <= 18) {
+                combobox.disabled = true;
+            }
+        });
+    }
+
+    function unlockComboboxes(row) {
+        row.querySelectorAll('select').forEach((combobox, index) => {
+            if (![0, 1, 2, 4].includes(index) && index <= 18) {
+                combobox.disabled = false;
+            }
+        });
     }
 }
 
@@ -2287,14 +2700,22 @@ async function fetchCustomerDataByQuote(quoteNumber) {
 }
 
 
-async function callPrepUpQt(quoteNumber,dsc) {
+async function callPrepUpQt(quoteNumber, dsc) {
     try {
+        // Delivery Price inputunu al
+        const deliveryPriceInput = document.getElementById('deliveryPriceInput');
+        const deliveryPrice = parseInt(deliveryPriceInput?.value) || 0;
+
         const response = await fetch('/prep_up_qt', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ quote_number: quoteNumber, dsc: dsc }), // dsc = 5
+            body: JSON.stringify({ 
+                quote_number: quoteNumber, 
+                dsc: dsc,
+                del_pr: deliveryPrice // <-- burada düzeltildi
+            }),
         });
 
         const data = await response.json();
@@ -3186,6 +3607,7 @@ async function loadCeilSelection(quoteNumber) {
     } catch (error) {
         console.error('Hata (salecustdet):', error);
         alert('Satış bilgileri kaydedilirken bir hata oluştu.');
+        await fetch('/reset_islmdvm', { method: 'POST' });
     }
 }
 
@@ -3226,6 +3648,7 @@ async function decreaseStock() {
     } catch (error) {
         console.error('Hata (decreaseStock):', error);
         alert('Stok güncelleme sırasında bir hata oluştu.');
+        await fetch('/reset_islmdvm', { method: 'POST' });
     }
 }
 
@@ -3377,9 +3800,10 @@ async function decreaseStock() {
                     alert(`Error: ${data.message}`);
                 }
             })
-            .catch(error => {
-                console.error("Refrigeration verileri alınırken hata oluştu:", error);
-                alert("An error occurred while fetching refrigeration data.");
+            .catch(async (error) => {
+            console.error("Refrigeration verileri alınırken hata oluştu:", error);
+            alert("An error occurred while fetching refrigeration data.");
+            await fetch('/reset_islmdvm', { method: 'POST' });
             });
     }
 </script>
@@ -3701,6 +4125,383 @@ async function decreaseStock() {
             document.getElementById('checkboxS').checked = false;
             document.getElementById('checkboxI').checked = false;
         }
+
+
+        // proforma basim
+function generateProfroma() {
+    const table = document.getElementById('quoteListTable');
+    if (!table) {
+        alert("Proforma tablosu bulunamadı!");
+        return;
+    }
+
+    const clonedTable = table.cloneNode(true);
+    const qttyIndex = Array.from(clonedTable.querySelectorAll('thead th')).findIndex(th => th.textContent.trim().toUpperCase() === "QTTY");
+    if (qttyIndex !== -1) {
+        clonedTable.querySelectorAll('tbody tr').forEach(tr => {
+            const td = tr.children[qttyIndex];
+            if (td) {
+                const input = td.querySelector('input');
+                if (input) {
+                    td.textContent = input.value;
+                }
+            }
+        });
+    }
+
+    const selectedCustomerDiv = document.getElementById('selectedCustomer');
+    let proformaAddressText = "";
+    let deliveryAddressText = "";
+    if (selectedCustomerDiv) {
+        const divs = selectedCustomerDiv.querySelectorAll('div');
+        if (divs.length > 1) {
+            proformaAddressText = divs[0].innerText || divs[0].textContent;
+            deliveryAddressText = divs[1].innerText || divs[1].textContent;
+        } else {
+            proformaAddressText = selectedCustomerDiv.innerText || selectedCustomerDiv.textContent;
+            deliveryAddressText = "";
+        }
+    }
+
+    function getColorLabel(id, label) {
+        const el = document.getElementById(id);
+        let value = "";
+        if (el) {
+            if (el.options && el.selectedIndex > -1) {
+                value = el.options[el.selectedIndex].text || el.value;
+            } else {
+                value = el.value || "";
+            }
+        }
+        return `<div><span style="font-weight:bold;">${label}:</span> ${value}</div>`;
+    }
+
+    const colorLabelsHtml = `
+        <div class="color-info">
+            ${getColorLabel('shelfColor', 'Shelf Colour')}
+            ${getColorLabel('ticketColor', 'Ticket Color')}
+            ${getColorLabel('ttype', 'Ticket Type')}
+            ${getColorLabel('slatwall', 'Slatwall')}
+            ${getColorLabel('insert', 'Insert')}
+            ${getColorLabel('endcap', 'End Cap')}
+        </div>
+    `;
+
+    // --- QUOTE DATE ve KG ---
+    const quoteDateElem = document.getElementById('quoteDate');
+    let dateStr = "";
+    if (quoteDateElem && quoteDateElem.textContent.includes(':')) {
+        // Tüm metni al, başındaki "Quote Date:" kısmını da dahil et
+        dateStr = quoteDateElem.textContent.trim();
+    } else {
+        const today = new Date();
+        dateStr = "Quote Date: " + today.toLocaleDateString() + " " + today.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // KG bilgisini DOM'dan al
+    let kgStr = "";
+    const kgInfoElem = document.getElementById('kgInfo');
+    if (kgInfoElem && kgInfoElem.textContent) {
+        kgStr = kgInfoElem.textContent.trim();
+    }
+
+    let proformaNumber = "";
+    const tableHeader = document.getElementById('tableHeader');
+    if (tableHeader && tableHeader.textContent.includes(':')) {
+        proformaNumber = tableHeader.textContent.split(':')[1].trim();
+    }
+
+    let salePerson = "";
+    const userInfo = document.querySelector('.user-info h1');
+    if (userInfo) {
+        salePerson = userInfo.textContent.replace(/^User Name:\s*/i, '').trim();
+    }
+
+    let vernum = "";
+    const vernumFooter = document.getElementById('quoteListTableFooter');
+    if (vernumFooter && vernumFooter.textContent.includes('vernum:')) {
+        vernum = vernumFooter.textContent.replace('vernum:', '').trim();
+    }
+
+    const tableHtml = clonedTable.outerHTML;
+    const title = "Proforma Invoice";
+
+    const footerText = `
+        <div class="proforma-footer-wrapper">
+            <div class="proforma-footer-vernum-row">
+                <span class="footer-vernum-label">vernum: ${vernum}</span>
+            </div>
+            <div class="proforma-footer">
+                <div>This is not vat invoice
+                    Note: Engineers will follow customer/shop keeper/representative's instructoins how and where to perform installation work. In no event will we be liable for any loss or damage including 
+                    without limitation, indirect or consequential loss or damage, or any loss or damage whatsoeverarising from any installation or delivery. All goods remains the property of EASYSHELF
+                    Direct Ltd all dues paid in full. 30% re-stocking fee will be charged for goods returned. Door for all entrances should be measured accordingly this is the customer's responsibility 
+                    before delivery is made. Information about warranty is available on the invoice and on the web page. Delivery Information:  www.easyshelf.co.uk/delivery
+                </div>
+            </div>
+        </div>
+    `;
+
+    const printHtml = `
+<html>
+<head>
+    <title>${title}</title>
+    <style>
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: #fff;
+            height: 100%;
+        }
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .proforma-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 97vh;
+            width: 800px;
+            margin: 30px auto;
+            padding: 24px 32px 32px 32px;
+            background: #fff;
+            border-radius: 8px;
+        }
+        .proforma-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 18px;
+            gap: 24px;
+        }
+        .proforma-header .company-col {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            min-width: 220px;
+        }
+        .proforma-header .company-info {
+            font-size: 13px;
+            line-height: 1.2;
+            margin-bottom: 6px;
+        }
+        .proforma-header .proforma-number,
+        .proforma-header .sale-person {
+            font-size: 13px;
+            font-weight: bold;
+            color: #444;
+            margin-bottom: 6px;
+        }
+        .date-block {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            margin-bottom: 8px;
+        }
+        .date-label {
+            display: block;
+            text-align: right;
+            font-size: 13px;
+            color: #333;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+        .kg-label {
+            display: block;
+            text-align: right;
+            font-size: 13px;
+            color: gray;
+            font-weight: normal;
+        }
+        .color-and-address-row {
+            display: flex;
+            flex-direction: row;
+            gap: 40px;
+            margin-bottom: 24px;
+            font-size: 12px;
+            justify-content: flex-start;
+            align-items: flex-start;
+        }
+        .color-info {
+            min-width: 180px;
+            max-width: 220px;
+            font-size: 12px;
+            line-height: 1.3;
+            flex-shrink: 0;
+        }
+        .color-info div {
+            margin-bottom: 2px;
+        }
+        .address-block {
+            min-width: 220px;
+            max-width: 340px;
+            word-break: break-word;
+            white-space: pre-line;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 10px;
+            font-size: 11px;
+            page-break-inside: auto;
+        }
+        th, td {
+            border: 1px solid #333;
+            padding: 6px 8px;
+            font-weight: normal;
+            height: 18px;
+            word-break: break-word;
+        }
+        th {
+            background: #f2f2f2;
+            text-align: left;
+            font-size: 13px;
+        }
+        td {
+            text-align: left;
+            font-size: 11px;
+        }
+        td:nth-child(4),
+        td:nth-child(7),
+        td:nth-child(8) {
+            text-align: right;
+        }
+        td[colspan="5"],
+        td[colspan="6"] {
+            text-align: right !important;
+        }
+        tr:last-child td,
+        tr:nth-last-child(2) td,
+        tr:nth-last-child(3) td {
+            background: #f9f9f9;
+        }
+        .proforma-footer-wrapper {
+            margin-top: auto;
+            page-break-inside: avoid;
+            break-inside: avoid;
+            padding-top: 24px;
+        }
+        .proforma-footer-vernum-row {
+            display: flex;
+            justify-content: flex-start;
+            margin-bottom: 8px;
+        }
+        .footer-vernum-label {
+            font-size: 11px;
+            font-weight: bold;
+            color: #444;
+        }
+        .proforma-footer {
+            font-size: 9px;
+            color: #333;
+            border-top: 1px solid #ccc;
+            padding-top: 5px;
+            white-space: pre-line;
+        }
+        .proforma-footer > div:first-child {
+            font-weight: normal;
+            font-size: 9px;
+        }
+        .proforma-header .logo {
+            height: 80px;
+            width: 250px;
+            object-fit: contain;
+            margin-bottom: 4px;
+        }
+        @media print {
+            html, body {
+                height: auto;
+            }
+            .proforma-container {
+                page-break-after: always;
+            }
+            tr {
+                page-break-inside: auto;
+                break-inside: auto;
+            }
+            thead {
+                display: table-header-group;
+            }
+            tfoot {
+                display: table-footer-group;
+            }
+            .proforma-footer-wrapper {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="proforma-container">
+        <div class="proforma-header">
+            <div class="company-col">
+                <div class="company-info">
+                    Easyshelf Direct Ltd.<br>
+                    205-207 Leabridge Road<br>
+                    E10 7PN<br>
+                    Telefon: +44 7834519643
+                </div>
+                <div class="proforma-number">Proforma No: ${proformaNumber}</div>
+                <div class="sale-person">Sale Person: ${salePerson}</div>
+            </div>
+            <div class="center-title">
+                <span class="title">${title}</span>
+            </div>
+            <div class="logo-col">
+                <img src="/static/images/logoQ.png" alt="Logo" class="logo">
+                <div class="date-block">
+                    <span class="date-label">${dateStr}</span>
+                    ${kgStr ? `<span class="kg-label">${kgStr}</span>` : ""}
+                </div>
+            </div>
+        </div>
+        <div class="color-and-address-row">
+            ${colorLabelsHtml}
+            <div class="address-block">
+                ${proformaAddressText.replace(/\n/g, "<br>")}
+            </div>
+            <div class="address-block">
+                ${deliveryAddressText.replace(/\n/g, "<br>")}
+            </div>
+        </div>
+        ${tableHtml}
+        ${footerText}
+    </div>
+    <script>
+        window.onload = function() { window.print(); }
+    <\/script>
+</body>
+</html>
+`;
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    iframe.onload = function () {
+        try {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+        } catch (e) {
+            console.error("Yazdırma hatası:", e);
+        }
+        setTimeout(() => {
+            document.body.removeChild(iframe);
+        }, 1000);
+    };
+
+    iframe.srcdoc = printHtml;
+}
+
+
     </script>
 <script>
     // ...existing code...
@@ -3781,7 +4582,475 @@ async function decreaseStock() {
     // });
 
     // ...existing code...
+
+    async function DpTpl(quoteNumber) {
+    try {
+        const response = await fetch('/depo_topla', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ quote_number: quoteNumber }),
+        });
+
+        const data = await response.json();
+        if (data.status === 'success') {
+            const result = data.result; // Backend'den gelen sonucu al
+            const tableFooter = document.getElementById('quoteListTableFooter'); // Tablonun alt kısmı için bir element
+            if (!tableFooter) {
+                // Eğer footer yoksa oluştur
+                const footer = document.createElement('div');
+                footer.id = 'quoteListTableFooter';
+                footer.style.textAlign = 'left';
+                footer.style.marginTop = '20px';
+                footer.style.fontWeight = 'bold';
+                footer.textContent = `vernum: ${result}`;
+                document.getElementById('quoteListTable').parentElement.appendChild(footer);
+            } else {
+                // Eğer footer varsa güncelle
+                tableFooter.textContent = `vernum: ${result}`;
+            }
+        } else {
+            console.error('Depo toplama işlemi başarısız:', data.message);
+        }
+    } catch (error) {
+        console.error('Hata (DpTpl):', error);
+    }
+}
+
+async function KgTpl(quoteNumber) {
+    try {
+        const response = await fetch('/kg_topla', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ quote_number: quoteNumber }),
+        });
+
+        const data = await response.json();
+        if (data.status === 'success') {
+            let kgInfo = document.getElementById('kgInfo');
+            const quoteDateContainer = document.getElementById('quoteDateContainer');
+            if (!kgInfo) {
+            kgInfo = document.createElement('div');
+            kgInfo.id = 'kgInfo';
+            kgInfo.style.fontWeight = 'normal';
+            kgInfo.style.fontSize = '14px';
+            kgInfo.style.color = 'gray';
+            kgInfo.style.marginTop = '4px';
+            kgInfo.style.alignSelf = 'flex-end'; // Sağa hizala
+            kgInfo.style.textAlign = 'right';
+            kgInfo.style.marginRight = '10px'; // Sağ boşluk
+            //kgInfo.style.marginLeft = '20';
+            quoteDateContainer.appendChild(kgInfo);
+        }
+            kgInfo.textContent = `Tot Shelving Kg: ${data.kg_total}`;
+        } else {
+            console.error('KG toplama işlemi başarısız:', data.message);
+        }
+    } catch (error) {
+        console.error('Hata (KgTpl):', error);
+    }
+}
+
 </script>
 <!-- ...existing code... -->
+
+<!-- Delivery Address Modal -->
+<div class="modal" id="deliveryModal">
+    <div class="modal-content" style="max-width: 600px;">
+        <h2>Change Delivery Address</h2>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label for="deliveryName" style="width: 150px;">Customer Name *</label>
+                <input type="text" id="deliveryNameInput" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label for="deliveryTel" style="width: 150px;">Tel *</label>
+                <input type="text" id="deliveryTelInput" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label for="deliveryAddress1" style="width: 150px;">Address Line1 *</label>
+                <input type="text" id="deliveryAddress1Input" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label for="deliveryAddress2" style="width: 150px;">Address Line2</label>
+                <input type="text" id="deliveryAddress2Input" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label for="deliveryPostcode" style="width: 150px;">Postcode *</label>
+                <input type="text" id="deliveryPostcodeInput" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+            </div>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+            <button onclick="formatAndSaveDeliveryAddress()" style="padding: 10px 20px; background-color: #007BFF; color: white; border: none; border-radius: 5px; cursor: pointer;">Save</button>
+            <button onclick="closeDeliveryModal()" style="padding: 10px 20px; background-color: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function toProperCase(str) {
+    return str.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
+}
+
+function formatAndSaveDeliveryAddress() {
+    // Format inputs using the PROPER function
+    document.getElementById('deliveryNameInput').value = toProperCase(document.getElementById('deliveryNameInput').value.trim());
+    document.getElementById('deliveryTelInput').value = document.getElementById('deliveryTelInput').value.trim(); // No formatting for phone numbers
+    document.getElementById('deliveryAddress1Input').value = toProperCase(document.getElementById('deliveryAddress1Input').value.trim());
+    document.getElementById('deliveryAddress2Input').value = toProperCase(document.getElementById('deliveryAddress2Input').value.trim());
+    document.getElementById('deliveryPostcodeInput').value = document.getElementById('deliveryPostcodeInput').value.trim().toUpperCase(); // Postcode in uppercase
+
+    // Call the save function
+    saveDeliveryAddress();
+}
+
+function openDeliveryModal() {
+    document.getElementById('deliveryModal').style.display = 'flex';
+    // Fill modal inputs with current delivery details
+    document.getElementById('deliveryNameInput').value = document.getElementById('deliverName').textContent.trim();
+    document.getElementById('deliveryTelInput').value = document.getElementById('deliverTel').textContent.trim();
+    document.getElementById('deliveryAddress1Input').value = document.getElementById('deliverAddress1').textContent.trim();
+    document.getElementById('deliveryAddress2Input').value = document.getElementById('deliverAddress2').textContent.trim();
+    document.getElementById('deliveryPostcodeInput').value = document.getElementById('deliverPostcode').textContent.trim();
+}
+
+function closeDeliveryModal() {
+    document.getElementById('deliveryModal').style.display = 'none';
+}
+
+async function saveDeliveryAddress() {
+    const quoteNumber = selectedQuoteNumber ?? newQuoteNum; // Get the current quote number
+    const deliveryData = {
+        quote_number: quoteNumber,
+        name: document.getElementById('deliveryNameInput').value.trim(),
+        tel: document.getElementById('deliveryTelInput').value.trim(),
+        address1: document.getElementById('deliveryAddress1Input').value.trim(),
+        address2: document.getElementById('deliveryAddress2Input').value.trim(),
+        postcode: document.getElementById('deliveryPostcodeInput').value.trim()
+    };
+
+    try {
+        const response = await fetch('/update_delivery_address', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(deliveryData),
+        });
+
+        const data = await response.json();
+        if (data.status === 'success') {
+            // Update the "Deliver To" section
+            document.getElementById('deliverName').textContent = deliveryData.name;
+            document.getElementById('deliverTel').textContent = deliveryData.tel;
+            document.getElementById('deliverAddress1').textContent = deliveryData.address1;
+            document.getElementById('deliverAddress2').textContent = deliveryData.address2;
+            document.getElementById('deliverPostcode').textContent = deliveryData.postcode;
+
+            closeDeliveryModal();
+            alert('Delivery address updated successfully!');
+        } else {
+            alert('Error updating delivery address: ' + data.message);
+        }
+    } catch (error) {
+        console.error('Error updating delivery address:', error);
+        alert('An error occurred while updating the delivery address.');
+    }
+}
+</script>
+<script>
+function clrCont() {
+    const uniteRows = document.querySelectorAll('.unite-table table tbody tr'); // Unite sayfasındaki satırlar
+    const shelfColor = document.getElementById('shelfColor')?.value || ''; // Proforma sayfasındaki Shelf Color
+    const ticketColor = document.getElementById('ticketColor')?.value || ''; // Proforma sayfasındaki Ticket Color
+    const ttype = document.getElementById('ttype')?.value || ''; // Proforma sayfasındaki Ticket Type
+    const slatwall = document.getElementById('slatwall')?.value || ''; // Proforma sayfasındaki Slatwall
+
+    for (const row of uniteRows) {
+        const rowIndex = row.getAttribute('data-row-index'); // Satırın indexini al
+        const uniteType = row.querySelector(`[name="option2_${rowIndex}"]`)?.value || ''; // Unit Type
+        const uniteShelf = row.querySelector(`[name="option5_${rowIndex}"]`)?.value || ''; // Unit shelf
+        const uniteShelf1 = row.querySelector(`[name="option7_${rowIndex}"]`)?.value || ''; // Unit shelf
+        const uniteShelf2 = row.querySelector(`[name="option9_${rowIndex}"]`)?.value || ''; // Unit shelf
+        const uniteShelf3 = row.querySelector(`[name="option11_${rowIndex}"]`)?.value || ''; // Unit shelf
+        const shelf = row.querySelector(`[name="option23_${rowIndex}"]`)?.value || ''; // Shelf
+        const backPanel = row.querySelector(`[name="option27_${rowIndex}"]`)?.value || ''; // Back Panel
+        const item = row.querySelector(`[name="option29_${rowIndex}"]`)?.value || ''; // Item
+        const extra = row.querySelector(`[name="option35_${rowIndex}"]`)?.value || ''; // Extra
+        const counterStandard = row.querySelector(`[name="option41_${rowIndex}"]`)?.value || ''; // Counter Standard
+        const counterHigh = row.querySelector(`[name="option43_${rowIndex}"]`)?.value || ''; // Counter High
+
+        // Unite Type, Shelf, Back Panel, Item kontrolü
+        if (uniteType || shelf || backPanel || item) {
+            if (!shelfColor) {
+                alert('Shelf Color seçili değil.');
+                return false;
+            }
+        }
+
+        // Extra kolonunda "price" geçiyorsa
+        if ((extra && extra.toLowerCase().includes('price')) || (extra && extra.includes('Price')) || uniteShelf || uniteShelf1 || uniteShelf2 || uniteShelf3) {
+            if (!ticketColor) {
+                alert('Ticket Color seçili değil.');
+                return false;
+            }
+            if (!ttype) {
+                alert('Ticket Type seçili değil.');
+                return false;
+            }
+        } else if (!shelfColor) {
+            alert('Shelf Color seçili değil.');
+            return false;
+        }
+
+        // Counter Standard ve Counter High kolonları kontrolü
+        if ((counterStandard && counterStandard.toLowerCase().includes('panel')) ||
+            (counterHigh && counterHigh.includes('Panel'))) {
+                alert('Panel secili.');
+            if (!slatwall) {
+                alert('Slatwall Color seçili değil.');
+                return false;
+            }
+        } else if ((counterStandard || counterHigh) && !shelfColor) {
+            alert('Shelf Color seçili değil.');
+            return false;
+        }
+    }
+
+    return true; // Başarılı sonuç
+}
+</script>
+<script>
+async function uniteScndprt(quoteNumber) {
+    try {
+        if (!quoteNumber) {
+            alert('Quote number eksik!');
+            return false;
+        }
+
+        const uniteRows = document.querySelectorAll('.unite-table table tbody tr');
+        const dataToSend = [];
+
+        for (const row of uniteRows) {
+            const rowIndex = row.getAttribute('data-row-index');
+
+            for (let i = 24; i <= 43; i += 2) {
+                const quantityInput = row.querySelector(`[name="option${i}_${rowIndex}"]`);
+                const itemSelect = row.querySelector(`[name="option${i + 1}_${rowIndex}"]`);
+
+                if (quantityInput && itemSelect) {
+                    const quantity = quantityInput.value.trim();
+                    const itemName = itemSelect.value.trim();
+
+                    if (quantity && itemName) {
+                        dataToSend.push({
+                            row_index: rowIndex,
+                            column_number: i + 1,
+                            quantity: parseInt(quantity, 10),
+                            item_name: itemName
+                        });
+                    }
+                }
+            }
+        }
+
+        if (dataToSend.length > 0) {
+            const response = await fetch('/add_unite_secnd_part', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    quote_number: quoteNumber,
+                    selections: dataToSend
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                window.scnduntknt = 1;
+            } else {
+                alert(`Hata: ${result.message}`);
+            }
+        } 
+        else {
+            // Seçim yoksa sadece flag ata, işlem devam etsin
+            window.scnduntknt = 0;
+            return true;
+        }
+    } catch (error) {
+        console.error('uniteScndprt Hatası:', error);
+        await fetch('/reset_islmdvm', { method: 'POST' });
+    }
+}
+</script>
+
+<script>
+let inputsLocked = true;
+
+document.addEventListener('DOMContentLoaded', async function () {
+    const adetHeader = Array.from(document.querySelectorAll('#quoteListTable thead th'))
+        .find(th => th.textContent.trim().toUpperCase() === "QTTY");
+
+    if (adetHeader) {
+        adetHeader.style.cursor = 'pointer';
+        adetHeader.addEventListener('click', async function () {
+            // View Mode kontrolü
+            const viewMode = document.getElementById('viewMode')?.value;
+            if (viewMode !== 'subtotal') {
+                // Sadece subtotal modunda çalışsın, değilse hiçbir şey yapma
+                return;
+            }
+
+            if (!selectedQuoteNumber) {
+                alert('Henüz bir numara atanmadı.');
+                return;
+            }
+
+            // --- SUBTOTAL SATIRLARINI AÇ ---
+            document.querySelectorAll('.subtotal-header').forEach(row => {
+                row.style.display = '';
+            });
+            // --- GRUPLANMIŞ SATIRLARI DA AÇ ---
+            document.querySelectorAll('.group-row').forEach(row => {
+                row.style.display = '';
+            });
+
+            if (inputsLocked) {
+                // Aç: inputları aktif et
+                document.querySelectorAll('.adet-input').forEach(input => {
+                    input.disabled = false;
+                });
+                inputsLocked = false;
+            } else {
+                // Kapat: inputları kilitle ve güncelle
+                document.querySelectorAll('.adet-input').forEach(input => {
+                    input.disabled = true;
+                });
+                inputsLocked = true;
+
+                // Güncelleme işlemi
+                const discountInput = document.getElementById('discountInput');
+                const dsc = parseFloat(discountInput.value) || 0;
+
+                // ✅ Yeni adet değerlerini topla
+                const rows = document.querySelectorAll('#quoteListTable tbody tr');
+                const adetUpdates = [];
+                rows.forEach(row => {
+                    const adetInput = row.children[3]?.querySelector('input'); // ADET input
+                    const dbListRaw = row.children[9]?.textContent?.trim(); // 10. sütun: db index(ler)i
+
+                    if (adetInput && dbListRaw) {
+                        const adet = parseInt(adetInput.value) || 0;
+                        const db_indexes = dbListRaw
+                            .split(',')
+                            .map(s => parseInt(s.trim()))
+                            .filter(n => !isNaN(n));
+
+                        if (db_indexes.length > 0) {
+                            adetUpdates.push({ adet, db_indexes });
+                        }
+                    }
+                });
+
+                try {
+                    // ✅ Adetleri güncelle
+                    const adetResponse = await fetch('/apply_adet', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            quote_number: selectedQuoteNumber,
+                            adet_updates: adetUpdates
+                        })
+                    });
+
+                    const adetResult = await adetResponse.json();
+                    if (!adetResponse.ok || adetResult.status !== 'success') {
+                        console.error('apply_adet başarısız:', adetResult.message);
+                        await fetch('/reset_islmdvm', { method: 'POST' });
+                        return;
+                    }
+
+                    // ✅ Ardından indirim işlemi
+                    const response = await fetch('/apply_discount', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            quote_number: selectedQuoteNumber,
+                            dsc: dsc
+                        })
+                    });
+
+                    const result = await response.json();
+                    if (!response.ok || result.status !== 'success') {
+                        console.error('apply_discount başarısız:', result.message);
+                        await fetch('/reset_islmdvm', { method: 'POST' });
+                        return;
+                    }
+
+                    await loadQuoteList(selectedQuoteNumber);  // Listeyi yeniden yükle
+                    console.log(result.message);
+                } catch (error) {
+                    console.error('İşlem sırasında hata:', error);
+                    await fetch('/reset_islmdvm', { method: 'POST' });
+                }
+            }
+        });
+    }
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const viewModeSelect = document.getElementById('viewMode');
+    viewModeSelect.addEventListener('change', function () {
+        // Seçili quote varsa, tabloyu güncelle
+        if (selectedQuoteNumber) {
+            loadQuoteList(selectedQuoteNumber);
+        }
+    });
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+    const itemNameHeader = Array.from(document.querySelectorAll('#quoteListTable thead th'))
+        .find(th => th.textContent.trim().toUpperCase() === "ITEM_NAME");
+
+    let subtotalsVisible = false;
+
+    if (itemNameHeader) {
+        itemNameHeader.style.cursor = 'pointer';
+        itemNameHeader.addEventListener('click', function () {
+            subtotalsVisible = !subtotalsVisible;
+            document.querySelectorAll('.group-row').forEach(row => {
+                row.style.display = subtotalsVisible ? '' : 'none';
+            });
+        });
+    }
+});
+</script>
+
+<!-- <script>
+setInterval(function() {
+    fetch('/is_session_active')
+        .then(r => r.json())
+        .then(data => {
+            if (!data.active) {
+                alert("Oturumunuz sonlandırıldı.");
+                window.location.href = "/logout";
+            }
+        });
+}, 10000); // 10 saniyede bir kontrol
+</script> -->
+
 </body>
 </html>
+
+
