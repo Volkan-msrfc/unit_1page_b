@@ -2421,8 +2421,8 @@ let inputsLocked = true;
                 <td>
                     <input class="adet-input" type="number" value="${adet}" min="0" style="width:60px;" disabled onkeypress="return isNumberKey(event)" />
                 </td>
-                <td>${row[4]}</td>
-                <td>${row[5]}</td>
+                <td style="display:none;">${row[4]}</td>
+                <td style="display:none;">${row[5]}</td>
                 <td style="display:none;">${parseFloat(row[6]).toFixed(2)}</td>
                 <td style="text-align: Right;">${parseFloat(row[7]).toFixed(2)}</td>
                 <td style="text-align: Right;">${parseFloat(row[8]).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
