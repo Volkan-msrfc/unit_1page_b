@@ -387,7 +387,7 @@
                                 <select name="option1_{{ i }}">
                                     <option value=""></option>
                                     {% for option in options['combobox1'] %}
-                                        <option value="{{ option|int }}">{{ option|int }}</option>
+                                        <option value="{{ option|int }}">{{ option|int }}</option>  <!--UNIT PIECE-->
                                     {% endfor %}
                                 </select>
                             </td>
@@ -395,7 +395,7 @@
                                 <select name="option2_{{ i }}" class="trigger-select">
                                     <option value=""></option>
                                     {% for option in options['combobox2'] %}
-                                        <option value="{{ option }}">{{ option }}</option>
+                                        <option value="{{ option }}">{{ option }}</option>  <!--UNIT TYPE-->
                                     {% endfor %}
                                 </select>
                             </td>
@@ -403,7 +403,7 @@
                                 <select name="option3_{{ i }}"class="base-select">
                                     <option value=""></option>
                                     {% for option in options['combobox3'] %}
-                                        <option value="{{ option|int }}">{{ option|int }}</option>
+                                        <option value="{{ option|int }}">{{ option|int }}</option>  <!--HEIGHT-->
                                     {% endfor %}
                                 </select>
                             </td>
@@ -411,7 +411,7 @@
                                 <select name="option4_{{ i }}" >
                                     <option value=""></option>
                                     {% for option in options['combobox4'] %}
-                                        <option value="{{ option|int }}">{{ option|int }}</option>
+                                        <option value="{{ option|int }}">{{ option|int }}</option>  <!--WIDTH-->
                                     {% endfor %}
                                 </select>
                             </td>
@@ -419,7 +419,7 @@
                                 <select name="option5_{{ i }}">
                                     <option value=""></option>
                                     {% for option in options['combobox5'] %}
-                                        <option value="{{ option|int }}">{{ option|int }}</option>
+                                        <option value="{{ option|int }}">{{ option|int }}</option>  <!--BASE SHELF-->
                                     {% endfor %}
                                 </select>
                             </td>
@@ -427,7 +427,7 @@
                                 <select name="option6_{{ i }}">
                                     <option value=""></option>
                                     {% for option in options['combobox6'] %}
-                                        <option value="{{ option|int }}">{{ option|int }}</option>
+                                        <option value="{{ option|int }}">{{ option|int }}</option>  <!--TOP1 S QTY-->
                                     {% endfor %}
                                 </select>
                             </td>
@@ -435,7 +435,7 @@
                                 <select name="option7_{{ i }}">
                                     <option value=""></option>
                                     {% for option in options['combobox7'] %}
-                                        <option value="{{ option|int }}">{{ option|int }}</option>
+                                        <option value="{{ option|int }}">{{ option|int }}</option>  <!--TOP1 S SHLF SUZE-->
                                     {% endfor %}
                                 </select>
                             </td>
@@ -443,7 +443,7 @@
                                 <select name="option8_{{ i }}">
                                     <option value=""></option>
                                     {% for option in options['combobox8'] %}
-                                       <option value="{{ option|int }}">{{ option|int }}</option>
+                                       <option value="{{ option|int }}">{{ option|int }}</option>  <!--TOP2 S QTY-->
                                     {% endfor %}
                                 </select>
                             </td>
@@ -451,7 +451,7 @@
                                 <select name="option9_{{ i }}">
                                     <option value=""></option>
                                     {% for option in options['combobox9'] %}
-                                        <option value="{{ option|int }}">{{ option|int }}</option>
+                                        <option value="{{ option|int }}">{{ option|int }}</option>  <!--TOP2 S SHLF SIZE-->
                                     {% endfor %}
                                 </select>
                             </td>
@@ -459,7 +459,7 @@
                                 <select name="option10_{{ i }}">
                                     <option value=""></option>
                                     {% for option in options['combobox10'] %}
-                                        <option value="{{ option|int }}">{{ option|int }}</option>
+                                        <option value="{{ option|int }}">{{ option|int }}</option>  <!--TOP3 S QTY-->
                                     {% endfor %}
                                 </select>
                             </td>
@@ -467,7 +467,7 @@
                                 <select name="option11_{{ i }}">
                                     <option value=""></option>
                                     {% for option in options['combobox11'] %}
-                                        <option value="{{ option|int }}">{{ option|int }}</option>
+                                        <option value="{{ option|int }}">{{ option|int }}</option>  <!--TOP3 S SHLF SIZE-->
                                     {% endfor %}
                                 </select>
                             </td>
@@ -1377,10 +1377,22 @@ function setCustomerInfo(customer) {
 
 
     // 1. İlk fonksiyon: updateWidthData
-    async function updateWidthData() {
+async function updateWidthData() {
     const rows = Array.from(document.querySelectorAll('tbody tr'));
     let validRows = [];
     const largestFile = document.getElementById('largestFile').textContent.trim();
+
+    // --- Başlıkları ve üst başlıkları al ---
+    const headerRows = document.querySelectorAll('.unite-table table thead tr');
+    const mainHeaders = [];
+    let colIndex = 0;
+    headerRows[0].querySelectorAll('th').forEach(th => {
+        const colspan = parseInt(th.getAttribute('colspan')) || 1;
+        for (let i = 0; i < colspan; i++) {
+            mainHeaders[colIndex++] = th.textContent.trim();
+        }
+    });
+    const subHeaders = Array.from(headerRows[1].querySelectorAll('th')).map(th => th.textContent.trim());
 
     for (let index = 0; index < 50; index++) {
         const row = rows[index];
@@ -1393,40 +1405,63 @@ function setCustomerInfo(customer) {
         const baseShelfValueElement = row.querySelector('select[name^="option5_"]');
 
         const isEndOrCorner = unittypeElement?.value?.includes('End') ||
-                      unittypeElement?.value?.includes('Corner');
+                              unittypeElement?.value?.includes('Corner');
 
-const requiredFields = [
-    { name: 'Unit Piece', el: unitPieceElement },
-    { name: 'Unit Type', el: unittypeElement },
-    { name: 'Height', el: heightValueElement },
-];
+        const requiredFields = [
+            { name: 'Unit Piece', el: unitPieceElement },
+            { name: 'Unit Type', el: unittypeElement },
+            { name: 'Height', el: heightValueElement },
+        ];
 
-if (!isEndOrCorner) {
-    requiredFields.push({ name: 'Width', el: widthValueElement });
-}
+        if (!isEndOrCorner) {
+            requiredFields.push({ name: 'Width', el: widthValueElement });
+        }
 
-const filledFields = requiredFields.filter(item => item.el && item.el.value);
-const missingFields = requiredFields.filter(item => item.el && !item.el.value);
+        const filledFields = requiredFields.filter(item => item.el && item.el.value);
+        const missingFields = requiredFields.filter(item => item.el && !item.el.value);
 
-if (filledFields.length > 0 && filledFields.length < requiredFields.length) {
-    const missingNames = missingFields.map(item => item.name).join(', ');
-    alert(`Unite sayfası Satır ${rowIndex}: lütfen doldurun: ${missingNames}`);
-    return false;
-}
+        if (filledFields.length > 0 && filledFields.length < requiredFields.length) {
+            const missingNames = missingFields.map(item => item.name).join(', ');
+            alert(`Unite sayfası Satır ${rowIndex}: lütfen doldurun: ${missingNames}`);
+            return false;
+        }
 
+        if (filledFields.length === 0) {
+            continue;
+        }
 
+        // --- Qty/Size ikilileri kontrolü ---
+        // 1. ikili: option6_ (qty), option7_ (size)
+        // 2. ikili: option8_ (qty), option9_ (size)
+        // 3. ikili: option10_ (qty), option11_ (size)
+        const qtySizePairs = [
+            { qty: row.querySelector('select[name^="option6_"]'), size: row.querySelector('select[name^="option7_"]'), mainIdx: 7, subIdx: 6 },   // Top Shelf1 Qty/Shelf Size
+            { qty: row.querySelector('select[name^="option8_"]'), size: row.querySelector('select[name^="option9_"]'), mainIdx: 9, subIdx: 8 },   // Top Shelf2 Qty/Shelf Size
+            { qty: row.querySelector('select[name^="option10_"]'), size: row.querySelector('select[name^="option11_"]'), mainIdx: 11, subIdx: 10 } // Top Shelf3 Qty/Shelf Size
+        ];
 
-if (filledFields.length === 0) {
-    continue;
-}
+        for (let i = 0; i < qtySizePairs.length; i++) {
+            const { qty, size, mainIdx, subIdx } = qtySizePairs[i];
+            const qtyVal = qty?.value || '';
+            const sizeVal = size?.value || '';
+            // Alt başlıklar: subHeaders[subIdx] ve subHeaders[subIdx+1]
+            if ((qtyVal && !sizeVal) || (!qtyVal && sizeVal)) {
+                // Hangi alan eksikse onu bul
+                let missingField = '';
+                if (qtyVal && !sizeVal) missingField = subHeaders[subIdx+1] || 'Size';
+                if (!qtyVal && sizeVal) missingField = subHeaders[subIdx] || 'Qty';
+                alert(`Satır ${rowIndex} ${mainHeaders[mainIdx]} ${missingField} için hem Qty hem Size doldurulmalı!`);
+                return false;
+            }
+        }
 
         // Devam eden seçimler
-        const qtyValueElement = row.querySelector('select[name^="option6_"]');
-        const shelfSizeValueElement = row.querySelector('select[name^="option7_"]');
-        const qtyOption8Element = row.querySelector('select[name^="option8_"]');
-        const shelfSizeOption9Element = row.querySelector('select[name^="option9_"]');
-        const qtyOption10Element = row.querySelector('select[name^="option10_"]');
-        const shelfSizeOption11Element = row.querySelector('select[name^="option11_"]');
+        const qtyValueElement = row.querySelector('select[name^="option6_"]'); // 1 qty
+        const shelfSizeValueElement = row.querySelector('select[name^="option7_"]'); // 1 size
+        const qtyOption8Element = row.querySelector('select[name^="option8_"]'); // 2 qty
+        const shelfSizeOption9Element = row.querySelector('select[name^="option9_"]'); // 2 size
+        const qtyOption10Element = row.querySelector('select[name^="option10_"]'); // 3 qty
+        const shelfSizeOption11Element = row.querySelector('select[name^="option11_"]'); // 3 size
         const plane40Element = row.querySelector('select[name^="option13_"]');
         const perf40Element = row.querySelector('select[name^="option14_"]');
         const plane30Element = row.querySelector('select[name^="option16_"]');
@@ -1958,7 +1993,7 @@ function selectCustomer(customer) {
     selectedCustomerID = customer[0];
     selectedCustomerName = customer[1];
     selectedCustomer1ID = null;
-    alert("Customer ID: " + customer[0]); // <-- Burada alert eklendi
+    //alert("Customer ID: " + customer[0]); // <-- Burada alert eklendi
     document.getElementById("selectedCustomer").innerHTML = `
         <div>
             <strong>Proforma To</strong><br>
@@ -2386,8 +2421,8 @@ let inputsLocked = true;
                 <td>
                     <input class="adet-input" type="number" value="${adet}" min="0" style="width:60px;" disabled onkeypress="return isNumberKey(event)" />
                 </td>
-                <td style="display:none;">${row[4]}</td>
-                <td style="display:none;">${row[5]}</td>
+                <td>${row[4]}</td>
+                <td>${row[5]}</td>
                 <td style="display:none;">${parseFloat(row[6]).toFixed(2)}</td>
                 <td style="text-align: Right;">${parseFloat(row[7]).toFixed(2)}</td>
                 <td style="text-align: Right;">${parseFloat(row[8]).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
@@ -2472,7 +2507,7 @@ let inputsLocked = true;
                     }
                     // 6. kolon (index 5) için B+ kontrolü
                     if (uniteColValues[2]) {
-                        bPlusText = " ---- B + ";
+                        bPlusText = "B ";
                     }
                     // "Double" kontrolü
                     isDouble = (unitType && unitType.toLowerCase().includes("double")) || (uniteSecondColValue && uniteSecondColValue.toLowerCase().includes("double"));
@@ -2506,8 +2541,9 @@ let inputsLocked = true;
                 <td colspan="1" style="font-weight: bold; text-align: Left;">
                     ${uniteSecondColValue ? uniteSecondColValue + "x" : ""}
                     ${unitType} ${uniteColText ? uniteColText : ""}
-                    ${bPlusText && showShelfSum && shelfSum > 0 ? bPlusText + shelfSum + " Shelf" : ""}
-                    ${!bPlusText && showShelfSum && shelfSum > 0 ? shelfSum + " Shelf" : ""}
+                    ${bPlusText && showShelfSum && shelfSum < 1 ? "  ---- "+ bPlusText:""}
+                    ${bPlusText && showShelfSum && shelfSum > 0 ? "  ---- "+ bPlusText +"+ "+ shelfSum + " Shelf" : ""}
+                    ${!bPlusText && showShelfSum && shelfSum > 0 ? "  ---- "+ shelfSum + " Shelf" : ""}
                 </td>
                 <td colspan="2"></td>
                 <td style="font-weight: bold;text-align: Right;">
@@ -5037,7 +5073,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<!-- <script>
+<script>
 setInterval(function() {
     fetch('/is_session_active')
         .then(r => r.json())
@@ -5048,7 +5084,7 @@ setInterval(function() {
             }
         });
 }, 10000); // 10 saniyede bir kontrol
-</script> -->
+</script>
 
 </body>
 </html>
