@@ -257,11 +257,48 @@
             margin: 0;
             height: 22px;
         } */
-
+        
+                /* Loading overlay still */
+        #loadingOverlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            width: 100vw; height: 100vh;
+            background: rgba(255,255,255,0.85);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            font-size: 2rem;
+            color: #333;
+            pointer-events: all;
+        }
+        #loadingOverlay .spinner {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #007BFF;
+            border-radius: 50%;
+            width: 60px; height: 60px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg);}
+            100% { transform: rotate(360deg);}
+        }
+        body.loading {
+            overflow: hidden !important;
+            pointer-events: none;
+            user-select: none;
+        }
 
     </style>
 </head>
 <body>
+
+    <div id="loadingOverlay">
+        <div class="spinner"></div>
+        Sayfa yükleniyor...
+    </div>
 
  <!-- Çıkış Butonu -->
  <a href="/logout" class="logout">Çıkış Yap</a>
@@ -5084,6 +5121,26 @@ setInterval(function() {
             }
         });
 }, 10000); // 10 saniyede bir kontrol
+</script>
+
+<script>
+    // Show overlay immediately
+    document.body.classList.add('loading');
+    document.getElementById('loadingOverlay').style.display = 'flex';
+
+    // Hide overlay after all content/scripts loaded
+    window.addEventListener('load', function() {
+        setTimeout(function() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+            document.body.classList.remove('loading');
+        }, 400); // Optionally delay for effect
+    });
+
+    // Prevent all interaction while loading
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('loadingOverlay').style.display = 'flex';
+        document.body.classList.add('loading');
+    });
 </script>
 
 </body>
