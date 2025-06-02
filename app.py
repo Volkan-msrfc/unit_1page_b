@@ -18,8 +18,13 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 from io import BytesIO
+from datetime import timedelta
+
+
 
 app = Flask(__name__)
+
+app.permanent_session_lifetime = timedelta(minutes=60)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -106,22 +111,43 @@ def login():
         username = request.form['username']
         password = request.form['password']
 
-        # Kullanıcı doğrulama
         conn = sqlite3.connect('users.db')
         cursor = conn.cursor()
-        cursor.execute("SELECT id, password FROM users WHERE username = ?", (username,))
+        cursor.execute("SELECT id, password, authority, status FROM users WHERE username = ?", (username,))
         user = cursor.fetchone()
-        conn.close()
 
-        if user and check_password_hash(user[1], password):  # Şifre doğrulaması
-            session['user'] = username  # Kullanıcıyı oturuma kaydet
-            session['user_id'] = user[0]  # **Gerçek ID'yi kaydet (1 veya 2 gibi)**
-            return redirect(url_for('menu'))  # Giriş başarılıysa menuye yönlendir
+        if user:
+            if user[3] != "active":
+                conn.close()
+                error = "Your login permission has been revoked. Please contact the administrator."
+                return render_template('login.html', error=error)
+            if check_password_hash(user[1], password):
+                session.permanent = True
+                session['user'] = username
+                session['user_id'] = user[0]
+                session['authority'] = user[2] if len(user) > 2 else 'user'
+
+                # Aynı kullanıcıdan eski oturumları sil
+                cursor.execute("DELETE FROM active_users WHERE user_id = ?", (user[0],))
+                cursor.execute("""
+                    INSERT INTO active_users (user_id, username, login_time)
+                    VALUES (?, ?, CURRENT_TIMESTAMP)
+                """, (user[0], username))
+                conn.commit()
+                conn.close()
+
+                return redirect(url_for('menu'))
+            else:
+                conn.close()
+                error = "Wrong user name or password."
+                return render_template('login.html', error=error)
         else:
-            error = "Kullanıcı adı veya şifre yanlış."  # Hata mesajı
+            conn.close()
+            error = "Wrong user name or password."
             return render_template('login.html', error=error)
 
-    return render_template('login.html')  # GET isteğinde login sayfasını göster
+    return render_template('login.html')
+
 
 @app.route('/', methods=['GET', 'POST'])
 def menu():
@@ -175,12 +201,128 @@ def menu():
 def logout():
     global islmdvm
     islmdvm = 0
-    session.pop('user', None)  # Kullanıcıyı oturumdan çıkar
-    return redirect(url_for('login'))  # Login sayfasına yönlendir
+    user_id = session.get('user_id')
+    if user_id:
+        conn = sqlite3.connect('users.db')
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM active_users WHERE user_id = ?", (user_id,))
+        conn.commit()
+        conn.close()
+    session.clear()
+    return redirect(url_for('login'))
 
-# @app.route('/proforma', methods=['GET', 'POST'])
-# def proforma():
-#     return render_template('proforma.html')  # proforma.html şablonunu döner
+@app.route('/add_user', methods=['POST'])
+def add_user():
+    if 'user' not in session or session.get('authority') != 'admin':
+        return redirect(url_for('login'))
+
+    username = request.form['username']
+    name = request.form['name']
+    surname = request.form['surname']
+    password = request.form['password']
+    authority = request.form['authority']
+    status = request.form['status']
+
+    hashed_password = generate_password_hash(password)
+
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO users (username, name, surname, password, authority, status) VALUES (?, ?, ?, ?, ?, ?)",
+        (username, name, surname, hashed_password, authority, status)
+    )
+    conn.commit()
+    conn.close()
+    return redirect(url_for('active_users'))
+@app.route('/update_user', methods=['POST'])
+def update_user():
+    if 'user' not in session or session.get('authority') != 'admin':
+        return '', 403
+    data = request.get_json()
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    if data['password']:
+        from werkzeug.security import generate_password_hash
+        hashed_password = generate_password_hash(data['password'])
+        cursor.execute(
+            "UPDATE users SET username=?, name=?, surname=?, password=?, authority=?, status=? WHERE id=?",
+            (data['username'], data['name'], data['surname'], hashed_password, data['authority'], data['status'], data['id'])
+        )
+    else:
+        cursor.execute(
+            "UPDATE users SET username=?, name=?, surname=?, authority=?, status=? WHERE id=?",
+            (data['username'], data['name'], data['surname'], data['authority'], data['status'], data['id'])
+        )
+    conn.commit()
+    conn.close()
+    return '', 204
+
+@app.route('/kick_user/<int:user_id>', methods=['POST'])
+def kick_user(user_id):
+    if 'user' not in session or session.get('authority') != 'admin':
+        return '', 403
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM active_users WHERE user_id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+    return '', 204
+
+@app.route('/is_session_active')
+def is_session_active():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'active': False})
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT 1 FROM active_users WHERE user_id = ?", (user_id,))
+    result = cursor.fetchone()
+    conn.close()
+    return jsonify({'active': bool(result)})
+
+def is_user_kicked():
+    user_id = session.get('user_id')
+    if not user_id:
+        return True
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT 1 FROM active_users WHERE user_id = ?", (user_id,))
+    result = cursor.fetchone()
+    conn.close()
+    return not bool(result)
+
+@app.before_request
+def check_kicked():
+    # login ve static gibi bazı endpointleri hariç tutmak için:
+    if request.endpoint in ['login', 'static']:
+        return
+    # Oturum yoksa veya admin paneli ise atla
+    if 'user' not in session:
+        return
+    if is_user_kicked():
+        session.clear()
+        # AJAX istekleri için JSON, normal istekler için redirect
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'logout': True, 'message': 'Oturum sonlandırıldı.'}), 401
+        else:
+            return redirect(url_for('login'))
+
+@app.route('/active-users', methods=['GET'])
+def active_users():
+    if 'user' not in session or session.get('authority') != 'admin':
+        return redirect(url_for('login'))
+
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    # user_id de gelsin!
+    cursor.execute("SELECT username, login_time, user_id FROM active_users")
+    users = cursor.fetchall()
+    cursor.execute("SELECT id, username, name, surname, password, authority, status FROM users")
+    all_users = cursor.fetchall()
+    conn.close()
+
+    return render_template('active_users.html', users=users, all_users=all_users)
+
 
 @app.route('/update_width', methods=['POST'])
 def update_width():
@@ -196,6 +338,10 @@ def update_width():
             UPDATE wall_parca
             SET WIDTH = 0, HEIGHT = 0, DEPTH = 0, ADET = 0, ITEM_NAME = NULL, UNIT_TYPE = NULL, SIRA = 0
         ''')
+        cursor.execute('''
+            UPDATE veg_parca
+            SET WIDTH = 0, HEIGHT = 0, DEPTH = 0, ADET = 0, ITEM_NAME = NULL, UNIT_TYPE = NULL, SIRA = 0
+        ''')
 
         # Değişiklikleri geçici olarak kaydet
         conn.commit()
@@ -206,7 +352,8 @@ def update_width():
         # Her bir alanı al, boş stringse varsayılan değeri kullan, ondalıklı değerleri tamsayıya dönüştür
         
         row_index = int(float(data.get('row_index', 0) or 0)) 
-        row_index = f"1.{row_index}"  # İstenilen formata dönüştür
+        # row_index = f"1.{row_index}"  # İstenilen formata dönüştür
+        row_index = int(1000 + int(row_index))  # row_index artık "140"
         unit_piece = int(float(data.get('unit_piece', 0) or 0))  # Boşsa varsayılan olarak 1
         unit_type = str(data.get('unit_type', '') or '')
         height = int(float(data.get('height', 0) or 0))          # Boşsa varsayılan olarak 0
@@ -235,32 +382,53 @@ def update_width():
 
         if unit_type == "Wall Unit":
 
-            # 2. İlk "Metallic Shelf" için Width, Depth ve Adet güncellemeleri
+                # 2. İlk "Metallic Shelf" için Width, Depth ve Adet güncellemeleri
+            if width == 0 or base_shelf == 0:
+                birshelf = 0  # birshelf değerini sıfırla
+            else:
+                birshelf = unit_piece
+
             cursor.execute('''
             UPDATE wall_parca
             SET WIDTH = ?, DEPTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
-            WHERE rowid = 1
-            ''', (width, base_shelf, unit_piece, unit_type, row_index))
+             WHERE rowid = 1
+            ''', (width, base_shelf, birshelf, unit_type, row_index))
 
             # 4. İkinci "Metallic Shelf" için Width, Depth (Shelf Size) ve Adet güncellemeleri
+            if shelf_size == 0 or qty == 0:
+                ikishelf = qty * unit_piece
+            else:
+                ikishelf = 0
+
             cursor.execute('''
             UPDATE wall_parca
             SET WIDTH = ?, DEPTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
             WHERE rowid = 2
-            ''', (width, shelf_size, qty * unit_piece, unit_type, row_index))
+            ''', (width, shelf_size, ikishelf, unit_type, row_index))
+
              # 4. satırdaki Metallic Shelf için width, shelf_size_option9 ve qty_option8 * unit_piece
+
+            if shelf_size_option9 == 0 or qty_option8 == 0:
+                ucshelf = qty_option8 * shelf_size_option9
+            else:
+                ucshelf = 0
+
             cursor.execute('''
             UPDATE wall_parca
             SET WIDTH = ?, DEPTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
             WHERE rowid = 3
-            ''', (width, shelf_size_option9, qty_option8 * unit_piece, unit_type, row_index))
+            ''', (width, shelf_size_option9, ucshelf, unit_type, row_index))
 
             # 5. satırdaki Metallic Shelf için width, shelf_size_option11 ve qty_option10 * unit_piece
+            if shelf_size_option11 == 0 or qty_option10 == 0:
+                dortshelf = 0
+            else:
+                dortshelf = qty_option10 * shelf_size_option11
             cursor.execute('''
             UPDATE wall_parca
             SET WIDTH = ?, DEPTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
             WHERE rowid = 4
-            ''', (width, shelf_size_option11, qty_option10 * unit_piece, unit_type, row_index))
+            ''', (width, shelf_size_option11, dortshelf, unit_type, row_index))
 
             # Bracket satırları için depth ayarları
             cursor.execute('''
@@ -280,11 +448,16 @@ def update_width():
             ''', (qty_option10 * 2 * unit_piece, unit_type, row_index))
 
             # 5. "Price Holder" için Width ve Adet güncellemeleri
+
+            if width == 0 or base_shelf == 0:
+                birprc = 0  # birshelf değerini sıfırla
+            else:
+                birprc=1
             cursor.execute('''
             UPDATE wall_parca
             SET width = ?, adet = ?, UNIT_TYPE = ?, SIRA = ?
             WHERE UNIT_ITEMS = 'Price Holder '
-            ''', (width, (unit_piece * (qty + qty_option8 + qty_option10 + 1)), unit_type, row_index))
+            ''', (width, (unit_piece * (qty + qty_option8 + qty_option10 + birprc)), unit_type, row_index))
 
             # 1. "Upright Post 30*60*" için height ve adet güncelleme
             cursor.execute('''
@@ -294,19 +467,27 @@ def update_width():
             ''', (height, unit_piece, unit_type, row_index))
 
             # 3. "Baseleg" için Depth ve Adet güncelleme
+            if width == 0 or base_shelf == 0:
+                legadt = 0  # birshelf değerini sıfırla
+            else:
+                legadt=unit_piece
             cursor.execute('''
             UPDATE wall_parca
             SET depth = ?, adet = ?, UNIT_TYPE = ?, SIRA = ?
             WHERE UNIT_ITEMS = 'Baseleg '
-            ''', (base_shelf, unit_piece, unit_type, row_index))        
+            ''', (base_shelf, legadt, unit_type, row_index))        
 
 
             # 12. satırdaki Pilinth için width güncellemesi
+            if width == 0 or base_shelf == 0:
+                plntadt = 0  # birshelf değerini sıfırla
+            else:
+                plntadt=unit_piece
             cursor.execute('''
             UPDATE wall_parca
             SET WIDTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
             WHERE rowid = 11
-            ''', (width, unit_piece, unit_type, row_index))
+            ''', (width, plntadt, unit_type, row_index))
 
             # 13-20 satırları için Back Panel ve Perforated Back Panel güncellemeleri
             cursor.execute('''
@@ -366,11 +547,15 @@ def update_width():
             ''', (height, unit_piece, unit_type, row_index))
 
             # "Baseleg" için Depth ve Adet güncelleme
+            if  base_shelf == 0:
+                legadt1 = 0  # birshelf değerini sıfırla
+            else:
+                legadt1=unit_piece
             cursor.execute('''
                 UPDATE wall_parca
                 SET depth = ?, adet = ?, UNIT_TYPE = ?, SIRA = ?
                 WHERE UNIT_ITEMS = 'Baseleg '
-            ''', (base_shelf, unit_piece, unit_type, row_index))
+            ''', (base_shelf, legadt1, unit_type, row_index))
 
             cursor.execute('''
             UPDATE wall_parca
@@ -381,31 +566,53 @@ def update_width():
         elif unit_type == "Double Gondola":
 
             # 2. İlk "Metallic Shelf" için Width, Depth ve Adet güncellemeleri
+            if width == 0 or base_shelf == 0:
+                birshelf = 0  # birshelf değerini sıfırla
+            else:
+                birshelf = unit_piece*2
+
             cursor.execute('''
             UPDATE wall_parca
             SET WIDTH = ?, DEPTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
-            WHERE rowid = 1
-            ''', (width, base_shelf , unit_piece * 2, unit_type, row_index))
+             WHERE rowid = 1
+            ''', (width, base_shelf, birshelf, unit_type, row_index))
 
             # 4. İkinci "Metallic Shelf" için Width, Depth (Shelf Size) ve Adet güncellemeleri
+
+            if shelf_size == 0:
+                ikishelf = 0  # birshelf değerini sıfırla
+            else:
+                ikishelf = qty * unit_piece
             cursor.execute('''
             UPDATE wall_parca
             SET WIDTH = ?, DEPTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
             WHERE rowid = 2
-            ''', (width, shelf_size, qty * unit_piece, unit_type, row_index))
+            ''', (width, shelf_size, ikishelf, unit_type, row_index))
+
              # 4. satırdaki Metallic Shelf için width, shelf_size_option9 ve qty_option8 * unit_piece
+
+            if shelf_size_option9 == 0 or qty_option8 == 0:
+                ucshelf = qty_option8 * unit_piece
+            else:
+                ucshelf = 0
+
             cursor.execute('''
             UPDATE wall_parca
             SET WIDTH = ?, DEPTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
             WHERE rowid = 3
-            ''', (width, shelf_size_option9, qty_option8 * unit_piece, unit_type, row_index))
+            ''', (width, shelf_size_option9, ucshelf, unit_type, row_index))
 
             # 5. satırdaki Metallic Shelf için width, shelf_size_option11 ve qty_option10 * unit_piece
+
+            if shelf_size_option11 == 0 or qty_option10 == 0:
+                dortshelf = 0
+            else:
+                dortshelf = qty_option10 * unit_piece
             cursor.execute('''
             UPDATE wall_parca
             SET WIDTH = ?, DEPTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
             WHERE rowid = 4
-            ''', (width, shelf_size_option11, qty_option10 * unit_piece, unit_type, row_index))
+            ''', (width, shelf_size_option11, dortshelf, unit_type, row_index))
 
             # Bracket satırları için depth ayarları
             cursor.execute('''
@@ -425,11 +632,16 @@ def update_width():
             ''', (qty_option10 * 2 * unit_piece, unit_type, row_index))
 
             # 5. "Price Holder" için Width ve Adet güncellemeleri
+
+            if width == 0 or base_shelf == 0:
+                birprc = 0  # birshelf değerini sıfırla
+            else:
+                birprc=2
             cursor.execute('''
             UPDATE wall_parca
             SET width = ?, adet = ?, UNIT_TYPE = ?, SIRA = ?
             WHERE UNIT_ITEMS = 'Price Holder '
-            ''', (width, (unit_piece * (qty + qty_option8 + qty_option10 + 1)), unit_type, row_index))
+            ''', (width, (unit_piece * (qty + qty_option8 + qty_option10 + birprc)), unit_type, row_index))
 
             # 1. "Upright Post 30*60*" için height ve adet güncelleme
             cursor.execute('''
@@ -439,19 +651,28 @@ def update_width():
             ''', (height, unit_piece, unit_type, row_index))
 
             # 3. "Baseleg" için Depth ve Adet güncelleme
+
+            if width == 0 or base_shelf == 0:
+                legadt = 0  # birshelf değerini sıfırla
+            else:
+                legadt=unit_piece*2
             cursor.execute('''
             UPDATE wall_parca
             SET depth = ?, adet = ?, UNIT_TYPE = ?, SIRA = ?
             WHERE UNIT_ITEMS = 'Baseleg '
-            ''', (base_shelf, unit_piece *2 , unit_type, row_index))        
-
+            ''', (base_shelf, legadt, unit_type, row_index))        
 
             # 12. satırdaki Pilinth için width güncellemesi
+
+            if width == 0 or base_shelf == 0:
+                plntadt = 0  # birshelf değerini sıfırla
+            else:
+                plntadt=unit_piece*2
             cursor.execute('''
             UPDATE wall_parca
             SET WIDTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
             WHERE rowid = 11
-            ''', (width, unit_piece, unit_type, row_index))
+            ''', (width, plntadt, unit_type, row_index))
 
             # 13-20 satırları için Back Panel ve Perforated Back Panel güncellemeleri
             cursor.execute('''
@@ -510,42 +731,66 @@ def update_width():
                 WHERE UNIT_ITEMS = 'Upright Post 30*60*'
             ''', (height, unit_piece, unit_type, row_index))
 
-            # "Baseleg" için Depth ve Adet güncelleme
+
+             # "Baseleg" için Depth ve Adet güncelleme
+            if  base_shelf == 0:
+                legadt1 = 0  # birshelf değerini sıfırla
+            else:
+                legadt1=unit_piece*2
             cursor.execute('''
                 UPDATE wall_parca
                 SET depth = ?, adet = ?, UNIT_TYPE = ?, SIRA = ?
                 WHERE UNIT_ITEMS = 'Baseleg '
-            ''', (base_shelf, unit_piece * 2, unit_type, row_index))    
-
+            ''', (base_shelf, legadt1, unit_type, row_index))
 
         elif unit_type == "Single Gondola":
 
-            # 2. İlk "Metallic Shelf" için Width, Depth ve Adet güncellemeleri
+            if width == 0 or base_shelf == 0:
+                birshelf = 0  # birshelf değerini sıfırla
+            else:
+                birshelf = unit_piece
+
             cursor.execute('''
             UPDATE wall_parca
             SET WIDTH = ?, DEPTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
-            WHERE rowid = 1
-            ''', (width, base_shelf, unit_piece, unit_type, row_index))
+             WHERE rowid = 1
+            ''', (width, base_shelf, birshelf, unit_type, row_index))
+
+
 
             # 4. İkinci "Metallic Shelf" için Width, Depth (Shelf Size) ve Adet güncellemeleri
+            if shelf_size == 0:
+                ikishelf = 0  # birshelf değerini sıfırla
+            else:
+                ikishelf = qty * unit_piece
             cursor.execute('''
             UPDATE wall_parca
             SET WIDTH = ?, DEPTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
             WHERE rowid = 2
-            ''', (width, shelf_size, qty * unit_piece, unit_type, row_index))
+            ''', (width, shelf_size, ikishelf, unit_type, row_index))
+
              # 4. satırdaki Metallic Shelf için width, shelf_size_option9 ve qty_option8 * unit_piece
+            if shelf_size_option9 == 0 or qty_option8 == 0:
+                ucshelf = qty_option8 * unit_piece
+            else:
+                ucshelf = 0
+
             cursor.execute('''
             UPDATE wall_parca
             SET WIDTH = ?, DEPTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
             WHERE rowid = 3
-            ''', (width, shelf_size_option9, qty_option8 * unit_piece, unit_type, row_index))
+            ''', (width, shelf_size_option9, ucshelf, unit_type, row_index))
 
             # 5. satırdaki Metallic Shelf için width, shelf_size_option11 ve qty_option10 * unit_piece
+            if shelf_size_option11 == 0 or qty_option10 == 0:
+                dortshelf = 0
+            else:
+                dortshelf = qty_option10 * unit_piece
             cursor.execute('''
             UPDATE wall_parca
             SET WIDTH = ?, DEPTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
             WHERE rowid = 4
-            ''', (width, shelf_size_option11, qty_option10 * unit_piece, unit_type, row_index))
+            ''', (width, shelf_size_option11, dortshelf, unit_type, row_index))
 
             # Bracket satırları için depth ayarları
             cursor.execute('''
@@ -565,11 +810,16 @@ def update_width():
             ''', (qty_option10 * 2 * unit_piece, unit_type, row_index))
 
             # 5. "Price Holder" için Width ve Adet güncellemeleri
+            if width == 0 or base_shelf == 0:
+                birprc = 0  # birshelf değerini sıfırla
+            else:
+                birprc=1
             cursor.execute('''
             UPDATE wall_parca
             SET width = ?, adet = ?, UNIT_TYPE = ?, SIRA = ?
             WHERE UNIT_ITEMS = 'Price Holder '
-            ''', (width, (unit_piece * (qty + qty_option8 + qty_option10 + 1)), unit_type, row_index))
+            ''', (width, (unit_piece * (qty + qty_option8 + qty_option10 + birprc)), unit_type, row_index))
+
 
             # 1. "Upright Post 30*60*" için height ve adet güncelleme
             cursor.execute('''
@@ -579,19 +829,26 @@ def update_width():
             ''', (height, unit_piece, unit_type, row_index))
 
             # 3. "Baseleg" için Depth ve Adet güncelleme
+            if width == 0 or base_shelf == 0:
+                legadt = 0  # birshelf değerini sıfırla
+            else:
+                legadt=unit_piece
             cursor.execute('''
             UPDATE wall_parca
             SET depth = ?, adet = ?, UNIT_TYPE = ?, SIRA = ?
             WHERE UNIT_ITEMS = 'Baseleg '
-            ''', (base_shelf, unit_piece, unit_type, row_index))        
-
+            ''', (base_shelf, legadt, unit_type, row_index))        
 
             # 12. satırdaki Pilinth için width güncellemesi
+            if width == 0 or base_shelf == 0:
+                plntadt = 0  # birshelf değerini sıfırla
+            else:
+                plntadt=unit_piece
             cursor.execute('''
             UPDATE wall_parca
             SET WIDTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
             WHERE rowid = 11
-            ''', (width, unit_piece, unit_type, row_index))
+            ''', (width, plntadt, unit_type, row_index))
 
             # 13-20 satırları için Back Panel ve Perforated Back Panel güncellemeleri
             cursor.execute('''
@@ -652,11 +909,188 @@ def update_width():
             ''', (height, unit_piece, unit_type, row_index))
 
             # "Baseleg" için Depth ve Adet güncelleme
+            if  base_shelf == 0:
+                legadt1 = 0  # birshelf değerini sıfırla
+            else:
+                legadt1=unit_piece
             cursor.execute('''
                 UPDATE wall_parca
                 SET depth = ?, adet = ?, UNIT_TYPE = ?, SIRA = ?
                 WHERE UNIT_ITEMS = 'Baseleg '
-            ''', (base_shelf, unit_piece , unit_type, row_index))   
+            ''', (base_shelf, legadt1, unit_type, row_index))
+
+        elif unit_type == "Vegetable Unit":
+
+            # 2. İlk "Metallic Shelf" için Width, Depth ve Adet güncellemeleri
+
+            if width == 0 or base_shelf == 0:
+                birshelf = 0  # birshelf değerini sıfırla
+            else:
+                birshelf = unit_piece
+
+            cursor.execute('''
+            UPDATE veg_parca
+            SET WIDTH = ?, DEPTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+             WHERE rowid = 1
+            ''', (width, base_shelf, birshelf, unit_type, row_index))
+
+            # 4. İkinci "Metallic Shelf" için Width, Depth (Shelf Size) ve Adet güncellemeleri
+
+            if shelf_size == 0:
+                ikishelf = 0  # birshelf değerini sıfırla
+            else:
+                ikishelf = qty * unit_piece
+            cursor.execute('''
+            UPDATE veg_parca
+            SET WIDTH = ?, DEPTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 2
+            ''', (width, shelf_size, ikishelf, unit_type, row_index))
+
+             # 4. satırdaki Metallic Shelf için width, shelf_size_option9 ve qty_option8 * unit_piece
+            if shelf_size_option9 == 0 or qty_option8 == 0:
+                ucshelf = qty_option8 * unit_piece
+            else:
+                ucshelf = 0
+
+            cursor.execute('''
+            UPDATE wall_parca
+            SET WIDTH = ?, DEPTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 3
+            ''', (width, shelf_size_option9, ucshelf, unit_type, row_index))
+
+
+            # 5. satırdaki Metallic Shelf için width, shelf_size_option11 ve qty_option10 * unit_piece
+            if shelf_size_option11 == 0 or qty_option10 == 0:
+                dortshelf = 0
+            else:
+                dortshelf = qty_option10 * unit_piece
+            cursor.execute('''
+            UPDATE wall_parca
+            SET WIDTH = ?, DEPTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 4
+            ''', (width, shelf_size_option11, dortshelf, unit_type, row_index))
+
+
+            # Bracket satırları için depth ayarları
+            cursor.execute('''
+            UPDATE veg_parca
+            SET DEPTH = (SELECT DEPTH FROM veg_parca WHERE rowid = 2), ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 5
+            ''', (qty * 2 * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE veg_parca
+            SET DEPTH = (SELECT DEPTH FROM veg_parca WHERE rowid = 3), ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 6
+            ''', (qty_option8 * 2 * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE veg_parca
+            SET DEPTH = (SELECT DEPTH FROM veg_parca WHERE rowid = 4), ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 7
+            ''', (qty_option10 * 2 * unit_piece, unit_type, row_index))
+
+            # 5. "Price Holder" için Width ve Adet güncellemeleri
+            if width == 0 or base_shelf == 0:
+                birprc = 0  # birshelf değerini sıfırla
+            else:
+                birprc=1
+            cursor.execute('''
+            UPDATE veg_parca
+            SET width = ?, adet = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE UNIT_ITEMS = 'Price Holder '
+            ''', (width, (unit_piece * (qty + qty_option8 + qty_option10 + birprc)), unit_type, row_index))
+
+            # 1. "Upright Post 30*60*" için height ve adet güncelleme
+            cursor.execute('''
+            UPDATE veg_parca
+            SET height = ?, adet = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE UNIT_ITEMS = 'Upright Post 30*60*'
+            ''', (height, unit_piece, unit_type, row_index))
+
+            # 3. "Baseleg" için Depth ve Adet güncelleme
+
+            if width == 0 or base_shelf == 0:
+                legadt = 0  # birshelf değerini sıfırla
+            else:
+                legadt=unit_piece
+            cursor.execute('''
+            UPDATE veg_parca
+            SET depth = ?, adet = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE UNIT_ITEMS = 'Baseleg '
+            ''', (base_shelf, legadt, unit_type, row_index)) 
+
+            # 12. satırdaki Pilinth için width güncellemesi
+
+            if width == 0 or base_shelf == 0:
+                plntadt = 0  # birshelf değerini sıfırla
+            else:
+                plntadt=unit_piece
+            cursor.execute('''
+            UPDATE veg_parca
+            SET WIDTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 11
+            ''', (width, plntadt, unit_type, row_index))
+
+            # 13-20 satırları için Back Panel ve Perforated Back Panel güncellemeleri
+            cursor.execute('''
+            UPDATE veg_parca
+            SET WIDTH = ?, HEIGHT = 40, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 12
+            ''', (width, plane40  * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE veg_parca
+            SET WIDTH = ?, HEIGHT = 40, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 13
+            ''', (width, perf40  * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE veg_parca
+            SET WIDTH = ?, HEIGHT = 30, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 14
+            ''', (width, plane30 * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE veg_parca
+            SET WIDTH = ?, HEIGHT = 30, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 15
+            ''', (width, perf30 * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE veg_parca
+            SET WIDTH = ?, HEIGHT = 20, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 16
+            ''', (width, plane20 * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE veg_parca
+            SET WIDTH = ?, HEIGHT = 20, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 17
+            ''', (width, perf20 * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE veg_parca
+            SET WIDTH = ?, HEIGHT = 10, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 18
+            ''', (width, plane10 * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE veg_parca
+            SET WIDTH = ?, HEIGHT = 10, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 19
+            ''', (width, perf10 * unit_piece, unit_type, row_index))
+
+        elif unit_type == "End / Vegetable Unit":
+            # Case 2: End / Wall Unit işlemleri
+            # "Upright Post 30*60*" için height ve adet güncelleme
+            cursor.execute('''
+                UPDATE veg_parca
+                SET height = ?, adet = ?, UNIT_TYPE = ?, SIRA = ?
+                WHERE UNIT_ITEMS = 'Upright Post 30*60*'
+            ''', (height, unit_piece, unit_type, row_index))
+
+             # "Baseleg" için Depth ve Adet güncelleme
+            if  base_shelf == 0:
+                legadt1 = 0  # birshelf değerini sıfırla
+            else:
+                legadt1=unit_piece
+            cursor.execute('''
+                UPDATE veg_parca
+                SET depth = ?, adet = ?, UNIT_TYPE = ?, SIRA = ?
+                WHERE UNIT_ITEMS = 'Baseleg '
+            ''', (base_shelf, legadt1, unit_type, row_index))
 
         else:
             # Farklı bir değer geldiğinde hata döndür
@@ -666,6 +1100,39 @@ def update_width():
             # ITEM_NAME sütununu güncelleme: Birleştirilecek değerler
         cursor.execute('''
             UPDATE wall_parca
+            SET ITEM_NAME = 
+                CASE
+                    WHEN UNIT_ITEMS IS NOT NULL THEN UNIT_ITEMS || ''
+                    ELSE ''
+                END ||
+                CASE
+                    WHEN WIDTH > 0 THEN '' || CAST(WIDTH AS TEXT) || ''
+                    ELSE ''
+                END ||
+                CASE
+                    WHEN SIGN1 IS NOT NULL THEN '' || SIGN1 || ''
+                    ELSE ''
+                END ||       
+                CASE
+                    WHEN HEIGHT > 0 THEN '' || CAST(HEIGHT AS TEXT) || ''
+                    ELSE ''
+                END ||
+                CASE
+                    WHEN SIGN2 IS NOT NULL THEN '' || SIGN2 || ''
+                    ELSE ''
+                END ||
+                CASE
+                    WHEN DEPTH > 0 THEN '' || CAST(DEPTH AS TEXT) || ''
+                    ELSE ''
+                END ||
+                CASE
+                    WHEN EK IS NOT NULL THEN '' || EK || ''
+                    ELSE ''
+                END
+        ''')
+
+        cursor.execute('''
+            UPDATE veg_parca
             SET ITEM_NAME = 
                 CASE
                     WHEN UNIT_ITEMS IS NOT NULL THEN UNIT_ITEMS || ''
@@ -775,7 +1242,8 @@ def create_quote_list(clean_string):
                 DSPRICE DECIMAL(10, 2),
                 AMOUNTH DECIMAL(10, 2),
                 DEPO DECIMAL(10, 2),
-                IMPORT DECIMAL(10, 2) -- Yeni kolon eklendi
+                IMPORT DECIMAL(10, 2), -- Yeni kolon eklendi
+                KG DECIMAL(10, 2) DEFAULT 0.00
             )
         ''')
 
@@ -783,6 +1251,10 @@ def create_quote_list(clean_string):
         cursor.execute('''
             SELECT ITEM_NAME, ADET, UNIT_TYPE, SIRA
             FROM wall_parca
+            WHERE ADET > 0
+            UNION ALL
+            SELECT ITEM_NAME, ADET, UNIT_TYPE, SIRA
+            FROM veg_parca
             WHERE ADET > 0
         ''')
         rows = cursor.fetchall()
@@ -801,25 +1273,25 @@ def create_quote_list(clean_string):
 
             # prc_tbl'deki name1 ile eşleşen satırı al (büyük/küçük harf ve boşlukları göz ardı ederek)
             cursor_prc.execute('''
-                SELECT id, local, import
+                SELECT id, local, import, kg
                 FROM prc_tbl
                 WHERE LOWER(REPLACE(name1, ' ', '')) = LOWER(REPLACE(?, ' ', ''))
             ''', (item_name,))
             prc_row = cursor_prc.fetchone()
 
             if prc_row:
-                item_id, local_price, import_price = prc_row
+                item_id, local_price, import_price, kg = prc_row
             else:
-                item_id, local_price, import_price = 0, 0.0, 0.0  # Eşleşme yoksa varsayılan değerler
+                item_id, local_price, import_price = 0, 0.0, 0.0, 0.0  # Eşleşme yoksa varsayılan değerler
 
             # local_price = round(local_price, 2)  # Ensure 2 decimal places
             local_price = float(f"{local_price:.2f}")
-            rows_with_user_id.append((user_id, item_id, item_name, adet, unit_type, sira, local_price, 0.00, 0.00, 0.00, import_price))
+            rows_with_user_id.append((user_id, item_id, item_name, adet, unit_type, sira, local_price, 0.00, 0.00, 0.00, import_price, kg))
 
         # list tablosuna ekle
         cursor_quote.executemany('''
-            INSERT INTO list (USER_ID, ITEM_ID, ITEM_NAME, ADET, UNIT_TYPE, SIRA, PRICE, DSPRICE, AMOUNTH, DEPO, IMPORT)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO list (USER_ID, ITEM_ID, ITEM_NAME, ADET, UNIT_TYPE, SIRA, PRICE, DSPRICE, AMOUNTH, DEPO, IMPORT, KG)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', rows_with_user_id)
 
         # Değişiklikleri kaydet ve bağlantıları kapat
@@ -853,47 +1325,46 @@ def apply_discount():
         # Veritabanı yolunu oluştur
         db_path = os.path.join(QUOTE_DB_PATH, f"{quote_number}.db")
 
-        # Veritabanına bağlan
         if not os.path.exists(db_path):
             return jsonify({'status': 'error', 'message': f'{quote_number} veritabanı bulunamadı.'}), 404
 
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
-        # `list` tablosundaki verileri al
-        cursor.execute('SELECT PRICE, ADET, SIRA, DSPRICE FROM list')
+        # IMPORT sütunu da dahil çekiyoruz
+        cursor.execute('SELECT PRICE, ADET, SIRA, DSPRICE, IMPORT FROM list')
         rows = cursor.fetchall()
 
         updated_rows = []
         for row in rows:
-            price, adet, sira, dsprice = row
+            price, adet, sira, dsprice, import_value = row
             price = price or 0
             adet = adet or 0
+            import_value = import_value or 0
 
             # Sıra numarası 1 ile başlıyorsa indirim uygula
-            if str(sira).startswith('1'):
+            if sira < 7000:
                 new_dsprice = round(price * (1 - dsc / 100), 2)
             else:
                 new_dsprice = dsprice  # İndirim uygulanmaz
 
             amounth = round(adet * new_dsprice, 2)
+            depo = round(adet * (new_dsprice - import_value), 2)
 
-            # Değiştirilen değerleri yazdır
-            # print(f"SIRA: {sira}, PRICE: {price}, ADET: {adet}, DSPRICE: {new_dsprice}, AMOUNTH: {amounth}")
+            updated_rows.append((new_dsprice, amounth, depo, price, adet, sira))
 
-            updated_rows.append((new_dsprice, amounth, price, adet, sira))
-
+        # Şimdi DSPRICE, AMOUNTH ve DEPO alanlarını güncelle
         cursor.executemany('''
             UPDATE list
-            SET DSPRICE = ?, AMOUNTH = ?
+            SET DSPRICE = ?, AMOUNTH = ?, DEPO = ?
             WHERE PRICE = ? AND ADET = ? AND SIRA = ?
         ''', updated_rows)
 
-        # Değişiklikleri kaydet ve bağlantıyı kapat
         conn.commit()
         conn.close()
 
-        return jsonify({'status': 'success', 'message': f'{quote_number} için indirim uygulandı.'})
+        return jsonify({'status': 'success', 'message': f'{quote_number} için indirim ve depo hesaplaması uygulandı.'})
+
     except sqlite3.Error as e:
         print("Veritabanı hatası (apply_discount):", str(e))
         return jsonify({'status': 'error', 'message': f'Veritabanı hatası: {str(e)}'}), 500
@@ -909,19 +1380,20 @@ def call_prep_up_qt():
         data = request.get_json()
         quote_number = data.get('quote_number')
         dsc = data.get('dsc', 0)
+        del_pr = data.get('del_pr', 0)
         if not quote_number:
             return jsonify({'status': 'error', 'message': 'Eksik parametre: quote_number'}), 400
 
         # prep_up_qt fonksiyonunu çağır
         # print(f"dsc değeri1: {dsc}")  # dsc değerini konsola yazdır
-        prep_up_qt(quote_number,dsc)
+        prep_up_qt(quote_number,dsc,del_pr)
 
         return jsonify({'status': 'success', 'message': f'{quote_number} için prep_up_qt çağrıldı.'})
     except Exception as e:
         print(f"prep_up_qt endpoint hatası: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-def prep_up_qt(clean_string,dsc):
+def prep_up_qt(clean_string,dsc,del_pr):
     try:
         # Kullanıcı ve müşteri bilgilerini oturumdan al
         user_id = session.get('user_id', 0)  # Eğer oturumda user_id yoksa varsayılan olarak 0 kullanılır
@@ -931,13 +1403,13 @@ def prep_up_qt(clean_string,dsc):
         # Proforma sayfasındaki dsc değerini al
 
         # `update_quotes_db` fonksiyonunu çağır
-        update_quotes_db(clean_string, user_id, user_name, customer_id, customer_name, dsc)
+        update_quotes_db(clean_string, user_id, user_name, customer_id, customer_name, dsc, del_pr)
 
         print(f"prep_up_qt: {clean_string} için update_quotes_db çağrıldı.")
     except Exception as e:
         print(f"prep_up_qt sırasında hata oluştu: {str(e)}")
 
-def update_quotes_db(clean_string, user_id, user_name, customer_id, customer_name, dsc):
+def update_quotes_db(clean_string, user_id, user_name, customer_id, customer_name, dsc, del_pr):
     try:
         # quotes.db dosyasının yolunu belirleyin
         quotes_db_path = os.path.join(BASE_DIR, "quotes.db")
@@ -958,7 +1430,8 @@ def update_quotes_db(clean_string, user_id, user_name, customer_id, customer_nam
                 Amount DECIMAL(10, 2) NOT NULL, -- Toplam tutar
                 Sold TEXT,                    -- Satış durumu (1 harf)
                 Inv TEXT,                    -- Fatura durumu (1 harf)
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- Kayıt tarihi ve saati
+                created_at TEXT DEFAULT (strftime('%d-%m-%Y %H:%M:%S', 'now', 'localtime')), -- Kayıt tarihi ve saati
+                Delpr INTEGER DEFAULT 0 -- Fiyatlandırma durumu (0 veya 1)
             )
         ''')
 
@@ -974,7 +1447,7 @@ def update_quotes_db(clean_string, user_id, user_name, customer_id, customer_nam
         total_amount = cursor_new_db.fetchone()[0] or 0.0  # Eğer sonuç None ise 0.0 olarak ayarla
 
         # Sunucunun tarih ve saatini al
-        current_time1 = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        current_time1 = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
 
         # `Quote_number` zaten var mı kontrol et
         cursor_quotes.execute('SELECT COUNT(*) FROM quotes WHERE Quote_number = ?', (clean_string,))
@@ -984,16 +1457,16 @@ def update_quotes_db(clean_string, user_id, user_name, customer_id, customer_nam
             # Eğer `Quote_number` zaten varsa, satırı güncelle
             cursor_quotes.execute('''
                 UPDATE quotes
-                SET User_id = ?, User_name = ?, Customer_id = ?, Customer_name = ?, Discount = ?, Amount = ?, Sold = ?, Inv = ?, created_at = ?
+                SET User_id = ?, User_name = ?, Customer_id = ?, Customer_name = ?, Discount = ?, Amount = ?, Sold = ?, Inv = ?, created_at = ?, Delpr= ?
                 WHERE Quote_number = ?
-            ''', (user_id, user_name, customer_id, customer_name, dsc, total_amount, '', '', current_time1, clean_string))
+            ''', (user_id, user_name, customer_id, customer_name, dsc, total_amount, '', '', current_time1, del_pr, clean_string))
             print(f"Quotes database updated for existing Quote_number: {clean_string}")
         else:
             # Eğer `Quote_number` yoksa, yeni bir satır ekle
             cursor_quotes.execute('''
-                INSERT INTO quotes (Quote_number, User_id, User_name, Customer_id, Customer_name, Discount, Amount, Sold, Inv, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (clean_string, user_id, user_name, customer_id, customer_name, dsc, total_amount, '', '', current_time1))
+                INSERT INTO quotes (Quote_number, User_id, User_name, Customer_id, Customer_name, Discount, Amount, Sold, Inv, created_at, Delpr)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (clean_string, user_id, user_name, customer_id, customer_name, dsc, total_amount, '', '', current_time1, del_pr))
             print(f"Quotes database inserted new Quote_number: {clean_string}")
 
         # Değişiklikleri kaydet ve bağlantıları kapat
@@ -1042,8 +1515,16 @@ def get_quotes():
         conn = sqlite3.connect(quotes_db_path)
         cursor = conn.cursor()
 
-        # quotes tablosundaki tüm verileri al
-        cursor.execute('SELECT * FROM quotes')
+        # Kullanıcı yetkisini session'dan al
+        user_id = session.get('user_id')
+        authority = session.get('authority', 'user')
+
+        # Yetkiye göre filtre uygula
+        if authority in ['admin', 'poweruser']:
+            cursor.execute('SELECT * FROM quotes')
+        else:
+            cursor.execute('SELECT * FROM quotes WHERE User_id = ?', (user_id,))
+
         rows = cursor.fetchall()
 
         # Sütun adlarını al
@@ -1064,45 +1545,33 @@ def get_quotes():
 @app.route('/get_quote_list', methods=['GET'])
 def get_quote_list():
     global islmdvm
-    islmdvm = 1  # update_width fonksiyonu başladığında değeri 1 yap
+    islmdvm = 1
     try:
-        # Frontend'den gelen db_name parametresini al
-        db_name = request.args.get('db_name')  # db_name parametresi URL'den alınacak
+        db_name = request.args.get('db_name')
         if not db_name:
             return jsonify({'message': 'Veritabanı adı sağlanmadı.'}), 400
 
-        # .dp uzantısını kaldır ve .db dosyasını bul
         if not db_name.endswith('.db'):
             db_file = db_name + '.db'
         else:
             db_file = db_name
         db_path = os.path.join(QUOTE_DB_PATH, db_file)
 
-        # Dosyanın var olup olmadığını kontrol et
         if not os.path.exists(db_path):
             return jsonify({'message': f'{db_file} dosyası bulunamadı.'}), 404
 
-        # Dosyaya bağlan
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
-        # list tablosundaki verileri çek
-        cursor.execute('SELECT USER_ID, ITEM_ID, ITEM_NAME, ADET, UNIT_TYPE, SIRA, PRICE, DSPRICE, AMOUNTH FROM list ORDER BY CAST(SIRA AS DECIMAL(10, 2)) ASC')
+        # rowid dahil tüm verileri sıraya göre çek
+        cursor.execute('''
+            SELECT USER_ID, ITEM_ID, ITEM_NAME, ADET, UNIT_TYPE, SIRA, PRICE, DSPRICE, AMOUNTH, rowid
+            FROM list
+            ORDER BY CAST(SIRA AS DECIMAL(10, 2)) ASC
+        ''')
         rows = cursor.fetchall()
-
-        # Bağlantıyı kapat
         conn.close()
 
-        # Kullanıcı ve müşteri bilgilerini oturumdan al
-        user_id = session.get('user_id', 0)  # Eğer oturumda user_id yoksa varsayılan olarak 0 kullanılır
-        user_name = session.get('user', 'Unknown User')  # Kullanıcı adını oturumdan al
-        customer_id = session.get('customer_id', 0)  # Eğer oturumda customer_id yoksa varsayılan olarak 0 kullanılır
-        customer_name = session.get('customer_name', 'Unknown Customer')  # Müşteri adını oturumdan al
-
-        # `update_quotes_db` fonksiyonunu çağır
-        # update_quotes_db(db_name.replace('.db', ''), user_id, user_name, customer_id, customer_name)
-
-        # Veriyi JSON formatında döndür
         return jsonify({'db_name': db_name, 'data': rows})
 
     except sqlite3.Error as e:
@@ -1112,7 +1581,7 @@ def get_quote_list():
         print("Beklenmeyen hata:", str(e))
         return jsonify({'message': f'Beklenmeyen hata: {str(e)}'}), 500
     finally:
-        islmdvm = 0  # get_quote_list işlemi bittiğinde değeri tekrar 0 yap
+        islmdvm = 0
 
 
 @app.route('/add_item_data', methods=['POST'])
@@ -1128,7 +1597,7 @@ def add_item_data():
         
         # Hedef veritabanı dosyası
         new_db_path = os.path.join(QUOTE_DB_PATH, f"{largest_file}.db")
-        sr = 4.0
+        sr = 9000
         item_id=101
         # Yeni veritabanı bağlantısı
         conn_quote = sqlite3.connect(new_db_path)
@@ -1145,7 +1614,10 @@ def add_item_data():
                 SIRA DECIMAL(10, 2),
                 PRICE DECIMAL(10, 2),
                 DSPRICE DECIMAL(10, 2),
-                AMOUNTH DECIMAL(10, 2)
+                AMOUNTH DECIMAL(10, 2),
+                DEPO DECIMAL(10, 2),
+                IMPORT DECIMAL(10, 2), -- Yeni kolon eklendi
+                KG DECIMAL(10, 2) DEFAULT 0.0 -- Yeni kolon eklendi
             )
         ''')
 
@@ -1157,7 +1629,7 @@ def add_item_data():
         # Gelen verileri işleyip tabloya ekle
         for item in add_item_data:
             item_name = item.get('itemName', '').strip()
-            sr = round(sr + 0.1, 1)  # SR'yi 0.1 artır ve ondalık hassasiyetini koru
+            sr = round(sr + 1, 0)  # SR'yi 0.1 artır ve ondalık hassasiyetini koru
             qty = int(item.get('qty', 0))  # Sayısal değer olarak kaydet
             price = float(item.get('price', 0))  # Sayısal değer olarak kaydet
             dsprice = float(item.get('dsprice', 0))  # Sayısal değer olarak kaydet
@@ -1175,11 +1647,11 @@ def add_item_data():
                 kar_value = 0.0  # Eğer rakam yoksa varsayılan 0.0 olarak al
 
             cursor_quote.execute('''
-                INSERT INTO list (USER_ID, ITEM_ID, ITEM_NAME, ADET, UNIT_TYPE, SIRA, PRICE, DSPRICE, AMOUNTH)
-                VALUES (?, ?, ?, ?, 'ADD_ITEM', ?, ?, ?, ?)                 
+                INSERT INTO list (USER_ID, ITEM_ID, ITEM_NAME, ADET, UNIT_TYPE, SIRA, PRICE, DSPRICE, AMOUNTH, DEPO, IMPORT)
+                VALUES (?, ?, ?, ?, 'ADD_ITEM', ?, ?, ?, ?, ?, ?)                 
 
 
-            ''', (user_id, item_id, item_name, qty, sr, price, dsprice, qty*dsprice))      #, price, dsprice))
+            ''', (user_id, item_id, item_name, qty, sr, price, dsprice, qty*dsprice, qty*kar_value, dsprice-kar_value))      #, price, dsprice))
 
          
 
@@ -1277,7 +1749,7 @@ def save_unite_selection():
             cursor.execute('''
                 INSERT INTO unite_selections (Quote_number, Row_index, Selection_data)
                 VALUES (?, ?, ?)
-            ''', (quote_number, row_index, json.dumps(selection)))
+            ''', (quote_number, row_index, json.dumps(selection)))  # Tüm seçimleri JSON olarak kaydedin
 
         conn.commit()
         conn.close()
@@ -1358,6 +1830,7 @@ def get_customer_by_quote():
 
         if not customer:
             return jsonify({'status': 'error', 'message': f'Customer_id {customer_id} ile ilişkili müşteri bulunamadı.'}), 404
+        
 
         # Müşteri bilgilerini JSON formatında döndür
         return jsonify({
@@ -1595,31 +2068,55 @@ def add_ref_data():
                 SIRA DECIMAL(10, 2),
                 PRICE DECIMAL(10, 2),
                 DSPRICE DECIMAL(10, 2),
-                AMOUNTH DECIMAL(10, 2)
+                AMOUNTH DECIMAL(10, 2),
+                DEPO DECIMAL(10, 2),
+                IMPORT DECIMAL(10, 2), -- Yeni kolon eklendi
+                KG DECIMAL(10, 2) DEFAULT 0.0 -- Yeni kolon eklendi
             )
         ''')
 
         user_id = session.get('user_id', 0)  # Eğer oturumda user_id yoksa varsayılan olarak 0 kullanılır
-        sira = 2.1  # Sıra değeri başlangıç
+        sira = 7000  # Sıra değeri başlangıç
 
         # Gelen verileri işleyip tabloya ekle
         for item in ref_data:
+            sku = item.get('sku', '')
+            quantity = item.get('quantity', 0)
+            dprice = item.get('dprice', 0.0)
+            # SKU'dan `-` karakterinden önceki rakamsal değeri al
+            import_value = 0.0
+            if '-' in sku:
+                parts = sku.split('-')
+                prefix = parts[0].strip()  # `-` karakterinden önceki kısmı al ve boşlukları temizle
+                suffix = parts[1].strip()  # `-` karakterinden sonraki kısmı al ve boşlukları temizle
+
+                # Önceki ve sonraki rakamları ayıkla
+                match_prefix = re.search(r'\d+', prefix)  # Önceki rakamları ayıkla
+                match_suffix = re.search(r'\d+', suffix)  # Sonraki rakamları ayıkla
+
+                if match_prefix and match_suffix:
+                    prefix_value = float(match_prefix.group())  # Önceki rakam
+                    suffix_value = float(match_suffix.group())  # Sonraki rakam
+                    import_value = prefix_value - suffix_value  # Farkı hesapla
+            depo = quantity*(dprice-import_value)
             cursor_quote.execute('''
-                INSERT INTO list (USER_ID, ITEM_ID, ITEM_NAME, ADET, UNIT_TYPE, SIRA, PRICE, DSPRICE, AMOUNTH)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO list (USER_ID, ITEM_ID, ITEM_NAME, ADET, UNIT_TYPE, SIRA, PRICE, DSPRICE, AMOUNTH, DEPO, IMPORT)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 user_id,
-                item.get('sku', ''),
+                sku,
                 item.get('itemName', ''),
-                item.get('quantity', 0),
+                quantity,
                 item.get('unitType', 'Add Refrigeration'),
                 round(sira, 2),  # Sıra değeri
                 item.get('price', 0.0),
-                item.get('dprice', 0.0),
-                item.get('quantity', 0) * item.get('dprice', 0.0)  # AMOUNTH hesaplama
+                dprice,
+                item.get('quantity', 0) * item.get('dprice', 0.0),  # AMOUNTH hesaplama
+                depo,
+                import_value  # SKU'dan alınan import değeri
             ))
-            sira += 0.1  # Sıra değerini artır
-
+            sira += 1  # Sıra değerini artır
+            print(f"SKU: {sku}, Import Value: {import_value}")  # Yeni print ifadesi
         # Değişiklikleri kaydet ve bağlantıyı kapat
         conn_quote.commit()
         conn_quote.close()
@@ -1834,12 +2331,19 @@ def add_ceiling_data():
                 SIRA DECIMAL(10, 2),
                 PRICE DECIMAL(10, 2),
                 DSPRICE DECIMAL(10, 2),
-                AMOUNTH DECIMAL(10, 2)
+                AMOUNTH DECIMAL(10, 2),
+                DEPO DECIMAL(10, 2),
+                IMPORT DECIMAL(10, 2), -- Yeni kolon eklendi
+                KG DECIMAL(10, 2) DEFAULT 0.0 -- Yeni kolon eklendi       
             )
         ''')
 
         user_id = session.get('user_id', 0)  # Eğer oturumda user_id yoksa varsayılan olarak 0 kullanılır
-        # print("Tablo oluşturuldu veya zaten mevcut.")
+
+        # Ceiling veritabanına bağlan
+        ceiling_db_path = os.path.join(BASE_DIR, 'ceiling.db')
+        conn_ceiling = sqlite3.connect(ceiling_db_path)
+        cursor_ceiling = conn_ceiling.cursor()
 
         # Ceiling verilerini işleyip veritabanına ekle
         for index, row in enumerate(ceiling_data, start=1):
@@ -1847,20 +2351,32 @@ def add_ceiling_data():
             item_name = row.get('Materials', '')
             adet = row.get('qty', 0)
             unit_type = "Ceiling"
-            sira = f"3.{index}"
+            # sira = f"3.{index}"
+            sira = int(8000 + int(index)) 
             price = row.get('local', 0)
             dsprice = row.get('dPrice', 0)
             amounth = adet * dsprice
 
-            # print(f"Veri ekleniyor: {user_id}, {item_id}, {item_name}, {adet}, {unit_type}, {sira}, {price}, {dsprice}, {amounth}")
+            # Import değerini ceiling.db'den çek
+            cursor_ceiling.execute('SELECT Import FROM ceiling_data WHERE Code = ?', (item_id,))
+            import_row = cursor_ceiling.fetchone()
+            Import = import_row[0] if import_row else 0  # Eğer sonuç yoksa varsayılan olarak 0 kullan
+
+            depo = adet * (dsprice - Import)
+
+            # print(f"Import: {Import}")
+            # print("Ceiling Data:", ceiling_data)
+
+            # Veriyi `list` tablosuna ekle
             cursor.execute('''
-                INSERT INTO list (USER_ID, ITEM_ID, ITEM_NAME, ADET, UNIT_TYPE, SIRA, PRICE, DSPRICE, AMOUNTH)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (user_id, item_id, item_name, adet, unit_type, sira, price, dsprice, amounth))
+                INSERT INTO list (USER_ID, ITEM_ID, ITEM_NAME, ADET, UNIT_TYPE, SIRA, PRICE, DSPRICE, AMOUNTH, DEPO, IMPORT)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (user_id, item_id, item_name, adet, unit_type, sira, price, dsprice, amounth, depo, Import))
 
         # Değişiklikleri kaydet ve bağlantıyı kapat
         conn.commit()
         conn.close()
+        conn_ceiling.close()
         print("Ceiling verileri başarıyla eklendi.")
 
         return jsonify({'status': 'success', 'message': 'Ceiling verileri başarıyla eklendi.'})
@@ -1990,8 +2506,7 @@ def get_customer_by_id():
 def add_or_update_customer():
     try:
         data = request.get_json()
-        customer_id = data.get('id')  # Eğer müşteri ID'si varsa güncelleme yapılacak
-        # print(f"Gelen müşteri ID'si: {customer_id}")  # Gelen müşteri ID'sini yazdır
+        customer_id = data.get('id')  # Güncelleme için varsa
         customer_name = data.get('name')
         tel = data.get('tel')
         address1 = data.get('address1')
@@ -2000,14 +2515,23 @@ def add_or_update_customer():
         email = data.get('email')
         discount = data.get('discount')
 
-        # if not customer_name or not tel:
-        #     return jsonify({'status': 'error', 'message': 'Müşteri adı ve telefon numarası zorunludur.'}), 400
-
-        conn = sqlite3.connect('customers.db')
+        conn = sqlite3.connect(os.path.join(BASE_DIR, 'customers.db'))
         cursor = conn.cursor()
+        cursor.execute('''
+                CREATE TABLE IF NOT EXISTS customers (
+                id TEXT PRIMARY KEY,
+                customer_name TEXT NOT NULL,
+                tel TEXT NOT NULL,
+                address TEXT NOT NULL,
+                address2 TEXT,
+                postcode TEXT NOT NULL,
+                email TEXT,
+                discount REAL
+            )
+        ''')
 
         if customer_id:
-            # Güncelleme işlemi
+            # Müşteri güncelleme
             cursor.execute('''
                 UPDATE customers
                 SET customer_name = ?, tel = ?, address = ?, address2 = ?, postcode = ?, email = ?, discount = ?
@@ -2019,7 +2543,7 @@ def add_or_update_customer():
                 conn.close()
                 return jsonify({'status': 'error', 'message': 'Eksik veri: Yıldızlı alanların doldurulması zorunludur.'}), 400
 
-            # Yeni müşteri eklemeden önce kontrol
+            # Aynı müşteri zaten var mı?
             cursor.execute('''
                 SELECT id FROM customers
                 WHERE customer_name = ? AND tel = ? AND address = ? AND postcode = ?
@@ -2030,20 +2554,24 @@ def add_or_update_customer():
                 conn.close()
                 return jsonify({'status': 'error', 'message': 'Müşteri zaten kayıtlı.'}), 400
 
-            # Yeni müşteri ekleme işlemi
-            cursor.execute('SELECT MAX(CAST(id AS INTEGER)) FROM customers')  # Listedeki son kaydın ID'sini al
-            last_id = cursor.fetchone()[0] or 0  # Eğer tablo boşsa 0 kullan
-            new_id = str(last_id + 1).zfill(7)  # Yeni ID'yi oluştur ve 7 karaktere sıfırlarla doldur
+            # Yeni müşteri ID'si oluştur
+            cursor.execute('SELECT MAX(CAST(id AS INTEGER)) FROM customers')
+            last_id = cursor.fetchone()[0] or 0
+            new_id = str(last_id + 1).zfill(7)
+
+            # Yeni müşteri ekle
             cursor.execute('''
                 INSERT INTO customers (id, customer_name, tel, address, address2, postcode, email, discount)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''', (new_id, customer_name, tel, address1, address2, postcode, email, discount))
 
             # Yeni müşteri için veritabanı oluştur
-            customerhes_path = os.path.join(BASE_DIR, 'customerhes')  # customerhes klasörünün yolu
-            os.makedirs(customerhes_path, exist_ok=True)  # Klasörü oluştur (eğer yoksa)
+            customerhes_path = os.path.join(BASE_DIR, 'customerhes')
+            os.makedirs(customerhes_path, exist_ok=True)
+
             new_db_name = f"{new_id}{postcode}.db"
             new_db_path = os.path.join(customerhes_path, new_db_name)
+
             conn_new_db = sqlite3.connect(new_db_path)
             cursor_new_db = conn_new_db.cursor()
             cursor_new_db.execute('''
@@ -2066,8 +2594,9 @@ def add_or_update_customer():
 
         return jsonify({'status': 'success', 'message': 'Müşteri başarıyla eklendi/güncellendi.'})
     except Exception as e:
-        print("Hata (add_or_update_customer):", str(e))
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        import traceback
+        traceback.print_exc()
+        return jsonify({'status': 'error', 'message': f"Hata oluştu: {str(e)}"}), 500
 
 @app.route('/sale_cust_det', methods=['POST'])
 def sale_cust_det():
@@ -2338,23 +2867,36 @@ def check_sign():
     finally:
         conn.close()
 
+
+
 # Özelleştirilmiş PDF sınıfı
 from fpdf import FPDF
+from fpdf.enums import XPos, YPos
+# XPos ve YPos için sabitler
+class XPos:
+    LMARGIN = 'LMARGIN'
+    RMARGIN = 'RMARGIN'
+    RIGHT = 'RIGHT'
+
+class YPos:
+    NEXT = 'NEXT'
+    TOP = 'TOP'
+    BOTTOM = 'BOTTOM'
 
 class InvoicePDF(FPDF):
     def header(self):
-        self.set_font('Arial', '', 9)
-        self.cell(90, 4, 'Easyshelf Direct Ltd.', ln=1)
-        self.cell(100, 4, '205-207 Leabridge Road', ln=1)
-        self.cell(100, 4, 'E10 7PN', ln=1)
-        self.cell(100, 4, 'Telefon: +44 7834519643', ln=1)
+        self.set_font('Helvetica', '', 9)
+        self.cell(90, 4, 'Easyshelf Direct Ltd.', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        self.cell(100, 4, '205-207 Leabridge Road', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        self.cell(100, 4, 'E10 7PN', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        self.cell(100, 4, 'Telefon: +44 7834519643', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         try:
             self.image('static/images/logoI.png', x=150, y=9, w=50)
         except RuntimeError as e:
             print(f"Logo yüklenemedi: {e}")
 
         self.set_xy(140, 22)
-        self.set_font('Arial', '', 9)
+        self.set_font('Helvetica', '', 9)
         self.cell(60, 5, f'Tarih: {self.invoice_date}', align='R')
         self.ln(5)
         self.set_draw_color(200, 200, 200)
@@ -2365,11 +2907,56 @@ class InvoicePDF(FPDF):
         self.set_y(-20)
         self.set_draw_color(200, 200, 200)
         self.line(10, self.get_y(), 200, self.get_y())
-        self.set_font('Arial', 'I', 8)
+        self.set_font('Helvetica', 'I', 7.5)
         self.set_text_color(100, 100, 100)
-        self.cell(0, 10, 'My Company Ltd. | www.mycompany.com | +90 555 555 55 55', ln=True, align='C')
-        self.cell(0, 10, f'Page {self.page_no()}', align='C')
+        self.cell(0, 3, "Note: Engineers will follow customer/shop keeper/representative's instructions as to how and where to perform installation work. In no event will we be liable for any loss", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C')
+        self.cell(0, 3, "or damage including without limitation, indirect or consequential loss or damage, or any loss or damage whatsoever arising from any installation or delivery. All goods", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C')
+        self.cell(0, 3, "remains the property of Easyshelf Direct Ltd all dues paid in full 50% re-stocking fee will be charged for goods returned", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C')
+        self.cell(0, 3, "rall goods supplied example (refrigeration and catering equipments ) are one year parts  warranty only unless clearly specified", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C')
+        self.cell(0, 3, "VAT Reg .No : 130 7430 50 Company No: 07951727", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C')
+        self.cell(0, 5, f'Page {self.page_no()}', align='C')
 
+@app.route('/update_delivery_address', methods=['POST'])
+def update_delivery_address():
+    try:
+        data = request.json
+        quote_number = data.get('quote_number')
+        name = data.get('name')
+        tel = data.get('tel')
+        address1 = data.get('address1')
+        address2 = data.get('address2')
+        postcode = data.get('postcode')
+
+        # Validate required fields
+        if not all([quote_number, name, tel, address1, postcode]):
+            return jsonify({'status': 'error', 'message': 'Missing required fields'}), 400
+
+        # Update the delivery address in the database
+        db_path = os.path.join(BASE_DIR, "prf_adr_dlvr.db")
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Check if the quote_number exists
+        cursor.execute('SELECT COUNT(*) FROM delivery_info WHERE quotenum = ?', (quote_number,))
+        if cursor.fetchone()[0] == 0:
+            conn.close()
+            return jsonify({'status': 'error', 'message': 'Quote number not found'}), 404
+
+        # Update the delivery fields
+        cursor.execute('''
+            UPDATE delivery_info
+            SET Dname = ?, Dtel = ?, Daddress1 = ?, Daddress2 = ?, Dpostcode = ?
+            WHERE quotenum = ?
+        ''', (name, tel, address1, address2, postcode, quote_number))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'status': 'success', 'message': 'Delivery address updated successfully'})
+
+    except Exception as e:
+        print(f"Error updating delivery address: {e}")
+        return jsonify({'status': 'error', 'message': 'An error occurred while updating the delivery address'}), 500
 
 @app.route('/generate_invoice', methods=['POST'])
 def generate_invoice():
@@ -2377,7 +2964,8 @@ def generate_invoice():
     quote_number = data.get('quote_number')
     date = data.get('date', datetime.now().strftime('%d-%m-%Y'))
     # recipient_email = data.get('easyfatal12@gmail.com')  # Alıcı e-posta adresi
-    recipient_email = 'volkanballi@gmail.com'
+    # recipient_email = 'volkanballi@gmail.com'
+    recipient_email = 'volkanballi@gmail.com' # , 'mehmet@easyshelf.co.uk'
 
     if not quote_number or not recipient_email:
         return jsonify({'status': 'error', 'message': 'Quote number and recipient email are required.'}), 400
@@ -2400,6 +2988,11 @@ def generate_invoice():
         rows = cursor.fetchall()
         conn.close()
 
+        # --- TOPLAM, KDV, GENEL TOPLAM HESAPLAMA ---
+        total_amount = sum(row[3] for row in rows)
+        vat = round(total_amount * 0.20, 2)
+        grand_total = round(total_amount + vat, 2)
+
         # Veritabanından teslimat bilgilerini al
         conn = sqlite3.connect(delivery_db_path)
         cursor = conn.cursor()
@@ -2416,8 +3009,9 @@ def generate_invoice():
 
            # Invoice numarasını oluştur
         user_id = str(session.get('user_id', '00')).zfill(2)  # User ID'yi 2 haneli yap
-        mm_yy = datetime.now().strftime('%m%y')  # Tarihten mmYY formatını al
-        prefix = f"{user_id}{mm_yy}"  # Başlangıç 6 hane
+        user_name = session.get('user', 'Unknown User')  # Kullanıcı adını oturumdan al
+        dd_mm_yy = datetime.now().strftime('%d%m%y')  # Tarihten mmYY formatını al
+        prefix = f"{user_id}{dd_mm_yy}"  # Başlangıç 6 hane/8 hane
 
         # Invoice klasöründeki mevcut dosyaları kontrol et
         folder = 'invoice'
@@ -2436,52 +3030,73 @@ def generate_invoice():
         pdf = InvoicePDF()
         pdf.invoice_date = date  # header'da kullanacağız
         pdf.add_page()
-        pdf.set_font('Arial', '', 9)
-        pdf.cell(0, 4, f"Quotation Num: {quote_number}", ln=True)
-        pdf.cell(0, 4, f"Invoice Num: {invoice_num}", ln=True)  # Yeni invoice numarası
+        pdf.set_font('Helvetica', '', 8)
+        pdf.cell(0, 3, f"Quotation Num: {quote_number}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 3, f"Invoice Num: {invoice_num}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)  # Yeni invoice numarası
+        pdf.cell(0, 3, f"Sale person: {user_name}", new_x=XPos.LMARGIN, new_y=YPos.NEXT) 
+
+        # color_selections.db'den renk seçimlerini al
+        color_conn = sqlite3.connect('color_selections.db')
+        color_cursor = color_conn.cursor()
+        color_cursor.execute('''
+            SELECT Shelf_color, Ticket_color, Ttype, Slatwall, Insert_color, Endcap
+            FROM color_selections
+            WHERE quote_number = ?
+        ''', (quote_number,))
+        color_row = color_cursor.fetchone()
+        color_conn.close()
+
+        # renk seçimlerini yaz
+        if (color_row):
+            color_labels = ['Shelf', 'Ticket', 'Type', 'Slatwall', 'Insert', 'Endcap']
+            for label, value in zip(color_labels, color_row):
+                pdf.set_font('Helvetica', '', 7)
+                pdf.cell(0, 3, f"{label}: {value or 'N/A'}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        else:
+            pdf.cell(0, 4, "Color selections: Not found", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
         # Proforma To ve Deliver To bölümleri
-        pdf.set_font('Arial', 'B', 9)
+        pdf.set_font('Helvetica', 'B', 9)
 
         # "Proforma To" başlığı
         pdf.set_xy(60, 28)  # Sol üst köşe (x=10, y=50)
-        pdf.cell(0, 4, "Proforma To:", ln=0)
+        pdf.cell(0, 4, "Proforma To:", new_x=XPos.RIGHT, new_y=YPos.TOP)
 
         # "Deliver To" başlığı
         pdf.set_xy(125, 28)  # Sağ üst köşe (x=110, y=50)
-        pdf.cell(0, 4, "Deliver To:", ln=0)
+        pdf.cell(0, 4, "Deliver To:", new_x=XPos.RIGHT, new_y=YPos.TOP)
 
-        pdf.set_font('Arial', '', 9)
+        pdf.set_font('Helvetica', '', 8)
 
         # Proforma To bilgileri
         pdf.set_xy(60, 32)
-        pdf.cell(0, 3, delivery_info[0], ln=0)  # Name
+        pdf.cell(0, 3, delivery_info[0], new_x=XPos.RIGHT, new_y=YPos.TOP)  # Name
         pdf.set_xy(60, 36)
-        pdf.cell(0, 3, delivery_info[1], ln=0)  # Tel
+        pdf.cell(0, 3, delivery_info[1], new_x=XPos.RIGHT, new_y=YPos.TOP)  # Tel
         pdf.set_xy(60, 39.5)
-        pdf.cell(0, 3, delivery_info[2], ln=0)  # Address1
+        pdf.cell(0, 3, delivery_info[2], new_x=XPos.RIGHT, new_y=YPos.TOP)  # Address1
         pdf.set_xy(60, 43)
-        pdf.cell(0, 3, delivery_info[3], ln=0)  # Address2
+        pdf.cell(0, 3, delivery_info[3], new_x=XPos.RIGHT, new_y=YPos.TOP)  # Address2
         pdf.set_xy(60, 46.5)
-        pdf.cell(0, 3, delivery_info[4], ln=0)  # Postcode
+        pdf.cell(0, 3, delivery_info[4], new_x=XPos.RIGHT, new_y=YPos.TOP)  # Postcode
 
         # Deliver To bilgileri
         pdf.set_xy(125, 32)
-        pdf.cell(0, 3, delivery_info[5], ln=0)  # Name
+        pdf.cell(0, 3, delivery_info[5], new_x=XPos.RIGHT, new_y=YPos.TOP)  # Name
         pdf.set_xy(125, 36)
-        pdf.cell(0, 3, delivery_info[6], ln=0)  # Tel
+        pdf.cell(0, 3, delivery_info[6], new_x=XPos.RIGHT, new_y=YPos.TOP)  # Tel
         pdf.set_xy(125, 39.5)
-        pdf.cell(0, 3, delivery_info[7], ln=0)  # Address1
+        pdf.cell(0, 3, delivery_info[7], new_x=XPos.RIGHT, new_y=YPos.TOP)  # Address1
         pdf.set_xy(125, 43)
-        pdf.cell(0, 3, delivery_info[8], ln=0)  # Address2
+        pdf.cell(0, 3, delivery_info[8], new_x=XPos.RIGHT, new_y=YPos.TOP)  # Address2
         pdf.set_xy(125, 46.5)
-        pdf.cell(0, 3, delivery_info[9], ln=0)  # Postcode
+        pdf.cell(0, 3, delivery_info[9], new_x=XPos.RIGHT, new_y=YPos.TOP)  # Postcode
 
         
 
         # Tablo başlıkları
         pdf.ln(5)
-        pdf.set_font('Arial', 'B', 10)
+        pdf.set_font('Helvetica', 'B', 10)
         fillH = True
         pdf.set_fill_color(235, 235, 235)
         pdf.cell(120, 5, "ITEM_NAME", align='L', fill=fillH)
@@ -2491,7 +3106,7 @@ def generate_invoice():
         pdf.ln()
 
         # Veriler
-        pdf.set_font('Arial', '', 8)
+        pdf.set_font('Helvetica', '', 8)
         fill = False
         for row in rows:
             pdf.set_fill_color(235, 235, 235)  # Çok açık gri
@@ -2501,6 +3116,18 @@ def generate_invoice():
             pdf.cell(30, 4, f"{row[3]:.2f}", align='R', fill=fill)
             pdf.ln()
             fill = not fill
+
+        # --- TOPLAM, KDV, GENEL TOPLAM SATIRLARI ---
+        pdf.set_font('Helvetica', 'B', 9)
+        pdf.cell(160, 5, "Total:", align='R')
+        pdf.cell(30, 5, f"{total_amount:.2f}", align='R')
+        pdf.ln()
+        pdf.cell(160, 5, "VAT (20%):", align='R')
+        pdf.cell(30, 5, f"{vat:.2f}", align='R')
+        pdf.ln()
+        pdf.cell(160, 5, "G.Total:", align='R')
+        pdf.cell(30, 5, f"{grand_total:.2f}", align='R')
+        pdf.ln()
 
 
         # PDF'yi bellekte oluştur
@@ -2516,17 +3143,17 @@ def generate_invoice():
         msg = MIMEMultipart()
         msg['From'] = sender_email
         msg['To'] = recipient_email
-        msg['Subject'] = f"Invoice {quote_number}"
+        msg['Subject'] = f"Invoice {invoice_num}"
 
         # E-posta gövdesi
-        body = f"Dear Customer,\n\nPlease find attached the invoice for quotation number {quote_number}.\n\nBest regards,\nYour Company"
+        body = f"Dear Customer,\n\nPlease find attached the invoice for quotation number {invoice_num}.\n\nBest regards,\nYour Company"
         msg.attach(MIMEText(body, 'plain'))
 
         # PDF'yi ek olarak ekle
         attachment = MIMEBase('application', 'octet-stream')
         attachment.set_payload(pdf_buffer.read())
         encoders.encode_base64(attachment)
-        attachment.add_header('Content-Disposition', f'attachment; filename=Invoice_{quote_number}.pdf')
+        attachment.add_header('Content-Disposition', f'attachment; filename=Invoice_{invoice_num}.pdf')
         msg.attach(attachment)
 
         # SMTP sunucusuna bağlan ve e-posta gönder
@@ -2654,6 +3281,489 @@ def get_delivery_info():
         return jsonify({'status': 'success', 'delivery_info': delivery_info})
     except Exception as e:
         print("Hata (get_delivery_info):", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/depo_topla', methods=['POST'])
+def depo_topla():
+    try:
+        data = request.get_json()
+        quote_number = data.get('quote_number')
+
+        if not quote_number:
+            return jsonify({'status': 'error', 'message': 'Quote number eksik.'}), 400
+
+        # Veritabanı yolunu oluştur
+        db_path = os.path.join('quotes', f"{quote_number}.db")
+
+        if not os.path.exists(db_path):
+            return jsonify({'status': 'error', 'message': f'{quote_number}.db bulunamadı.'}), 404
+
+        # Veritabanına bağlan
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # SIRA kolonundaki başlangıç numaralarına göre DEPO sütununu topla
+        cursor.execute('''
+        SELECT 
+            CAST(SIRA AS INTEGER) / 100 * 100 AS vercode, 
+            SUM(DEPO)
+        FROM list
+        GROUP BY vercode
+        ORDER BY vercode
+        ''')
+        rows = cursor.fetchall()
+        conn.close()
+
+        # Sonucu formatla ve toplamları aşağı yuvarla
+        result = '-'.join([f"{row[0]}/{int(row[1])}" for row in rows])
+
+        return jsonify({'status': 'success', 'result': result})
+    except Exception as e:
+        print("Hata (depo_topla):", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/kg_topla', methods=['POST'])
+def kg_topla():
+    data = request.get_json()
+    quote_number = data.get('quote_number')
+    db_path = os.path.join(QUOTE_DB_PATH, f"{quote_number}.db")
+    if not os.path.exists(db_path):
+        return jsonify({'status': 'error', 'message': 'DB bulunamadı.'}), 404
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute('SELECT SUM(KG) FROM list')
+        kg_total = cursor.fetchone()[0] or 0
+        conn.close()
+        return jsonify({'status': 'success', 'kg_total': int(kg_total)})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/get_color_options', methods=['GET'])
+def get_color_options():
+    try:
+        conn = sqlite3.connect('color_tbl.db')
+        cursor = conn.cursor()
+
+        # Fetch options for each dropdown, filtering out NULL or empty values
+        cursor.execute('SELECT DISTINCT SHELF FROM color_tbl WHERE SHELF IS NOT NULL AND SHELF != ""')
+        shelf = [row[0] for row in cursor.fetchall()]
+
+        cursor.execute('SELECT DISTINCT TICKET FROM color_tbl WHERE TICKET IS NOT NULL AND TICKET != ""')
+        ticket = [row[0] for row in cursor.fetchall()]
+
+        cursor.execute('SELECT DISTINCT TYPE FROM color_tbl WHERE TYPE IS NOT NULL AND TYPE != ""')
+        ttype = [row[0] for row in cursor.fetchall()]
+
+        cursor.execute('SELECT DISTINCT SLATWALL FROM color_tbl WHERE SLATWALL IS NOT NULL AND SLATWALL != ""')
+        slatwall = [row[0] for row in cursor.fetchall()]
+
+        cursor.execute('SELECT DISTINCT "INSERT" FROM color_tbl WHERE "INSERT" IS NOT NULL AND "INSERT" != ""')
+        insert = [row[0] for row in cursor.fetchall()]
+
+        cursor.execute('SELECT DISTINCT ENDCAP FROM color_tbl WHERE ENDCAP IS NOT NULL AND ENDCAP != ""')
+        endcap = [row[0] for row in cursor.fetchall()]
+
+        conn.close()
+
+        return jsonify({
+            'status': 'success',
+            'shelf': shelf,
+            'ticket': ticket,
+            'type': ttype,
+            'slatwall': slatwall,
+            'insert': insert,
+            'endcap': endcap
+        })
+    except Exception as e:
+        print("Error (get_color_options):", str(e))
+        return jsonify({'status': 'error', 'message': str(e)})
+
+@app.route('/save_color_selections', methods=['POST'])
+def save_color_selections():
+    try:
+        data = request.get_json()
+        quote_number = data.get('quote_number')
+        selections = data.get('selections')
+
+        if not quote_number or not selections:
+            return jsonify({'status': 'error', 'message': 'Eksik parametreler.'}), 400
+
+        # Veritabanına bağlan
+        db_path = os.path.join(BASE_DIR, "color_selections.db")
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Tabloyu oluştur (eğer yoksa)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS color_selections (
+                Quote_number TEXT PRIMARY KEY,
+                Shelf_color TEXT,
+                Ticket_color TEXT,
+                Ttype TEXT,
+                Slatwall TEXT,
+                Insert_color TEXT,
+                Endcap TEXT
+            )
+        ''')
+
+        # Eski kaydı sil
+        cursor.execute('DELETE FROM color_selections WHERE Quote_number = ?', (quote_number,))
+
+        # Yeni kaydı ekle
+        cursor.execute('''
+            INSERT INTO color_selections (Quote_number, Shelf_color, Ticket_color, Ttype, Slatwall, Insert_color, Endcap)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            quote_number,
+            selections.get('shelfColor', ''),
+            selections.get('ticketColor', ''),
+            selections.get('ttype', ''),
+            selections.get('slatwall', ''),
+            selections.get('insert', ''),
+            selections.get('endcap', '')
+        ))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'status': 'success', 'message': 'Renk seçimleri başarıyla kaydedildi.'})
+    except Exception as e:
+        print("Hata (save_color_selections):", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/load_color_selections', methods=['GET'])
+def load_color_selections():
+    try:
+        quote_number = request.args.get('quote_number')
+
+        if not quote_number:
+            return jsonify({'status': 'error', 'message': 'Eksik parametre: quote_number'}), 400
+
+        # Veritabanına bağlan
+        db_path = os.path.join(BASE_DIR, "color_selections.db")
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Seçimleri al
+        cursor.execute('''
+            SELECT Shelf_color, Ticket_color, Ttype, Slatwall, Insert_color, Endcap
+            FROM color_selections
+            WHERE Quote_number = ?
+        ''', (quote_number,))
+        row = cursor.fetchone()
+        conn.close()
+
+        if not row:
+            return jsonify({'status': 'error', 'message': f'Quote_number {quote_number} için renk seçimleri bulunamadı.'}), 404
+
+        # Seçimleri JSON formatında döndür
+        return jsonify({
+            'status': 'success',
+            'selections': {
+                'shelfColor': row[0],
+                'ticketColor': row[1],
+                'ttype': row[2],
+                'slatwall': row[3],
+                'insert': row[4],
+                'endcap': row[5]
+            }
+        })
+    except Exception as e:
+        print(f"Hata (load_color_selections): {str(e)}")  # Hata detaylarını konsola yazdır
+        return jsonify({'status': 'error', 'message': f'Sunucu hatası: {str(e)}'}), 500
+
+@app.route('/add_unite_secnd_part', methods=['POST'])
+def add_unite_secnd_part():
+    try:
+        data = request.get_json()
+        quote_number = data.get('quote_number')
+        selections = data.get('selections', [])
+
+        if not quote_number or not selections:
+            return jsonify({'status': 'error', 'message': 'Eksik parametreler.'}), 400
+
+        db_path = os.path.join(QUOTE_DB_PATH, f"{quote_number}.db")
+        conn = sqlite3.connect(db_path)  # Dosya yoksa oluşturur
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS list (
+                USER_ID INTEGER,
+                ITEM_ID INTEGER,
+                ITEM_NAME TEXT NOT NULL,
+                ADET INTEGER NOT NULL,
+                UNIT_TYPE TEXT DEFAULT 'UNITE_SECOND_PART',
+                SIRA DECIMAL(10, 2),
+                PRICE DECIMAL(10, 2),
+                DSPRICE DECIMAL(10, 2),
+                AMOUNTH DECIMAL(10, 2),
+                DEPO DECIMAL(10, 2),
+                IMPORT DECIMAL(10, 2),
+                KG DECIMAL(10, 2) DEFAULT 0.0 -- Yeni kolon eklendi           
+            )
+        ''')
+
+        user_id = session.get('user_id', 0)
+        prc_conn = sqlite3.connect('prc_tbl.db')
+        prc_cursor = prc_conn.cursor()
+        counter_conn = sqlite3.connect('counter.db')
+        counter_cursor = counter_conn.cursor()
+
+        processed_items = []
+
+        for selection in selections:
+            item_name = selection['item_name']
+            quantity = selection['quantity']
+            column_number = selection['column_number']
+            row_index = selection['row_index']
+
+            if "Counter S." in item_name or "Counter H." in item_name or "Counter High" in item_name or "Counter Standard" in item_name or "Counter HIGH" in item_name or "Counter STANDARD" in item_name:
+                counter_cursor.execute('''
+                    SELECT item_name, qty 
+                    FROM counter_parca
+                    WHERE LOWER(REPLACE(group_name, ' ', '')) = LOWER(REPLACE(?, ' ', ''))
+                ''', (item_name,))
+                counter_rows = counter_cursor.fetchall()
+
+                for counter_item_name, counter_qty in counter_rows:
+                    sira = int(2000 + int(row_index))
+                    prc_cursor.execute('''
+                        SELECT id, local FROM prc_tbl WHERE LOWER(REPLACE(name1, ' ', '')) = LOWER(REPLACE(?, ' ', ''))
+                    ''', (counter_item_name,))
+                    prc_row = prc_cursor.fetchone()
+                    item_id, price = prc_row if prc_row else (None, 0.0)
+
+                    if item_id is None:
+                        item_id = 0
+
+                    cursor.execute('''
+                        INSERT INTO list (USER_ID, ITEM_ID, ITEM_NAME, ADET, UNIT_TYPE, SIRA, PRICE, DSPRICE, AMOUNTH, DEPO, IMPORT)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0)
+                    ''', (user_id, item_id, counter_item_name, counter_qty * quantity, item_name, sira, price))
+
+            elif "Fruit" in item_name:
+                counter_cursor.execute('''
+                    SELECT item_name, qty 
+                    FROM counter_parca
+                    WHERE LOWER(REPLACE(group_name, ' ', '')) = LOWER(REPLACE(?, ' ', ''))
+                ''', (item_name,))
+                counter_rows = counter_cursor.fetchall()
+
+                for counter_item_name, counter_qty in counter_rows:
+                    print(f"Counter Item Name: {counter_item_name} | Item Name: {item_name}")  # <<< BURAYA EKLENDİ
+
+                    sira = int(1500 + int(row_index))
+                    prc_cursor.execute('''
+                        SELECT id, local FROM prc_tbl WHERE LOWER(REPLACE(name1, ' ', '')) = LOWER(REPLACE(?, ' ', ''))
+                    ''', (counter_item_name,))
+                    prc_row = prc_cursor.fetchone()
+                    item_id, price = prc_row if prc_row else (None, 0.0)
+
+                    if item_id is None:
+                        item_id = 0
+
+                    cursor.execute('''
+                        INSERT INTO list (USER_ID, ITEM_ID, ITEM_NAME, ADET, UNIT_TYPE, SIRA, PRICE, DSPRICE, AMOUNTH, DEPO, IMPORT)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0)
+                    ''', (user_id, item_id, counter_item_name, counter_qty * quantity, item_name, sira, price))
+
+            elif "Freezer" in item_name or "freezer" in item_name:
+                counter_cursor.execute('''
+                    SELECT item_name, qty 
+                    FROM counter_parca
+                    WHERE LOWER(REPLACE(group_name, ' ', '')) = LOWER(REPLACE(?, ' ', ''))
+                ''', (item_name,))
+                counter_rows = counter_cursor.fetchall()
+
+                for counter_item_name, counter_qty in counter_rows:
+                    sira = int(2300 + int(row_index))
+                    prc_cursor.execute('''
+                        SELECT id, local FROM prc_tbl WHERE LOWER(REPLACE(name1, ' ', '')) = LOWER(REPLACE(?, ' ', ''))
+                    ''', (counter_item_name,))
+                    prc_row = prc_cursor.fetchone()
+                    item_id, price = prc_row if prc_row else (None, 0.0)
+
+                    if item_id is None:
+                        item_id = 0
+
+                    cursor.execute('''
+                        INSERT INTO list (USER_ID, ITEM_ID, ITEM_NAME, ADET, UNIT_TYPE, SIRA, PRICE, DSPRICE, AMOUNTH, DEPO, IMPORT)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0)
+                    ''', (user_id, item_id, counter_item_name, counter_qty * quantity, item_name, sira, price))
+            else:
+                prc_cursor.execute('''
+                    SELECT id, local FROM prc_tbl WHERE LOWER(REPLACE(name1, ' ', '')) = LOWER(REPLACE(?, ' ', ''))
+                ''', (item_name,))
+                prc_row = prc_cursor.fetchone()
+                item_id, price = prc_row if prc_row else (None, 0.0)
+
+                if item_id is None:
+                    item_id = 0
+
+                if any(x in item_name for x in ["Side", "side", "Drop", "drop", "Slat", "slat"]):
+                    sira = int(3500 + int(row_index))
+                    grpname = item_name
+                else:
+                    sira = int(4000 + int(row_index))
+                    grpname = 'UNITE_SECOND_PART'
+
+                cursor.execute('''
+                    INSERT INTO list (USER_ID, ITEM_ID, ITEM_NAME, ADET, UNIT_TYPE, SIRA, PRICE, DSPRICE, AMOUNTH, DEPO, IMPORT)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0)
+                ''', (user_id, item_id, item_name, quantity, grpname, sira, price))
+
+            processed_items.append({'item_name': item_name})
+
+        # conn.commit()
+        # prc_conn.close()
+        # counter_conn.close()
+        # conn.close()
+
+    #     return jsonify({'status': 'success', 'processed_items': processed_items})
+
+    # except Exception as e:
+    #     return jsonify({'status': 'error', 'message': f'Hata (add_unite_secnd_part): {str(e)}'}), 500
+
+        # ------------------ Worktop Hesaplama ------------------ #
+
+
+        # ------------------ Worktop Hesaplama ------------------ #
+
+        def extract_numeric_value(text):
+            numbers = re.findall(r'\d+', text)
+            return int(numbers[-1]) if numbers else 0
+
+        def extract_prefix(text):
+            valid_prefixes = ["Counter STANDARD", "Counter S. LOW", "Counter HIGH", "Counter High", "Counter Standard", "Counter H. LOW"]
+            for prefix in valid_prefixes:
+                if text.startswith(prefix):
+                    return prefix
+            return None
+
+        def calculate_worktops(items):
+            worktops = []
+            i = 0
+
+            while i < len(items):
+                item = items[i]
+                name = item['item_name']
+                prefix = extract_prefix(name)
+
+                # Worktop Standard grubu
+
+                if prefix in ["Counter STANDARD", "Counter HIGH", "Counter High","Counter Standard"]:
+                    ws = 0
+                    group_prefix = prefix  # İlk prefix'i sakla
+
+                    while i < len(items):
+                        current_prefix = extract_prefix(items[i]['item_name'])
+                        if current_prefix not in ["Counter STANDARD", "Counter HIGH", "Counter High","Counter Standard"]:
+                            break
+                        val = extract_numeric_value(items[i]['item_name'])
+                        ws += val * 10
+                        i += 1
+
+                    ws += 30
+
+                    # "Counter High" için özel adlandırma
+                    if group_prefix == "Counter High":
+                        worktops.append(("Worktop High", ws))
+                    else:
+                        worktops.append(("Worktop Standard", ws))
+                    continue
+
+                # Worktop Low grubu
+                elif prefix in ["Counter S. LOW", "Counter H. LOW"]:
+                    wl = 0
+                    start_index = i
+                    group_prefix = prefix 
+                    
+                    while i < len(items):
+                        current_prefix = extract_prefix(items[i]['item_name'])
+                        if current_prefix not in ["Counter S. LOW", "Counter H. LOW"]:
+                            break
+                        val = extract_numeric_value(items[i]['item_name'])
+                        if val == 66:
+                            wl += val * 10 + 5
+                        else:
+                            wl += val * 10
+                        i += 1
+
+                    # Önceki kontrol
+                    before = extract_prefix(items[start_index - 1]['item_name']) if start_index > 0 else None
+                    if before in ["Counter STANDARD", "Counter HIGH", "Counter High", "Counter Standard"]:
+                        wl -= 35
+                    else:
+                        wl += 15
+
+                    # Sonraki kontrol
+                    after = extract_prefix(items[i]['item_name']) if i < len(items) else None
+                    if after in ["Counter STANDARD", "Counter HIGH", "Counter High", "Counter Standard"]:
+                        wl -= 35
+                    else:
+                        wl += 15
+
+                    if group_prefix == "Counter H. LOW":
+                        worktops.append(("Worktop H.Low", wl))
+                    else:
+                        worktops.append(("Worktop S.Low", wl))
+                    continue
+                else:
+                    i += 1
+
+            return worktops
+
+        worktops = calculate_worktops(processed_items)
+        for name, value in worktops:
+            cursor.execute('''
+                INSERT INTO list (USER_ID, ITEM_ID, ITEM_NAME, ADET, UNIT_TYPE, SIRA, PRICE, DSPRICE, AMOUNTH, DEPO, IMPORT)
+                VALUES (?, 99999, ?, 1, 'WORKTOP', 2500, ?, 0, 0, 0, ?)
+            ''', (user_id, f'{name} {value}', value*0.17, value*0.04))
+
+        conn.commit()
+        conn.close()
+        prc_conn.close()
+        counter_conn.close()
+
+        return jsonify({'status': 'success', 'message': 'Veriler başarıyla kaydedildi.'})
+    except Exception as e:
+        print("Hata (add_unite_secnd_part):", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    
+@app.route('/apply_adet', methods=['POST'])
+def apply_adet():
+    try:
+        data = request.get_json()
+        quote_number = data.get('quote_number')
+        adet_updates = data.get('adet_updates', [])
+
+        if not quote_number or not adet_updates:
+            return jsonify({'status': 'error', 'message': 'Eksik veri'}), 400
+
+        db_path = os.path.join(QUOTE_DB_PATH, f"{quote_number}.db")
+        if not os.path.exists(db_path):
+            return jsonify({'status': 'error', 'message': 'Veritabanı bulunamadı'}), 404
+
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        for item in adet_updates:
+            adet = item.get('adet')
+            db_indexes = item.get('db_indexes', [])
+
+            if adet is None or not db_indexes:
+                continue
+
+            for row_index in db_indexes:
+                cursor.execute("UPDATE List SET ADET = ? WHERE rowid = ?", (adet, row_index))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'status': 'success', 'message': 'Adetler güncellendi'})
+    except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 if __name__ == '__main__':
