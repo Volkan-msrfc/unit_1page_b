@@ -1376,35 +1376,28 @@ def apply_discount():
 @app.route('/prep_up_qt', methods=['POST'])
 def call_prep_up_qt():
     try:
-        # Frontend'den gelen JSON verisini al
         data = request.get_json()
         quote_number = data.get('quote_number')
         dsc = data.get('dsc', 0)
         del_pr = data.get('del_pr', 0)
+        customer_id = data.get('customer_id')      # <-- eklendi
+        customer_name = data.get('customer_name')  # <-- eklendi
         if not quote_number:
             return jsonify({'status': 'error', 'message': 'Eksik parametre: quote_number'}), 400
 
-        # prep_up_qt fonksiyonunu çağır
-        # print(f"dsc değeri1: {dsc}")  # dsc değerini konsola yazdır
-        prep_up_qt(quote_number,dsc,del_pr)
+        prep_up_qt(quote_number, dsc, del_pr, customer_id, customer_name)  # <-- müşteri bilgilerini ilet
 
         return jsonify({'status': 'success', 'message': f'{quote_number} için prep_up_qt çağrıldı.'})
     except Exception as e:
         print(f"prep_up_qt endpoint hatası: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-def prep_up_qt(clean_string,dsc,del_pr):
+def prep_up_qt(clean_string, dsc, del_pr, customer_id, customer_name):
     try:
-        # Kullanıcı ve müşteri bilgilerini oturumdan al
-        user_id = session.get('user_id', 0)  # Eğer oturumda user_id yoksa varsayılan olarak 0 kullanılır
-        user_name = session.get('user', 'Unknown User')  # Kullanıcı adını oturumdan al
-        customer_id = session.get('customer_id', 0)  # Eğer oturumda customer_id yoksa varsayılan olarak 0 kullanılır
-        customer_name = session.get('customer_name', 'Unknown Customer')  # Müşteri adını oturumdan al
-        # Proforma sayfasındaki dsc değerini al
-
-        # `update_quotes_db` fonksiyonunu çağır
+        user_id = session.get('user_id', 0)
+        user_name = session.get('user', 'Unknown User')
+        # Artık müşteri bilgisi parametreden geliyor!
         update_quotes_db(clean_string, user_id, user_name, customer_id, customer_name, dsc, del_pr)
-
         print(f"prep_up_qt: {clean_string} için update_quotes_db çağrıldı.")
     except Exception as e:
         print(f"prep_up_qt sırasında hata oluştu: {str(e)}")
@@ -1424,7 +1417,7 @@ def update_quotes_db(clean_string, user_id, user_name, customer_id, customer_nam
                 Quote_number TEXT NOT NULL,  -- 00000001 gibi numaraları tutar
                 User_id INTEGER NOT NULL,    -- Kullanıcı ID'si
                 User_name TEXT NOT NULL,     -- Kullanıcı adı
-                Customer_id INTEGER,         -- Müşteri ID'si
+                Customer_id TEXT,         -- Müşteri ID'si
                 Customer_name TEXT,          -- Müşteri adı
                 Discount DECIMAL(10, 2),     -- İndirim oranı
                 Amount DECIMAL(10, 2) NOT NULL, -- Toplam tutar
@@ -1812,7 +1805,9 @@ def get_customer_by_quote():
             return jsonify({'status': 'error', 'message': f'Quote_number {quote_number} ile ilişkili müşteri bulunamadı.'}), 404
 
         # Customer ID'yi 7 karakter uzunluğunda sıfırlarla doldur
-        customer_id = str(customer_id_row[0]).zfill(7)
+        # customer_id = str(customer_id_row[0]).zfill(7)
+        # print(repr(customer_id_row[0]))
+        customer_id = customer_id_row[0]
 
         # customers.db veritabanına bağlan
         customers_db_path = os.path.join(BASE_DIR, "customers.db")
