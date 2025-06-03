@@ -299,6 +299,7 @@
         <div class="spinner"></div>
         Sayfa yükleniyor...
     </div>
+    
 
  <!-- Çıkış Butonu -->
  <a href="/logout" class="logout">Çıkış Yap</a>
@@ -1792,7 +1793,7 @@ async function mainFunction() {
         await loadProformaDeliveryInfo(nextNumber);
         await DpTpl(nextNumber);
         await KgTpl(nextNumber);
-        await callPrepUpQt(nextNumber,dsc);
+        await callPrepUpQt(nextNumber, dsc, selectedCustomerID, selectedCustomerName);
         await saveUniteSelection(nextNumber);
         await saveAddItemSelection(nextNumber);
         await saveRefSelection(nextNumber); // Yeni fonksiyon çağrısı
@@ -2030,7 +2031,7 @@ function selectCustomer(customer) {
     selectedCustomerID = customer[0];
     selectedCustomerName = customer[1];
     selectedCustomer1ID = null;
-    alert("Customer ID: " + customer[0]); // <-- Burada alert eklendi
+    //alert("Customer ID: " + customer[0]); // <-- Burada alert eklendi
     document.getElementById("selectedCustomer").innerHTML = `
         <div>
             <strong>Proforma To</strong><br>
@@ -2773,9 +2774,8 @@ async function fetchCustomerDataByQuote(quoteNumber) {
 }
 
 
-async function callPrepUpQt(quoteNumber, dsc) {
+async function callPrepUpQt(quoteNumber, dsc, customerId, customerName) {
     try {
-        // Delivery Price inputunu al
         const deliveryPriceInput = document.getElementById('deliveryPriceInput');
         const deliveryPrice = parseInt(deliveryPriceInput?.value) || 0;
 
@@ -2787,7 +2787,9 @@ async function callPrepUpQt(quoteNumber, dsc) {
             body: JSON.stringify({ 
                 quote_number: quoteNumber, 
                 dsc: dsc,
-                del_pr: deliveryPrice // <-- burada düzeltildi
+                del_pr: deliveryPrice,
+                customer_id: customerId,         // <-- müşteri id
+                customer_name: customerName      // <-- müşteri adı
             }),
         });
 
@@ -3799,6 +3801,7 @@ async function decreaseStock() {
             </tbody>
         </table>
     </div>
+    
 </div>
 
 <script>
