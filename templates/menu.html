@@ -291,6 +291,48 @@
             user-select: none;
         }
 
+        /* Proforma tabı responsive düzeltme */
+        /* #tab_proforma .tab-content > div[style*="display: flex; justify-content: space-between; align-items: center;"] {
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        #tab_proforma button,
+        #tab_proforma select,
+        #tab_proforma input[type="number"] {
+            min-width: 90px;
+            margin-bottom: 6px;
+            box-sizing: border-box;
+        }
+        @media (max-width: 900px) {
+            #tab_proforma .tab-content > div[style*="display: flex; justify-content: space-between; align-items: center;"] {
+                flex-direction: column !important;
+                align-items: stretch !important;
+            }
+            #tab_proforma button,
+            #tab_proforma select,
+            #tab_proforma input[type="number"] {
+                width: 100% !important;
+                min-width: 0 !important;
+            }
+        }
+        #tab_proforma table {
+            display: block;
+            width: 100%;
+            overflow-x: auto;
+        } */
+
+        /* Sayfanın minimum genişliğini belirle ve yatay kaydırmayı aktif et */
+        body, html, .content {
+            min-width: 1500px;
+            overflow-x: auto;
+        }
+
+        /* Proforma tabı için de uygula */
+        #tab_proforma {
+            min-width: 1500px;
+            overflow-x: auto;
+        }
+
     </style>
 </head>
 <body>
