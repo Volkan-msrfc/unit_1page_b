@@ -342,6 +342,14 @@ def update_width():
             UPDATE veg_parca
             SET WIDTH = 0, HEIGHT = 0, DEPTH = 0, ADET = 0, ITEM_NAME = NULL, UNIT_TYPE = NULL, SIRA = 0
         ''')
+        cursor.execute('''
+            UPDATE inter_parca
+            SET HEIGHT = 0, DEPTH = 0, ADET = 0, ITEM_NAME = NULL, UNIT_TYPE = NULL, SIRA = 0
+        ''')
+        cursor.execute('''
+            UPDATE exter_parca
+            SET HEIGHT = 0, DEPTH = 0, ADET = 0, ITEM_NAME = NULL, UNIT_TYPE = NULL, SIRA = 0
+        ''')
 
         # Değişiklikleri geçici olarak kaydet
         conn.commit()
@@ -1092,6 +1100,296 @@ def update_width():
                 WHERE UNIT_ITEMS = 'Baseleg '
             ''', (base_shelf, legadt1, unit_type, row_index))
 
+        elif unit_type == "Internal Corner":
+
+            # 2. İlk "Metallic Shelf" için Width, Depth ve Adet güncellemeleri
+
+            if base_shelf == 0:
+                birshelf = 0  # birshelf değerini sıfırla
+            else:
+                birshelf = unit_piece
+
+            cursor.execute('''
+            UPDATE inter_parca
+            SET  DEPTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+             WHERE rowid = 1
+            ''', (base_shelf, birshelf, unit_type, row_index))
+
+            # 4. İkinci "Metallic Shelf" için Width, Depth (Shelf Size) ve Adet güncellemeleri
+
+            if shelf_size == 0 or qty == 0:
+                ikishelf = 0  # birshelf değerini sıfırla
+            else:
+                ikishelf = qty * unit_piece
+            cursor.execute('''
+            UPDATE inter_parca
+            SET DEPTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 2
+            ''', (shelf_size, ikishelf, unit_type, row_index))
+
+             # 4. satırdaki Metallic Shelf için width, shelf_size_option9 ve qty_option8 * unit_piece
+            if shelf_size_option9 == 0 or qty_option8 == 0:
+                ucshelf = qty_option8 * unit_piece
+            else:
+                ucshelf = 0
+
+            cursor.execute('''
+            UPDATE inter_parca
+            SET DEPTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 3
+            ''', (shelf_size_option9, ucshelf, unit_type, row_index))
+
+
+            # 5. satırdaki Metallic Shelf için width, shelf_size_option11 ve qty_option10 * unit_piece
+            if shelf_size_option11 == 0 or qty_option10 == 0:
+                dortshelf = 0
+            else:
+                dortshelf = qty_option10 * unit_piece
+            cursor.execute('''
+            UPDATE inter_parca
+            SET DEPTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 4
+            ''', (shelf_size_option11, dortshelf, unit_type, row_index))
+
+
+            # Bracket satırları için depth ayarları
+            cursor.execute('''
+            UPDATE inter_parca
+            SET DEPTH = (SELECT DEPTH FROM inter_parca WHERE rowid = 2), ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 5
+            ''', ( qty * 2 * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE inter_parca
+            SET DEPTH = (SELECT DEPTH FROM inter_parca WHERE rowid = 3), ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 6
+            ''', (qty_option8 * 2 * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE inter_parca
+            SET DEPTH = (SELECT DEPTH FROM inter_parca WHERE rowid = 4), ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 7
+            ''', (qty_option10 * 2 * unit_piece, unit_type, row_index))
+
+            # 5. "Price Holder" için Width ve Adet güncellemeleri
+            if base_shelf == 0:
+                birprc = 0  # birshelf değerini sıfırla
+            else:
+                birprc=1
+            cursor.execute('''
+            UPDATE inter_parca
+            SET adet = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE UNIT_ITEMS = 'Int. Corner Price Holder '
+            ''', ((unit_piece * (qty + qty_option8 + qty_option10 + birprc)), unit_type, row_index))
+
+            # 1. "Upright Post 30*60*" için height ve adet güncelleme
+            cursor.execute('''
+            UPDATE inter_parca
+            SET height = ?, adet = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE UNIT_ITEMS = 'Upright Post 30*60*'
+            ''', (height, unit_piece*2, unit_type, row_index))
+
+            # 3. "Baseleg" için Depth ve Adet güncelleme
+
+            if base_shelf == 0:
+                legadt = 0  # birshelf değerini sıfırla
+            else:
+                legadt=unit_piece
+            cursor.execute('''
+            UPDATE inter_parca
+            SET depth = ?, adet = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE UNIT_ITEMS = 'Baseleg '
+            ''', (base_shelf, legadt*2, unit_type, row_index)) 
+
+            # 12. satırdaki Pilinth için width güncellemesi
+
+
+
+            # 13-20 satırları için Back Panel ve Perforated Back Panel güncellemeleri
+            cursor.execute('''
+            UPDATE inter_parca
+            SET HEIGHT = 40, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 12
+            ''', (plane40  * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE inter_parca
+            SET  HEIGHT = 40, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 13
+            ''', (perf40  * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE inter_parca
+            SET HEIGHT = 30, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 14
+            ''', (plane30 * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE inter_parca
+            SET HEIGHT = 30, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 15
+            ''', (perf30 * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE inter_parca
+            SET HEIGHT = 20, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 16
+            ''', (plane20 * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE inter_parca
+            SET HEIGHT = 20, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 17
+            ''', (perf20 * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE inter_parca
+            SET HEIGHT = 10, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 18
+            ''', (plane10 * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE inter_parca
+            SET HEIGHT = 10, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 19
+            ''', (perf10 * unit_piece, unit_type, row_index))
+
+        elif unit_type == "External Corner":
+
+            # 2. İlk "Metallic Shelf" için Width, Depth ve Adet güncellemeleri
+
+            if base_shelf == 0:
+                birshelf = 0  # birshelf değerini sıfırla
+            else:
+                birshelf = unit_piece
+
+            cursor.execute('''
+            UPDATE exter_parca
+            SET  DEPTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+             WHERE rowid = 1
+            ''', (base_shelf, birshelf, unit_type, row_index))
+
+            # 4. İkinci "Metallic Shelf" için Width, Depth (Shelf Size) ve Adet güncellemeleri
+
+            if shelf_size == 0 or qty == 0:
+                ikishelf = 0  # birshelf değerini sıfırla
+            else:
+                ikishelf = qty * unit_piece
+            cursor.execute('''
+            UPDATE exter_parca
+            SET DEPTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 2
+            ''', (shelf_size, ikishelf, unit_type, row_index))
+
+             # 4. satırdaki Metallic Shelf için width, shelf_size_option9 ve qty_option8 * unit_piece
+            if shelf_size_option9 == 0 or qty_option8 == 0:
+                ucshelf = qty_option8 * unit_piece
+            else:
+                ucshelf = 0
+
+            cursor.execute('''
+            UPDATE exter_parca
+            SET DEPTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 3
+            ''', (shelf_size_option9, ucshelf, unit_type, row_index))
+
+
+            # 5. satırdaki Metallic Shelf için width, shelf_size_option11 ve qty_option10 * unit_piece
+            if shelf_size_option11 == 0 or qty_option10 == 0:
+                dortshelf = 0
+            else:
+                dortshelf = qty_option10 * unit_piece
+            cursor.execute('''
+            UPDATE exter_parca
+            SET DEPTH = ?, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 4
+            ''', (shelf_size_option11, dortshelf, unit_type, row_index))
+
+
+            # Bracket satırları için depth ayarları
+            cursor.execute('''
+            UPDATE exter_parca
+            SET DEPTH = (SELECT DEPTH FROM exter_parca WHERE rowid = 2), ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 5
+            ''', ( qty * 2 * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE exter_parca
+            SET DEPTH = (SELECT DEPTH FROM exter_parca WHERE rowid = 3), ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 6
+            ''', (qty_option8 * 2 * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE exter_parca
+            SET DEPTH = (SELECT DEPTH FROM exter_parca WHERE rowid = 4), ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 7
+            ''', (qty_option10 * 2 * unit_piece, unit_type, row_index))
+
+            # 5. "Price Holder" için Width ve Adet güncellemeleri
+            if base_shelf == 0:
+                birprc = 0  # birshelf değerini sıfırla
+            else:
+                birprc=1
+            cursor.execute('''
+            UPDATE exter_parca
+            SET adet = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE UNIT_ITEMS = 'Ext. Corner Price Holder '
+            ''', ((unit_piece * (qty + qty_option8 + qty_option10 + birprc)), unit_type, row_index))
+
+            # 1. "Upright Post 30*60*" için height ve adet güncelleme
+            cursor.execute('''
+            UPDATE exter_parca
+            SET height = ?, adet = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE UNIT_ITEMS = 'Upright Post 30*60*'
+            ''', (height, unit_piece, unit_type, row_index))
+
+            # 3. "Baseleg" için Depth ve Adet güncelleme
+
+            if base_shelf == 0:
+                legadt = 0  # birshelf değerini sıfırla
+            else:
+                legadt=unit_piece
+            cursor.execute('''
+            UPDATE exter_parca
+            SET depth = ?, adet = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE UNIT_ITEMS = 'Baseleg '
+            ''', (base_shelf, legadt, unit_type, row_index)) 
+
+            # 12. satırdaki Pilinth için width güncellemesi
+
+
+
+            # 13-20 satırları için Back Panel ve Perforated Back Panel güncellemeleri
+            cursor.execute('''
+            UPDATE exter_parca
+            SET HEIGHT = 40, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 12
+            ''', (plane40  * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE exter_parca
+            SET  HEIGHT = 40, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 13
+            ''', (perf40  * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE exter_parca
+            SET HEIGHT = 30, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 14
+            ''', (plane30 * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE exter_parca
+            SET HEIGHT = 30, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 15
+            ''', (perf30 * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE exter_parca
+            SET HEIGHT = 20, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 16
+            ''', (plane20 * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE exter_parca
+            SET HEIGHT = 20, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 17
+            ''', (perf20 * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE exter_parca
+            SET HEIGHT = 10, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 18
+            ''', (plane10 * unit_piece, unit_type, row_index))
+            cursor.execute('''
+            UPDATE exter_parca
+            SET HEIGHT = 10, ADET = ?, UNIT_TYPE = ?, SIRA = ?
+            WHERE rowid = 19
+            ''', (perf10 * unit_piece, unit_type, row_index))
+
         else:
             # Farklı bir değer geldiğinde hata döndür
             conn.close()
@@ -1133,6 +1431,70 @@ def update_width():
 
         cursor.execute('''
             UPDATE veg_parca
+            SET ITEM_NAME = 
+                CASE
+                    WHEN UNIT_ITEMS IS NOT NULL THEN UNIT_ITEMS || ''
+                    ELSE ''
+                END ||
+                CASE
+                    WHEN WIDTH > 0 THEN '' || CAST(WIDTH AS TEXT) || ''
+                    ELSE ''
+                END ||
+                CASE
+                    WHEN SIGN1 IS NOT NULL THEN '' || SIGN1 || ''
+                    ELSE ''
+                END ||       
+                CASE
+                    WHEN HEIGHT > 0 THEN '' || CAST(HEIGHT AS TEXT) || ''
+                    ELSE ''
+                END ||
+                CASE
+                    WHEN SIGN2 IS NOT NULL THEN '' || SIGN2 || ''
+                    ELSE ''
+                END ||
+                CASE
+                    WHEN DEPTH > 0 THEN '' || CAST(DEPTH AS TEXT) || ''
+                    ELSE ''
+                END ||
+                CASE
+                    WHEN EK IS NOT NULL THEN '' || EK || ''
+                    ELSE ''
+                END
+        ''')
+        cursor.execute('''
+            UPDATE inter_parca
+            SET ITEM_NAME = 
+                CASE
+                    WHEN UNIT_ITEMS IS NOT NULL THEN UNIT_ITEMS || ''
+                    ELSE ''
+                END ||
+                CASE
+                    WHEN WIDTH > 0 THEN '' || CAST(WIDTH AS TEXT) || ''
+                    ELSE ''
+                END ||
+                CASE
+                    WHEN SIGN1 IS NOT NULL THEN '' || SIGN1 || ''
+                    ELSE ''
+                END ||       
+                CASE
+                    WHEN HEIGHT > 0 THEN '' || CAST(HEIGHT AS TEXT) || ''
+                    ELSE ''
+                END ||
+                CASE
+                    WHEN SIGN2 IS NOT NULL THEN '' || SIGN2 || ''
+                    ELSE ''
+                END ||
+                CASE
+                    WHEN DEPTH > 0 THEN '' || CAST(DEPTH AS TEXT) || ''
+                    ELSE ''
+                END ||
+                CASE
+                    WHEN EK IS NOT NULL THEN '' || EK || ''
+                    ELSE ''
+                END
+        ''')
+        cursor.execute('''
+            UPDATE exter_parca
             SET ITEM_NAME = 
                 CASE
                     WHEN UNIT_ITEMS IS NOT NULL THEN UNIT_ITEMS || ''
@@ -1256,6 +1618,14 @@ def create_quote_list(clean_string):
             SELECT ITEM_NAME, ADET, UNIT_TYPE, SIRA
             FROM veg_parca
             WHERE ADET > 0
+            UNION ALL
+            SELECT ITEM_NAME, ADET, UNIT_TYPE, SIRA
+            FROM inter_parca
+            WHERE ADET > 0
+            UNION ALL
+            SELECT ITEM_NAME, ADET, UNIT_TYPE, SIRA
+            FROM exter_parca
+            WHERE ADET > 0
         ''')
         rows = cursor.fetchall()
 
@@ -1265,7 +1635,7 @@ def create_quote_list(clean_string):
         # prc_tbl veritabanına bağlan
         conn_prc = sqlite3.connect('prc_tbl.db')
         cursor_prc = conn_prc.cursor()
-
+        
         # USER_ID'yi ekleyerek verileri düzenle
         rows_with_user_id = []
         for row in rows:
@@ -1282,10 +1652,11 @@ def create_quote_list(clean_string):
             if prc_row:
                 item_id, local_price, import_price, kg = prc_row
             else:
-                item_id, local_price, import_price = 0, 0.0, 0.0, 0.0  # Eşleşme yoksa varsayılan değerler
+                item_id, local_price, import_price, kg = 0, 0.0, 0.0, 0.0  # Eşleşme yoksa varsayılan değerler
 
             # local_price = round(local_price, 2)  # Ensure 2 decimal places
             local_price = float(f"{local_price:.2f}")
+            print(f"Eklenmeye çalışılan veri: {item_name}, adet={adet}, sira={sira}, eşleşen_id={item_id}")
             rows_with_user_id.append((user_id, item_id, item_name, adet, unit_type, sira, local_price, 0.00, 0.00, 0.00, import_price, kg))
 
         # list tablosuna ekle
