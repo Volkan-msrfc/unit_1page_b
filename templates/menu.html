@@ -297,7 +297,7 @@
 
     <div id="loadingOverlay">
         <div class="spinner"></div>
-        Sayfa yükleniyor...
+        Loading...
     </div>
     
 
@@ -839,13 +839,19 @@
             
                 <!-- Diğer butonlar -->
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div style="display: flex; gap: 20px; align-items: center;">
-                        <button id="updateWidthBtn">Make Proforma</button>
-                        <button id="openProformaBtn" onclick="openProformaModal()">Open Proforma</button>
-                        <label for="discountInput">Discount:</label>
-                        <input type="number" id="discountInput" value="0" style="width: 60px;" min="0" max="100" step="1">
-                        <label for="deliveryPriceInput">Delivery Price:</label>
-                        <input type="number" id="deliveryPriceInput" value="0" style="width: 80px;" min="0" step="1">
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+
+                        <div style="display: flex; gap: 20px; align-items: center;">
+                            <button id="updateWidthBtn" style="border-radius:none; padding: 0px 5px; font-size: 13px; cursor: pointer; width: 105px; height: 22px;">Make Proforma</button>
+                            <button id="openProformaBtn" style="border-radius:none; padding: 0px 5px; font-size: 13px; cursor: pointer; width: 105px; height: 22px;" onclick="openProformaModal()">Open Proforma</button>
+                            <label for="discountInput">Discount:</label>
+                            <input type="number" id="discountInput" value="0" style="width: 60px;" min="0" max="100" step="1">
+                            <label for="deliveryPriceInput">Delivery Price:</label>
+                            <input type="number" id="deliveryPriceInput" value="0" style="width: 80px;" min="0" step="1">
+                        </div>
+                        <div>
+                            <button id="newProformaBtn" style="align-items: right;border-radius:none; padding: 0px 5px; font-size: 13px; cursor: pointer; width: 105px; height: 22px;">New Proforma</button>
+                        </div>
                     </div>
 
                     <div style="display: flex; gap: 20px; flex-wrap: wrap;">
@@ -1261,7 +1267,9 @@
         <div class="tab" onclick="openTab('tab_add_item')">Add Item</div>
         
         <div class="tab" onclick="openTab('tab_reports')">Report</div>
+        {% if session['authority'] == 'admin' %}
         <div class="tab" onclick="openTab('tab_goruntule')">Goruntule</div>
+        {% endif %}
     </div>
 
 
@@ -1314,7 +1322,12 @@ function setCustomerInfo(customer) {
         document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.trigger-select').forEach((select, index) => {
                 select.addEventListener('change', function() {
-                   // toggleRowNumber(index);
+                    // 2. combobox değiştiğinde, 3. combobox doluysa hesaplama fonksiyonunu çağır
+                    const baseSelect = document.querySelectorAll('.base-select')[index];
+                    if (baseSelect && baseSelect.value) {
+                        updateValueDisplay(index);
+                    }
+                    // toggleRowNumber(index); // (varsa eski kodunuz)
                 });
             });
     
@@ -1358,7 +1371,7 @@ function setCustomerInfo(customer) {
         let multiplier = 1;
 
     // 2. combobox değeri 'Single Gondola' veya 'Double Gondola' ise multiplier 2 katına çıkar
-        if (secondComboboxValue === "Single Gondola" || secondComboboxValue === "Double Gondola") {
+        if (secondComboboxValue === "Single Gondola" || secondComboboxValue === "Double Gondola" || secondComboboxValue === "Internal Corner") {
             if (!isNaN(selectedValueBase) && selectedValueBase > 10) {
                 const adjustedValueBase = selectedValueBase - 10; 
                 const pnl40=adjustedValueBase / 40
@@ -1890,6 +1903,7 @@ async function quotenumkont() {
 document.addEventListener('DOMContentLoaded', function () {
     // Hedef değerler
     const targetValues = ["End / Wall Unit", "End / Single Gondola", "End / Double Gondola", "End / Vegetable Unit"];
+    const cornerValues = ["Internal Corner", "External Corner"];
 
     // Tüm trigger-select sınıfındaki select elementlerini dinle
     const triggerSelects = document.querySelectorAll('.trigger-select');
@@ -1898,9 +1912,10 @@ document.addEventListener('DOMContentLoaded', function () {
         select.addEventListener('change', function () {
             const row = select.closest('tr'); // Satırı bul
             const selectedValue = select.value; // Seçili değeri al
-            
-            // Eğer seçili değer hedef değerlerden biriyse
-            if (targetValues.includes(selectedValue)) {
+
+            if (cornerValues.includes(selectedValue)) {
+                lockOnlyThirdCombobox(row);
+            } else if (targetValues.includes(selectedValue)) {
                 lockComboboxes(row);
             } else {
                 unlockComboboxes(row);
@@ -1908,11 +1923,25 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    // Sadece 3. combobox'ı kilitle
+    function lockOnlyThirdCombobox(row) {
+        row.querySelectorAll('select').forEach((combobox, index) => {
+            // 3, 13, 16, 19. comboboxları (index 2,12,15,18) kilitle
+            if ([3, 12, 15, 18].includes(index)) {
+                combobox.disabled = true;
+            } else {
+                combobox.disabled = false;
+            }
+        });
+    }
+
     // Combobox'ları kilitle
     function lockComboboxes(row) {
         row.querySelectorAll('select').forEach((combobox, index) => {
             if (![0, 1, 2, 4].includes(index) && index <= 18) { // 0, 1, 2, 4 hariç 18. combobox'a kadar kilitle
                 combobox.disabled = true;
+            } else {
+                combobox.disabled = false;
             }
         });
     }
@@ -1920,9 +1949,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Combobox'ları aç
     function unlockComboboxes(row) {
         row.querySelectorAll('select').forEach((combobox, index) => {
-            if (![0, 1, 2, 4].includes(index) && index <= 18) { // 0, 1, 2, 4 hariç 18. combobox'a kadar aç
-                combobox.disabled = false;
-            }
+            combobox.disabled = false;
         });
     }
 });
@@ -2327,6 +2354,7 @@ function closeProformaModal() {
 }
 
 async function loadQuoteList(dbName) {
+selectedQuoteNumber = dbName; // Seçilen quote numarasını güncelle
 let inputsLocked = true;
     try {
         const viewMode = document.getElementById('viewMode').value;
@@ -2344,7 +2372,6 @@ let inputsLocked = true;
 
         const tableHeader = document.getElementById('tableHeader');
         tableHeader.textContent = `Quote list: ${db_name}`;
-
         const tableBody = document.getElementById('quoteListTable').querySelector('tbody');
         tableBody.innerHTML = '';
 
@@ -2644,6 +2671,7 @@ let inputsLocked = true;
 
     DpTpl(dbName);
     KgTpl(dbName);
+    
 }
 
 
@@ -2693,13 +2721,11 @@ async function loadUniteSelection(quoteNumber) {
 
             rows.forEach((row, index) => {
                 const selects = Array.from(row.querySelectorAll('select'));
-                const inputs = Array.from(row.querySelectorAll('input')); // Text box'ları da dahil et
+                const inputs = Array.from(row.querySelectorAll('input'));
                 const selection = selections[index] || [];
                 [...selects, ...inputs].forEach((input, i) => {
-                    input.value = selection[i] || ''; // Seçimleri geri yükle
+                    input.value = selection[i] || '';
                 });
-
-                // Seçimler yüklendikten sonra hesaplama fonksiyonunu çağır
                 updateValueDisplay(index);
             });
 
@@ -2713,32 +2739,48 @@ async function loadUniteSelection(quoteNumber) {
 
     // Kilit sistemini tetikleme
     const targetValues = ["End / Wall Unit", "End / Single Gondola", "End / Double Gondola", "End / Vegetable Unit"];
+    const cornerValues = ["Internal Corner", "External Corner"];
     const triggerSelects = document.querySelectorAll('.trigger-select');
 
     triggerSelects.forEach(select => {
-        const row = select.closest('tr'); // Satırı bul
-        const selectedValue = select.value; // Seçili değeri al
+        const row = select.closest('tr');
+        const selectedValue = select.value;
 
-        if (targetValues.includes(selectedValue)) {
+        if (cornerValues.includes(selectedValue)) {
+            lockOnlyThirdCombobox(row);
+        } else if (targetValues.includes(selectedValue)) {
             lockComboboxes(row);
         } else {
             unlockComboboxes(row);
         }
     });
 
-    function lockComboboxes(row) {
+    // Sadece 3, 13, 16, 19. comboboxları (index 2,12,15,18) kilitle
+    function lockOnlyThirdCombobox(row) {
         row.querySelectorAll('select').forEach((combobox, index) => {
-            if (![0, 1, 2, 4].includes(index) && index <= 18) {
+            if ([3, 12, 15, 18].includes(index)) {
                 combobox.disabled = true;
+            } else {
+                combobox.disabled = false;
             }
         });
     }
 
-    function unlockComboboxes(row) {
+    // 0,1,2,4 hariç 18'e kadar kilitle
+    function lockComboboxes(row) {
         row.querySelectorAll('select').forEach((combobox, index) => {
             if (![0, 1, 2, 4].includes(index) && index <= 18) {
+                combobox.disabled = true;
+            } else {
                 combobox.disabled = false;
             }
+        });
+    }
+
+    // Tümünü aç
+    function unlockComboboxes(row) {
+        row.querySelectorAll('select').forEach(combobox => {
+            combobox.disabled = false;
         });
     }
 }
@@ -5113,7 +5155,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<script>
+<!-- <script>
 setInterval(function() {
     fetch('/is_session_active')
         .then(r => r.json())
@@ -5124,7 +5166,7 @@ setInterval(function() {
             }
         });
 }, 10000); // 10 saniyede bir kontrol
-</script>
+</script> -->
 
 <script>
     // Show overlay immediately
@@ -5144,6 +5186,13 @@ setInterval(function() {
         document.getElementById('loadingOverlay').style.display = 'flex';
         document.body.classList.add('loading');
     });
+</script>
+<script>
+// ...existing code...
+document.getElementById('newProformaBtn').addEventListener('click', function() {
+    window.location.reload();
+});
+// ...existing code...
 </script>
 
 </body>
