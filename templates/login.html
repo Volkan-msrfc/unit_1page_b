@@ -4,20 +4,119 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login</title>
+    <style>
+        body {
+            /* Turuncudan koyu maviye degrade geçiş */
+            background: linear-gradient(120deg, #ff9800 0%, #2980b9 100%);
+            min-height: 100vh;
+            margin: 0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-container {
+            background: #fff;
+            padding: 36px 32px 28px 32px;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(44, 62, 80, 0.15);
+            min-width: 320px;
+            max-width: 350px;
+            width: 100%;
+            text-align: center;
+            position: relative;
+        }
+        .login-logo {
+            width: 180px;
+            margin: 0 auto 18px auto;
+            display: block;
+        }
+        .login-container h1 {
+            margin-bottom: 24px;
+            color: #2980b9;
+            font-size: 2rem;
+            letter-spacing: 1px;
+        }
+        .login-container label {
+            display: block;
+            margin-bottom: 6px;
+            color: #333;
+            text-align: left;
+            font-weight: 500;
+        }
+        .login-container input[type="text"],
+        .login-container input[type="password"] {
+            width: 100%;
+            padding: 10px 12px;
+            margin-bottom: 18px;
+            border: 1px solid #b2bec3;
+            border-radius: 6px;
+            font-size: 1rem;
+            background: #f7fafd;
+            transition: border 0.2s;
+        }
+        .login-container input[type="text"]:focus,
+        .login-container input[type="password"]:focus {
+            border-color: #2980b9;
+            outline: none;
+        }
+        .login-container button {
+            width: 100%;
+            padding: 10px 0;
+            background: #2980b9;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 8px;
+        }
+        .login-container button:hover {
+            background: #2573a6;
+        }
+        .login-container .error-message {
+            color: #e74c3c;
+            margin-top: 12px;
+            font-size: 1rem;
+        }
+            .login-form {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    .login-form label,
+    .login-form input[type="text"],
+    .login-form input[type="password"],
+    .login-form button {
+        max-width: 240px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .login-form label {
+        text-align: left;
+        margin-left: 0;
+        margin-right: 0;
+    }
+    </style>
 </head>
 <body>
-    <h1>Kullanıcı Girişi</h1>
-    <form method="POST" action="/login">
-        <label for="username">Kullanıcı Adı:</label>
-        <input type="text" id="username" name="username" required>
-        <br>
-        <label for="password">Şifre:</label>
-        <input type="password" id="password" name="password" required>
-        <br>
-        <button type="submit">Giriş Yap</button>
-    </form>
-    {% if error %}
-    <p style="color: red;">{{ error }}</p>
-    {% endif %}
+    <div class="login-container">
+        <!-- logoI üst orta -->
+        <img src="{{ url_for('static', filename='images/logoI.png') }}" alt="Logo" class="login-logo">
+        <h1>User Login</h1>
+        <form method="POST" action="/login" class="login-form">
+            <label for="username">User Name</label>
+            <input type="text" id="username" name="username" required>
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+            <button type="submit">Login</button>
+        </form>
+        {% if error %}
+        <div class="error-message">{{ error }}</div>
+        {% endif %}
+    </div>
 </body>
 </html>
