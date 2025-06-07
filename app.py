@@ -3522,9 +3522,27 @@ def generate_invoice():
         conn.close()
 
         # --- TOPLAM, KDV, GENEL TOPLAM HESAPLAMA ---
+
+        # Delivery Price'ı quotes tablosundan veya quote db'den çekin:
+        conn = sqlite3.connect(os.path.join(BASE_DIR, "quotes.db"))
+        cursor = conn.cursor()
+        cursor.execute("SELECT Delpr FROM quotes WHERE Quote_number = ?", (quote_number,))
+        delpr_row = cursor.fetchone()
+        delivery_price = float(delpr_row[0]) if delpr_row and delpr_row[0] else 0.0
+        conn.close()
+
+        # KG bilgisini quote db'den çekin:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute('SELECT SUM(KG) FROM list')
+        kg_total = cursor.fetchone()[0] or 0
+        conn.close()
+
+
+
         total_amount = sum(row[3] for row in rows)
-        vat = round(total_amount * 0.20, 2)
-        grand_total = round(total_amount + vat, 2)
+        vat = round((total_amount + delivery_price) * 0.20, 2)
+        grand_total = round(total_amount + delivery_price + vat, 2)
 
         # Veritabanından teslimat bilgilerini al
         conn = sqlite3.connect(delivery_db_path)
@@ -3580,13 +3598,38 @@ def generate_invoice():
         color_conn.close()
 
         # renk seçimlerini yaz
-        if (color_row):
-            color_labels = ['Shelf', 'Ticket', 'Type', 'Slatwall', 'Insert', 'Endcap']
+        # if (color_row):
+        #     color_labels = ['Shelf', 'Ticket', 'Type', 'Slatwall', 'Insert', 'Endcap']
+        #     for label, value in zip(color_labels, color_row):
+        #         pdf.set_font('Helvetica', '', 7)
+        #         pdf.cell(0, 3, f"{label}: {value or 'N/A'}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        # else:
+        #     pdf.cell(0, 4, "Color selections: Not found", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+        if color_row:
+            color_labels = ['Shelf', 'Ticket', 'T.Type', 'Slatwall', 'Insert', 'Endcap']
+            pdf.set_font('Helvetica', '', 7)
+            x = 180
+            y = 28
             for label, value in zip(color_labels, color_row):
-                pdf.set_font('Helvetica', '', 7)
-                pdf.cell(0, 3, f"{label}: {value or 'N/A'}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+                pdf.set_xy(x, y)
+                pdf.cell(0, 3, f"{label}: {value or 'N/A'}", new_x=XPos.RIGHT, new_y=YPos.TOP)
+                y += 3
+            # Renklerin hemen altına Total KG yaz
+            pdf.set_xy(x, y + 1)
+            pdf.set_font('Helvetica', 'B', 7)
+            pdf.cell(0, 4, f"Total KG: {kg_total:.2f}", new_x=XPos.RIGHT, new_y=YPos.TOP)
         else:
-            pdf.cell(0, 4, "Color selections: Not found", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+            pdf.set_xy(180, 28)
+            pdf.set_font('Helvetica', '', 7)
+            pdf.cell(0, 4, "Color selections: Not found", new_x=XPos.RIGHT, new_y=YPos.TOP)
+            pdf.set_xy(180, 32)
+            pdf.set_font('Helvetica', 'B', 7)
+            pdf.cell(0, 4, f"Total KG: {kg_total:.2f}", new_x=XPos.RIGHT, new_y=YPos.TOP)
+
+
+
+
 
         # Proforma To ve Deliver To bölümleri
         pdf.set_font('Helvetica', 'B', 9)
@@ -3655,6 +3698,15 @@ def generate_invoice():
         pdf.cell(160, 5, "Total:", align='R')
         pdf.cell(30, 5, f"{total_amount:.2f}", align='R')
         pdf.ln()
+
+
+        # Delivery Price satırı
+        pdf.cell(160, 5, "Delivery:", align='R')
+        pdf.cell(30, 5, f"{delivery_price:.2f}", align='R')
+        pdf.ln()
+
+
+
         pdf.cell(160, 5, "VAT (20%):", align='R')
         pdf.cell(30, 5, f"{vat:.2f}", align='R')
         pdf.ln()
@@ -3868,7 +3920,7 @@ def kg_topla():
         cursor.execute('SELECT SUM(KG) FROM list')
         kg_total = cursor.fetchone()[0] or 0
         conn.close()
-        return jsonify({'status': 'success', 'kg_total': int(kg_total)})
+        return jsonify({'status': 'success', 'kg_total': float(kg_total)})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
