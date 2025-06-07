@@ -4890,7 +4890,7 @@ async function KgTpl(quoteNumber) {
             //kgInfo.style.marginLeft = '20';
             quoteDateContainer.appendChild(kgInfo);
         }
-            kgInfo.textContent = `Tot Shelving Kg: ${data.kg_total}`;
+            kgInfo.textContent = `Tot Shelving Kg: ${parseFloat(data.kg_total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         } else {
             console.error('KG toplama işlemi başarısız:', data.message);
         }
