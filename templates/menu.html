@@ -1147,6 +1147,63 @@
                 </tbody>
             </table>
         </div>
+
+
+        <div id="tab_woods" class="tab-content">
+            <h2>Woods</h2>
+            <div style="display: flex; gap: 20px; align-items: center; margin-bottom: 10px;">
+                <label for="woodsCustomerType">Customer Type:</label>
+                <select id="woodsCustomerType">
+                    <option value="Retail">Retail</option>
+                    <option value="Trade">Trade</option>
+                </select>
+                <label for="woodsDiscount" style="margin-left: 20px;">Discount (%):</label>
+                <input type="number" id="woodsDiscount" min="0" max="100" value="0" style="width: 60px;">
+            </div>
+            <table id="woodsTable" border="1" style="width: 100%; text-align: center; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th>SELECT GROUP</th>
+                        <th>SELECT ITEM</th>
+                        <th>QUANTITY</th>
+                        <th>PRICE</th>
+                        <th>D.PRICE</th>
+                        <th>SKU</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for i in range(15) %}
+                    <tr>
+                        <td>
+                            <select name="woods_group_{{ i }}" class="woods-group-select">
+                                <option value=""></option>
+                            </select>
+                        </td>
+                        <td>
+                            <select name="woods_item_{{ i }}" class="woods-item-select">
+                                <option value=""></option>
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" name="woods_quantity_{{ i }}" min="1" style="width: 60px;">
+                        </td>
+                        <td>
+                            <label id="woods_price_{{ i }}"></label>
+                        </td>
+                        <td>
+                            <label id="woods_dprice_{{ i }}"></label>
+                        </td>
+                        <td>
+                            <label id="woods_sku_{{ i }}"></label>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+
+
         <script>
             let ceil_dsc = 0; // Discount değeri için global değişken
 
@@ -1159,19 +1216,29 @@
                 let trimLM = parseFloat(trimLMInput.value) || 0;
                 ceil_dsc = parseFloat(discountInput.value) || 0; // Discount değerini al
 
+                // Eğer tüm kutucuklar boşsa tabloyu temizle ve çık
+                if (
+                    (!ceilingM2Input.value || ceilingM2Input.value.trim() === '') &&
+                    (!trimLMInput.value || trimLMInput.value.trim() === '') &&
+                    (!discountInput.value || discountInput.value.trim() === '')
+                ) {
+                    const tableBody = document.getElementById('ceilingTableBody');
+                    tableBody.innerHTML = '';
+                    return;
+                }
+
                 fetch('/calculate_ceiling_qty', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ ceilingM2, trimLM, ceil_dsc }), // ceil_dsc gönderiliyor
+                    body: JSON.stringify({ ceilingM2, trimLM, ceil_dsc }),
                 })
                 .then(response => response.json())
                 .then(data => {
+                    const tableBody = document.getElementById('ceilingTableBody');
                     if (data.status === 'success') {
-                        const tableBody = document.getElementById('ceilingTableBody');
-                        tableBody.innerHTML = ''; // Eski içeriği temizle
-
+                        tableBody.innerHTML = '';
                         data.rows.forEach(row => {
                             const tr = document.createElement('tr');
                             tr.innerHTML = `
@@ -1185,10 +1252,14 @@
                             tableBody.appendChild(tr);
                         });
                     } else {
+                        tableBody.innerHTML = '';
                         console.error('Hata:', data.message);
                     }
                 })
-                .catch(error => console.error('Hata:', error));
+                .catch(error => {
+                    document.getElementById('ceilingTableBody').innerHTML = '';
+                    console.error('Hata:', error);
+                });
             }
 
             document.getElementById('ceilingM2').addEventListener('input', fetchCeilingData);
@@ -1304,6 +1375,7 @@
     <div class="tab-bar">
         <div class="tab active" onclick="openTab('tab_proforma')">Proforma</div>
         <div class="tab" onclick="openTab('tab_unite')">Unite</div>
+        <div class="tab" onclick="openTab('tab_woods')">Woods</div>
         <div class="tab" onclick="openTab('tab_refrigeration')">Refrigeration</div>
         <div class="tab" onclick="openTab('tab_ceiling')">Ceiling</div>
         <div class="tab" onclick="openTab('tab_add_item')">Add Item</div>
@@ -1775,7 +1847,14 @@ async function mainFunction() {
 
     await uniteScndprt(nextNumber);
 
-
+    try {
+        console.log("AddWoodData fonksiyonu çağrıldı.");
+        await AddWoodData(); // İşlemin tamamlanmasını bekle
+    } catch (error) {
+        console.error('AddWoodData başarısız oldu. İşlem sonlandırıldı.', error);
+        await fetch('/reset_islmdvm', { method: 'POST' });
+        return;
+    }
 
     // 1. AddRefData çağrısı
     try {
@@ -1836,7 +1915,7 @@ async function mainFunction() {
     }
 
     // 3. loadQuoteList çağrısı
-    if ((window.untknt || 0) + (window.scnduntknt || 0) + (window.aditmknt || 0) + (window.adrefknt || 0)+ (window.adclknt || 0)<= 0) {
+    if ((window.untknt || 0) + (window.scnduntknt || 0) + (window.adwodknt || 0)+ (window.aditmknt || 0) + (window.adrefknt || 0)+ (window.adclknt || 0)<= 0) {
         alert("Proforma oluşturulacak bir değer yok!");
         await fetch('/reset_islmdvm', { method: 'POST' });
     } else {
@@ -1854,6 +1933,7 @@ async function mainFunction() {
         await saveRefSelection(nextNumber); // Yeni fonksiyon çağrısı
         await saveCeilSelection(nextNumber);
         await saveColorSelections(nextNumber);
+        await saveWoodsSelection(nextNumber);
         await fetchCustomerDataByQuote(newQuoteNum);
         await fetch('/reset_islmdvm', { method: 'POST' });
         
@@ -2372,6 +2452,8 @@ async function openProformaModal() {
                 // Sıralı ve await'li şekilde çağır
                 await fetchCustomerDataByQuote(quoteNumber);
                 await loadUniteSelection(dbName);
+                //await fillWoodsTable();
+                await loadWoodsSelection(dbName);
                 await loadAddItemSelection(dbName);
                 await loadRefSelection(dbName);
                 await loadCeilSelection(dbName);
@@ -3723,15 +3805,18 @@ async function loadCeilSelection(quoteNumber) {
         const gTotal = parseFloat(gTotalRow.querySelector('td:last-child')?.textContent.replace(/,/g, '')) || 0;
 
         // Description oluştur
-        const descriptionSet = new Set();
+        const typeSet = new Set();
         tableRows.forEach(row => {
-            const sira = row.querySelector('td:nth-child(6)')?.textContent.trim();
-            if (sira) {
-                const mainNumber = sira.split('.')[0];
-                descriptionSet.add(mainNumber);
+            const siraStr = row.querySelector('td:nth-child(6)')?.textContent.trim();
+            const sira = parseInt(siraStr, 10);
+            if (!isNaN(sira)) {
+                if (sira >= 1000 && sira <= 4300) typeSet.add('Shelving');
+                else if (sira >= 7000 && sira <= 7999) typeSet.add('Refrigeration');
+                else if (sira >= 8000 && sira <= 8999) typeSet.add('Ceiling');
+                else if (sira >= 9000 && sira <= 9999) typeSet.add('Spec. Items');
             }
         });
-        const description = Array.from(descriptionSet).join(',');
+        const description = Array.from(typeSet).join(',');
 
         const payload = {
             date: new Date().toISOString().split('T')[0],
@@ -4969,7 +5054,7 @@ function clrCont() {
         // Counter Standard ve Counter High kolonları kontrolü
         if ((counterStandard && counterStandard.toLowerCase().includes('panel')) ||
             (counterHigh && counterHigh.includes('Panel'))) {
-                alert('Panel secili.');
+                //alert('Panel secili.');
             if (!slatwall) {
                 alert('Slatwall Color seçili değil.');
                 return false;
@@ -5197,18 +5282,18 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<!-- <script>
+<script>
 setInterval(function() {
     fetch('/is_session_active')
         .then(r => r.json())
         .then(data => {
             if (!data.active) {
-                alert("Oturumunuz sonlandırıldı.");
+                alert("Your Session Ended.");
                 window.location.href = "/logout";
             }
         });
 }, 10000); // 10 saniyede bir kontrol
-</script> -->
+</script>
 
 <script>
     // Show overlay immediately
@@ -5235,6 +5320,264 @@ document.getElementById('newProformaBtn').addEventListener('click', function() {
     window.location.reload();
 });
 // ...existing code...
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Woods grup isimlerini doldur
+    fetch('/get_woods_groups')
+        .then(response => response.json())
+        .then(data => {
+            if (data.groups) {
+                document.querySelectorAll('.woods-group-select').forEach(select => {
+                    select.innerHTML = '<option value=""></option>' + data.groups.map(g => `<option value="${g}">${g}</option>`).join('');
+                });
+            }
+        });
+
+    // Grup değişince itemları doldur ve diğer alanları sıfırla
+    document.querySelectorAll('.woods-group-select').forEach((groupSelect, rowIndex) => {
+        groupSelect.addEventListener('change', function () {
+            const row = groupSelect.closest('tr');
+            const itemSelect = row.querySelector('.woods-item-select');
+            const priceLabel = row.querySelector(`#woods_price_${rowIndex}`);
+            const dpriceLabel = row.querySelector(`#woods_dprice_${rowIndex}`);
+            const skuLabel = row.querySelector(`#woods_sku_${rowIndex}`);
+            const quantityInput = row.querySelector('input[type="number"]');
+            itemSelect.innerHTML = '<option value=""></option>';
+            priceLabel.textContent = '';
+            dpriceLabel.textContent = '';
+            skuLabel.textContent = '';
+            quantityInput.value = '';
+            if (groupSelect.value) {
+                fetch(`/get_woods_items?group=${encodeURIComponent(groupSelect.value)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.items) {
+                            itemSelect.innerHTML = '<option value=""></option>' + data.items.map(item => `<option value="${item}">${item}</option>`).join('');
+                        }
+                    });
+            }
+        });
+    });
+
+    // Item değişince fiyatları doldur
+    document.querySelectorAll('.woods-item-select').forEach((itemSelect, rowIndex) => {
+        itemSelect.addEventListener('change', function () {
+            const row = itemSelect.closest('tr');
+            const priceLabel = row.querySelector(`#woods_price_${rowIndex}`);
+            const dpriceLabel = row.querySelector(`#woods_dprice_${rowIndex}`);
+            const skuLabel = row.querySelector(`#woods_sku_${rowIndex}`);
+            const quantityInput = row.querySelector('input[type="number"]');
+            priceLabel.textContent = '';
+            dpriceLabel.textContent = '';
+            skuLabel.textContent = '';
+            quantityInput.value = '';
+            if (itemSelect.value) {
+                fetch(`/get_woods_item_details?item=${encodeURIComponent(itemSelect.value)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        let price = 0;
+                        const customerType = document.getElementById('woodsCustomerType').value;
+                        if (customerType === 'Trade') {
+                            price = data.trade_price;
+                        } else {
+                            price = data.local_price;
+                        }
+                        priceLabel.textContent = price.toFixed(2);
+                        const discount = parseFloat(document.getElementById('woodsDiscount').value) || 0;
+                        dpriceLabel.textContent = (price - (price * discount / 100)).toFixed(2);
+                        skuLabel.textContent = data.sku || '';
+                    });
+            }
+        });
+    });
+
+    // Customer type veya discount değişince fiyatları güncelle
+    function updateWoodsPricesAndDPrices() {
+        const discount = parseFloat(document.getElementById('woodsDiscount').value) || 0;
+        const customerType = document.getElementById('woodsCustomerType').value;
+        document.querySelectorAll('#woodsTable tbody tr').forEach((tr, rowIndex) => {
+            const itemSelect = tr.querySelector('.woods-item-select');
+            const priceLabel = tr.querySelector(`#woods_price_${rowIndex}`);
+            const dpriceLabel = tr.querySelector(`#woods_dprice_${rowIndex}`);
+            if (itemSelect && itemSelect.value) {
+                fetch(`/get_woods_item_details?item=${encodeURIComponent(itemSelect.value)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        let price = 0;
+                        if (customerType === 'Trade') {
+                            price = data.trade_price;
+                        } else {
+                            price = data.local_price;
+                        }
+                        priceLabel.textContent = price.toFixed(2);
+                        dpriceLabel.textContent = (price - (price * discount / 100)).toFixed(2);
+                    });
+            } else {
+                priceLabel.textContent = '';
+                dpriceLabel.textContent = '';
+            }
+        });
+    }
+    document.getElementById('woodsDiscount').addEventListener('input', updateWoodsPricesAndDPrices);
+    document.getElementById('woodsCustomerType').addEventListener('change', updateWoodsPricesAndDPrices);
+});
+
+async function saveWoodsSelection(quoteNumber) {
+    const customerType = document.getElementById('woodsCustomerType')?.value || '';
+    const woodsDiscount = parseFloat(document.getElementById('woodsDiscount')?.value) || 0;
+    const rows = Array.from(document.querySelectorAll('#woodsTable tbody tr'));
+    const selections = rows.map((row, i) => {
+        const group = row.querySelector('.woods-group-select')?.value || '';
+        const item = row.querySelector('.woods-item-select')?.value || '';
+        const quantity = row.querySelector('input[type="number"]')?.value || '';
+        const price = row.querySelector(`#woods_price_${i}`)?.textContent || '';
+        const dprice = row.querySelector(`#woods_dprice_${i}`)?.textContent || '';
+        const sku = row.querySelector(`#woods_sku_${i}`)?.textContent || '';
+        return { group, item, quantity, price, dprice, sku };
+    });
+
+    try {
+        const response = await fetch('/save_woods_selection', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ quote_number: quoteNumber, customer_type: customerType, woods_discount: woodsDiscount, selections })
+        });
+        const data = await response.json();
+        if (data.status === 'success') {
+            console.log('Woods seçimleri başarıyla kaydedildi.');
+        } else {
+            console.error('Woods seçimleri kaydedilirken hata oluştu:', data.message);
+        }
+    } catch (error) {
+        console.error('Woods seçimleri kaydedilirken hata oluştu:', error);
+    }
+}
+
+async function loadWoodsSelection(quoteNumber) {
+    try {
+        const response = await fetch(`/load_woods_selection?quote_number=${quoteNumber}`);
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            const selections = data.selections;
+            const customerType = data.customer_type || 'Retail';
+            const woodsDiscount = data.woods_discount || 0;
+            document.getElementById('woodsCustomerType').value = customerType;
+            document.getElementById('woodsDiscount').value = woodsDiscount;
+
+            const rows = Array.from(document.querySelectorAll('#woodsTable tbody tr'));
+            for (let i = 0; i < selections.length; i++) {
+                const sel = selections[i];
+                const row = rows[i];
+                if (!row) continue;
+                const groupSelect = row.querySelector('.woods-group-select');
+                const itemSelect = row.querySelector('.woods-item-select');
+                const quantityInput = row.querySelector('input[type="number"]');
+                const priceLabel = row.querySelector(`#woods_price_${i}`);
+                const dpriceLabel = row.querySelector(`#woods_dprice_${i}`);
+                const skuLabel = row.querySelector(`#woods_sku_${i}`);
+
+                // Önce grup seçimini ata ve item listesini doldur
+                if (groupSelect && sel.group) {
+                    groupSelect.value = sel.group;
+                    if (groupSelect.value) {
+                        const items = await fetch(`/get_woods_items?group=${encodeURIComponent(groupSelect.value)}`)
+                            .then(r => r.json())
+                            .then(d => d.items || []);
+                        itemSelect.innerHTML = `<option value=""></option>` + items.map(item => `<option value="${item}">${item}</option>`).join('');
+                    }
+                }
+                // Sonra item seçimini ata
+                if (itemSelect && sel.item) {
+                    itemSelect.value = sel.item;
+                }
+                if (quantityInput) quantityInput.value = sel.quantity || '';
+                if (priceLabel) priceLabel.textContent = sel.price || '';
+                if (dpriceLabel) dpriceLabel.textContent = sel.dprice || '';
+                if (skuLabel) skuLabel.textContent = sel.sku || '';
+            }
+            console.log('Woods seçimleri başarıyla yüklendi.');
+        } else {
+            console.error('Woods seçimleri yüklenirken hata oluştu:', data.message);
+        }
+    } catch (error) {
+        console.error('Woods seçimleri yüklenirken hata oluştu:', error);
+    }
+}
+</script>
+
+
+<script>
+async function AddWoodData() {
+    const rows = document.querySelectorAll('#woodsTable tbody tr');
+    const largestFile = document.getElementById('largestFile').textContent.trim();
+
+    const woodsData = [];
+    let validRowFound = false;
+
+    rows.forEach((row) => {
+        const groupSelect = row.querySelector('.woods-group-select');
+        const itemSelect = row.querySelector('.woods-item-select');
+        const quantityInput = row.querySelector('input[type="number"]');
+        const priceLabel = row.querySelector('label[id^="woods_price_"]');
+        const dpriceLabel = row.querySelector('label[id^="woods_dprice_"]');
+        const skuLabel = row.querySelector('label[id^="woods_sku_"]');
+
+        if (
+            groupSelect?.value &&
+            itemSelect?.value &&
+            quantityInput?.value &&
+            priceLabel?.textContent &&
+            dpriceLabel?.textContent &&
+            skuLabel?.textContent
+        ) {
+            woodsData.push({
+                group: groupSelect.value,
+                item: itemSelect.value,
+                quantity: parseInt(quantityInput.value, 10),
+                price: parseFloat(priceLabel.textContent),
+                dprice: parseFloat(dpriceLabel.textContent),
+                sku: skuLabel.textContent
+            });
+            validRowFound = true;
+        }
+    });
+
+    if (!validRowFound) {
+        window.adwodknt = 0;
+        return true;
+    } else {
+        window.adwodknt = 1;
+    }
+
+    const data = {
+        woods_data: woodsData,
+        largest_file: largestFile
+    };
+
+    try {
+        const response = await fetch('/add_woods_data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        const responseData = await response.json();
+
+        if (responseData.status === "success") {
+            // Başarılı
+        } else {
+            throw new Error("Bir hata oluştu: " + responseData.message);
+        }
+    } catch (error) {
+        console.error('API Hatası:', error);
+        alert('Woods verileri gönderilirken hata oluştu.');
+        await fetch('/reset_islmdvm', { method: 'POST' });
+        throw error;
+    }
+}
 </script>
 
 </body>
