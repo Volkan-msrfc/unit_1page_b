@@ -2404,6 +2404,8 @@ def get_refrigeration_item_details():
     except Exception as e:
         print("Hata (get_refrigeration_item_details):", str(e))
         return jsonify({'status': 'error', 'message': str(e)}), 500
+    
+
 
 @app.route('/add_ref_data', methods=['POST'])
 def add_ref_data():
@@ -2613,6 +2615,171 @@ def load_ref_selection():
     except Exception as e:
         print("Hata (load_ref_selection):", str(e))
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/add_woods_data', methods=['POST'])
+def add_woods_data():
+    try:
+        data = request.get_json()
+        woods_data = data.get('woods_data', [])
+        largest_file = str(data.get('largest_file', '')).strip()
+
+        if not woods_data:
+            return jsonify({"status": "error", "message": "No data provided"}), 400
+
+        db_path = os.path.join(QUOTE_DB_PATH, f"{largest_file}.db")
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS list (
+                USER_ID INTEGER,
+                ITEM_ID TEXT,
+                ITEM_NAME TEXT,
+                ADET INTEGER,
+                UNIT_TYPE TEXT DEFAULT 'WOOD',
+                SIRA DECIMAL(10, 2),
+                PRICE DECIMAL(10, 2),
+                DSPRICE DECIMAL(10, 2),
+                AMOUNTH DECIMAL(10, 2),
+                DEPO DECIMAL(10, 2),
+                IMPORT DECIMAL(10, 2),
+                KG DECIMAL(10, 2) DEFAULT 0.0
+            )
+        ''')
+
+        user_id = session.get('user_id', 0)
+        sira = 3700
+
+        for item in woods_data:
+            cursor.execute('''
+                INSERT INTO list (USER_ID, ITEM_ID, ITEM_NAME, ADET, UNIT_TYPE, SIRA, PRICE, DSPRICE, AMOUNTH, DEPO, IMPORT, KG)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                user_id,
+                item.get('sku', ''),
+                item.get('item', ''),
+                int(item.get('quantity', 0)),
+                'WOOD',
+                sira,
+                float(item.get('price', 0)),
+                float(item.get('dprice', 0)),
+                int(item.get('quantity', 0)) * float(item.get('dprice', 0)),
+                0, 0, 0
+            ))
+            sira += 1
+
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "success", "message": "Woods verileri başarıyla kaydedildi!"})
+    except Exception as e:
+        print("Woods API Hatası:", str(e))
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/get_woods_groups', methods=['GET'])
+def get_woods_groups():
+    import sqlite3
+    conn = sqlite3.connect('wood.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT DISTINCT G_NAME FROM wood_tbl WHERE G_NAME IS NOT NULL AND G_NAME != ""')
+    groups = [row[0] for row in cursor.fetchall()]
+    conn.close()
+    return jsonify({'groups': groups})
+
+@app.route('/get_woods_items', methods=['GET'])
+def get_woods_items():
+    import sqlite3
+    group = request.args.get('group')
+    conn = sqlite3.connect('wood.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT ITEM_NAME FROM wood_tbl WHERE G_NAME = ?', (group,))
+    items = [row[0] for row in cursor.fetchall()]
+    conn.close()
+    return jsonify({'items': items})
+
+@app.route('/get_woods_item_details', methods=['GET'])
+def get_woods_item_details():
+    import sqlite3
+    item = request.args.get('item')
+    conn = sqlite3.connect('wood.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT LOCAL, TRADE_PRICE, KOD FROM wood_tbl WHERE ITEM_NAME = ?', (item,))
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        return jsonify({'local_price': row[0], 'trade_price': row[1], 'sku': row[2]})
+    else:
+        return jsonify({'local_price': 0, 'trade_price': 0, 'sku': ''})
+
+@app.route('/save_woods_selection', methods=['POST'])
+def save_woods_selection():
+    import sqlite3
+    data = request.get_json()
+    quote_number = data.get('quote_number')
+    customer_type = data.get('customer_type', 'Retail')
+    woods_discount = data.get('woods_discount', 0)
+    selections = data.get('selections', [])
+
+    db_path = os.path.join(BASE_DIR, "woods_selections.db")
+    try:
+        conn = sqlite3.connect(db_path, timeout=10)
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS woods_selections (
+                Quote_number TEXT NOT NULL,
+                Row_index INTEGER NOT NULL,
+                Group_name TEXT,
+                Item_name TEXT,
+                Quantity INTEGER,
+                Price REAL,
+                Dprice REAL,
+                SKU TEXT,
+                Customer_type TEXT,
+                Woods_discount REAL,
+                PRIMARY KEY (Quote_number, Row_index)
+            )
+        ''')
+        cursor.execute('DELETE FROM woods_selections WHERE Quote_number = ?', (quote_number,))
+        for idx, sel in enumerate(selections):
+            quantity = int(sel.get('quantity', 0) or 0)
+            price = float(sel.get('price', 0) or 0)
+            dprice = float(sel.get('dprice', 0) or 0)
+            cursor.execute('''
+                INSERT INTO woods_selections (Quote_number, Row_index, Group_name, Item_name, Quantity, Price, Dprice, SKU, Customer_type, Woods_discount)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                quote_number, idx, sel.get('group', ''), sel.get('item', ''), quantity, price, dprice, sel.get('sku', ''), customer_type, woods_discount
+            ))
+        conn.commit()
+        conn.close()
+        return jsonify({'status': 'success', 'message': 'Woods seçimleri kaydedildi.'})
+    except Exception as e:
+        print("save_woods_selection Hatası:", str(e))
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/load_woods_selection', methods=['GET'])
+def load_woods_selection():
+    import sqlite3
+    quote_number = request.args.get('quote_number')
+    db_path = os.path.join(BASE_DIR, "woods_selections.db")
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT Group_name, Item_name, Quantity, Price, Dprice, SKU, Customer_type, Woods_discount
+        FROM woods_selections
+        WHERE Quote_number = ?
+        ORDER BY Row_index ASC
+    ''', (quote_number,))
+    rows = cursor.fetchall()
+    conn.close()
+    selections = [
+        {'group': row[0], 'item': row[1], 'quantity': row[2], 'price': row[3], 'dprice': row[4], 'sku': row[5]}
+        for row in rows
+    ]
+    customer_type = rows[0][6] if rows else 'Retail'
+    woods_discount = rows[0][7] if rows else 0
+    return jsonify({'status': 'success', 'selections': selections, 'customer_type': customer_type, 'woods_discount': woods_discount})
+
 
 @app.route('/calculate_ceiling_qty', methods=['POST'])
 def calculate_ceiling_qty():
@@ -3894,7 +4061,7 @@ def add_unite_secnd_part():
                 counter_rows = counter_cursor.fetchall()
 
                 for counter_item_name, counter_qty in counter_rows:
-                    sira = int(2000 + int(row_index))
+                    sira = int(2300 + int(row_index))
                     prc_cursor.execute('''
                         SELECT id, local FROM prc_tbl WHERE LOWER(REPLACE(name1, ' ', '')) = LOWER(REPLACE(?, ' ', ''))
                     ''', (counter_item_name,))
@@ -3944,7 +4111,7 @@ def add_unite_secnd_part():
                 counter_rows = counter_cursor.fetchall()
 
                 for counter_item_name, counter_qty in counter_rows:
-                    sira = int(2300 + int(row_index))
+                    sira = int(2000 + int(row_index))
                     prc_cursor.execute('''
                         SELECT id, local FROM prc_tbl WHERE LOWER(REPLACE(name1, ' ', '')) = LOWER(REPLACE(?, ' ', ''))
                     ''', (counter_item_name,))
@@ -3982,17 +4149,7 @@ def add_unite_secnd_part():
 
             processed_items.append({'item_name': item_name})
 
-        # conn.commit()
-        # prc_conn.close()
-        # counter_conn.close()
-        # conn.close()
 
-    #     return jsonify({'status': 'success', 'processed_items': processed_items})
-
-    # except Exception as e:
-    #     return jsonify({'status': 'error', 'message': f'Hata (add_unite_secnd_part): {str(e)}'}), 500
-
-        # ------------------ Worktop Hesaplama ------------------ #
 
 
         # ------------------ Worktop Hesaplama ------------------ #
