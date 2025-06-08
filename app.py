@@ -2529,6 +2529,7 @@ def save_ref_selection():
                 Quantity INTEGER DEFAULT 0,
                 Price REAL DEFAULT 0.0,
                 Discounted_price REAL DEFAULT 0.0,
+                Discount REAL DEFAULT 0.0,           -- <--- EKLENDİ
                 PRIMARY KEY (Quote_number, Row_index)
             )
         ''')
@@ -2539,8 +2540,8 @@ def save_ref_selection():
         # Yeni seçimleri ekle
         for row_index, selection in enumerate(selections):
             cursor.execute('''
-                INSERT INTO ref_selections (Quote_number, Customer_type, Ref_dsc, Row_index, Group_name, Item_name, Warranty, Unpack, Remove, Quantity, Price, Discounted_price)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO ref_selections (Quote_number, Customer_type, Ref_dsc, Row_index, Group_name, Item_name, Warranty, Unpack, Remove, Quantity, Price, Discounted_price, Discount)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 quote_number,
                 customer_type,
@@ -2553,7 +2554,8 @@ def save_ref_selection():
                 selection.get('remove', ''),
                 int(selection.get('quantity', 0)),
                 float(selection.get('price', 0.0)),
-                float(selection.get('discounted_price', 0.0))
+                float(selection.get('discounted_price', 0.0)),
+                float(selection.get('discount', 0.0))   # <--- EKLENDİ
             ))
 
         conn.commit()
@@ -2570,16 +2572,16 @@ def load_ref_selection():
         quote_number = request.args.get('quote_number')
 
         if not quote_number:
-            return jsonify({'status': 'error', 'message': 'Eksik parametreler.'}), 400
+            return
 
         # Veritabanına bağlan
         db_path = os.path.join(BASE_DIR, "ref_selections.db")
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
-        # Seçimleri al
+        # Seçimleri al (Discount alanını da çek!)
         cursor.execute('''
-            SELECT Customer_type, Ref_dsc, Row_index, Group_name, Item_name, Warranty, Unpack, Remove, Quantity, Price, Discounted_price
+            SELECT Customer_type, Ref_dsc, Row_index, Group_name, Item_name, Warranty, Unpack, Remove, Quantity, Price, Discounted_price, Discount
             FROM ref_selections
             WHERE Quote_number = ?
         ''', (quote_number,))
@@ -2591,7 +2593,7 @@ def load_ref_selection():
         customer_type = rows[0][0] if rows else ''
         ref_dsc = rows[0][1] if rows else 0.0
 
-        # Seçimleri JSON formatında döndür
+        # Seçimleri JSON formatında döndür (Discount'u da ekle)
         selections = [
             {
                 'row_index': row[2],
@@ -2602,7 +2604,8 @@ def load_ref_selection():
                 'remove': row[7],
                 'quantity': row[8],
                 'price': row[9],
-                'discounted_price': row[10]
+                'discounted_price': row[10],
+                'discount': row[11] if len(row) > 11 else 0  # Discount alanı
             }
             for row in rows
         ]
@@ -2717,7 +2720,6 @@ def save_woods_selection():
     data = request.get_json()
     quote_number = data.get('quote_number')
     customer_type = data.get('customer_type', 'Retail')
-    woods_discount = data.get('woods_discount', 0)
     selections = data.get('selections', [])
 
     db_path = os.path.join(BASE_DIR, "woods_selections.db")
@@ -2735,7 +2737,7 @@ def save_woods_selection():
                 Dprice REAL,
                 SKU TEXT,
                 Customer_type TEXT,
-                Woods_discount REAL,
+                Woods_discount REAL,  -- Her satırın kendi discount'u
                 PRIMARY KEY (Quote_number, Row_index)
             )
         ''')
@@ -2744,6 +2746,7 @@ def save_woods_selection():
             quantity = int(sel.get('quantity', 0) or 0)
             price = float(sel.get('price', 0) or 0)
             dprice = float(sel.get('dprice', 0) or 0)
+            woods_discount = float(sel.get('discount', 0) or 0)  # Her satırın kendi discount'u
             cursor.execute('''
                 INSERT INTO woods_selections (Quote_number, Row_index, Group_name, Item_name, Quantity, Price, Dprice, SKU, Customer_type, Woods_discount)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -2773,12 +2776,19 @@ def load_woods_selection():
     rows = cursor.fetchall()
     conn.close()
     selections = [
-        {'group': row[0], 'item': row[1], 'quantity': row[2], 'price': row[3], 'dprice': row[4], 'sku': row[5]}
+        {
+            'group': row[0],
+            'item': row[1],
+            'quantity': row[2],
+            'price': row[3],
+            'dprice': row[4],
+            'sku': row[5],
+            'discount': row[7]  # Her satırın discount'u
+        }
         for row in rows
     ]
     customer_type = rows[0][6] if rows else 'Retail'
-    woods_discount = rows[0][7] if rows else 0
-    return jsonify({'status': 'success', 'selections': selections, 'customer_type': customer_type, 'woods_discount': woods_discount})
+    return jsonify({'status': 'success', 'selections': selections, 'customer_type': customer_type})
 
 
 @app.route('/calculate_ceiling_qty', methods=['POST'])
