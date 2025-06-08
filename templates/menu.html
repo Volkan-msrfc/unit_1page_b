@@ -758,10 +758,10 @@
                         <option value="Trade">Trade</option>
                     </select>
                 </div>
-                <div>
+                <!-- <div>
                     <label for="ref_dsc">Discount:</label>
                     <input type="number" id="ref_dsc" value="0" style="width: 60px;" min="0" max="100" step="1">
-                </div>
+                </div> -->
             </div>
             <table border="1" style="width: 100%; text-align: center; border-collapse: collapse;">
             <!-- <table class="refrigeration-table" border="1" style="width: 100%; text-align: center; border-collapse: collapse;"> -->
@@ -776,6 +776,7 @@
                         <th>PRICE</th>
                         <th>D.PRICE</th>
                         <th>SKU</th>
+                        <th>DISCOUNT</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -819,6 +820,11 @@
                         <td>
                             <label id="sku_{{ i }}"></label>
                         </td>
+
+                        <td>
+                             <input type="number" id="ref_dsc_{{ i }}" class="ref-dsc-input" value="0" style="width: 60px;" min="0" max="100" step="1">
+                        </td>
+
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -1158,7 +1164,7 @@
                     <option value="Trade">Trade</option>
                 </select>
                 <label for="woodsDiscount" style="margin-left: 20px;">Discount (%):</label>
-                <input type="number" id="woodsDiscount" min="0" max="100" value="0" style="width: 60px;">
+                
             </div>
             <table id="woodsTable" border="1" style="width: 100%; text-align: center; border-collapse: collapse;">
                 <thead>
@@ -1169,6 +1175,7 @@
                         <th>PRICE</th>
                         <th>D.PRICE</th>
                         <th>SKU</th>
+                        <th>DISCOUNT</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1195,6 +1202,9 @@
                         </td>
                         <td>
                             <label id="woods_sku_{{ i }}"></label>
+                        </td>
+                        <td>
+                            <input type="number" id="woodsDiscount_{{ i }}" class="woods-discount-input" min="0" max="100" value="0" style="width: 60px;">
                         </td>
                     </tr>
                     {% endfor %}
@@ -3103,7 +3113,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const priceLabel = row ? row.querySelector('label[id^="price_"]') : null;
             const ref1price = priceLabel
             const dpriceLabel = row ? row.querySelector('label[id^="dprice_"]') : null;
-            const discount = parseFloat(document.getElementById('ref_dsc').value) || 0; // Get ref_dsc value
+            const discountInput = row.querySelector('.ref-dsc-input');
+            const discount = parseFloat(discountInput?.value) || 0;
 
             // Group değiştiğinde item ve sonraki seçim kutularını sıfırla
             if (this.classList.contains('group-select')) {
@@ -3185,7 +3196,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Customer type değiştiğinde fiyatı güncelle
     document.getElementById('customerType').addEventListener('change', function () {
-        const discount = parseFloat(document.getElementById('ref_dsc').value) || 0; // Discount tanımlandı
+        
         document.querySelectorAll('tr').forEach(row => {
             const groupSelect = row.querySelector('.group-select');
             const itemSelect = row.querySelector('.item-select');
@@ -3195,6 +3206,9 @@ document.addEventListener('DOMContentLoaded', function () {
             const warrantyValue = parseFloat(row.querySelector('.warranty-select')?.value) || 0;
             const unpackValue = parseFloat(row.querySelector('.unpack-select')?.value) || 0;
             const removeValue = parseFloat(row.querySelector('.remove-select')?.value) || 0;
+
+            const discountInput = row.querySelector('.ref-dsc-input');
+            const discount = parseFloat(discountInput?.value) || 0;
             
             const customerType = this.value;
 
@@ -3222,33 +3236,38 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Function to update dprice for all rows
     function updateAllDPrices() {
-        const discount = parseFloat(document.getElementById('ref_dsc').value) || 0; // Get ref_dsc value
-        document.querySelectorAll('tr').forEach(row => {
+        document.querySelectorAll('#tab_refrigeration tbody tr').forEach(row => {
             const priceLabel = row.querySelector('label[id^="price_"]');
             const dpriceLabel = row.querySelector('label[id^="dprice_"]');
             const warrantyValue = parseFloat(row.querySelector('.warranty-select')?.value) || 0;
             const unpackValue = parseFloat(row.querySelector('.unpack-select')?.value) || 0;
             const removeValue = parseFloat(row.querySelector('.remove-select')?.value) || 0;
+            // Her satırın kendi discount inputunu al
+            const discountInput = row.querySelector('.ref-dsc-input');
+            const discount = parseFloat(discountInput?.value) || 0;
 
             if (priceLabel && dpriceLabel && priceLabel.textContent) {
-                const basePrice = parseFloat(priceLabel.textContent)-(warrantyValue+unpackValue+removeValue); // Base price before additions
-                //alert(basePrice);
-                const discountedPrice = (basePrice - (basePrice * discount / 100)).toFixed(2); // Calculate discounted price
-                dpriceLabel.textContent = (parseFloat(discountedPrice) + warrantyValue + unpackValue + removeValue).toFixed(2); // Add additional values
+                const basePrice = parseFloat(priceLabel.textContent) - (warrantyValue + unpackValue + removeValue);
+                const discountedPrice = (basePrice - (basePrice * discount / 100)).toFixed(2);
+                dpriceLabel.textContent = (parseFloat(discountedPrice) + warrantyValue + unpackValue + removeValue).toFixed(2);
             }
         });
     }
 
-    // Update dprice when ref_dsc changes
-    document.getElementById('ref_dsc').addEventListener('input', updateAllDPrices);
+    // Her discount inputu değiştiğinde sadece ilgili satırı güncelle
+    document.querySelectorAll('.ref-dsc-input').forEach(input => {
+        input.addEventListener('input', updateAllDPrices);
+    });
 });
 
 document.addEventListener('DOMContentLoaded', function () {
 
     document.querySelectorAll('.item-select').forEach(itemSelect => {
         itemSelect.addEventListener('change', function () {
-            const discount = parseFloat(document.getElementById('ref_dsc').value) || 0; // Discount tanımlandı
             const row = this.closest('tr');
+            const discountInput = row.querySelector('.ref-dsc-input');
+            const discount = parseFloat(discountInput?.value) || 0; // Discount tanımlandı
+            
             const selectedItem = this.value;
             const warrantySelect = row.querySelector('.warranty-select');
             const unpackSelect = row.querySelector('.unpack-select');
@@ -3305,8 +3324,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.querySelectorAll('.warranty-select, .unpack-select, .remove-select').forEach(select => {
         select.addEventListener('change', function () {
-            const discount = parseFloat(document.getElementById('ref_dsc').value) || 0; // Discount tanımlandı
             const row = this.closest('tr');
+            const discountInput = row.querySelector('.ref-dsc-input');
+            const discount = parseFloat(discountInput?.value) || 0;
+            
             const priceLabel = row.querySelector('label[id^="price_"]');
             const dpriceLabel = row.querySelector('label[id^="dprice_"]');
             const warrantyValue = parseFloat(row.querySelector('.warranty-select').value) || 0;
@@ -3330,9 +3351,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
 document.querySelectorAll('.warranty-select, .unpack-select, .remove-select').forEach(select => {
     select.addEventListener('change', function () {
-        const discount = parseFloat(document.getElementById('ref_dsc').value) || 0; // Discount tanımlandı
-        const customerType = document.getElementById('customerType').value; // Customer type alındı
         const row = this.closest('tr');
+        const discountInput = row.querySelector('.ref-dsc-input');
+        const discount = parseFloat(discountInput?.value) || 0;
+        const customerType = document.getElementById('customerType').value; // Customer type alındı
+        
         const priceLabel = row.querySelector('label[id^="price_"]');
         const dpriceLabel = row.querySelector('label[id^="dprice_"]');
         const warrantyValue = parseFloat(row.querySelector('.warranty-select').value) || 0;
@@ -3439,7 +3462,6 @@ async function AddRefData() {
 
 async function saveRefSelection(quoteNumber) {
     const customerType = document.getElementById('customerType')?.value || '';
-    const refDsc = parseFloat(document.getElementById('ref_dsc')?.value) || 0;
 
     const rows = Array.from(document.querySelectorAll('#tab_refrigeration tbody tr'));
     const selections = rows.map(row => {
@@ -3451,8 +3473,10 @@ async function saveRefSelection(quoteNumber) {
         const removeSelect = row.querySelector('.remove-select')?.value || '';
         const priceLabel = row.querySelector('label[id^="price_"]')?.textContent || 0.0;
         const discountedPriceLabel = row.querySelector('label[id^="dprice_"]')?.textContent || 0.0;
+        const discountInput = row.querySelector('.ref-dsc-input');
+        const discount = parseFloat(discountInput?.value) || 0;
 
-        // Tüm satırları kaydet, boş olanlar dahil
+        // Her satırın discount'unu da kaydet
         return {
             group_name: groupSelect,
             item_name: itemSelect,
@@ -3461,7 +3485,8 @@ async function saveRefSelection(quoteNumber) {
             remove: removeSelect,
             quantity: parseInt(quantityInput, 10),
             price: parseFloat(priceLabel),
-            discounted_price: parseFloat(discountedPriceLabel)
+            discounted_price: parseFloat(discountedPriceLabel),
+            discount: discount // <-- EKLENDİ
         };
     });
 
@@ -3474,8 +3499,7 @@ async function saveRefSelection(quoteNumber) {
             body: JSON.stringify({
                 quote_number: quoteNumber,
                 customer_type: customerType,
-                ref_dsc: refDsc,
-                selections: selections,
+                selections: selections, // Her satırın kendi discount'u var
             }),
         });
 
@@ -3502,8 +3526,8 @@ async function loadRefSelection(quoteNumber) {
         const removeSelect = row.querySelector('.remove-select');
         const quantityInput = row.querySelector('input[name^="quantity_"]');
         const priceLabel = row.querySelector('label[id^="price_"]');
-        const sku = row.querySelector('label[id^="sku_"]'); // SKU değeri
-
+        const sku = row.querySelector('label[id^="sku_"]');
+        const discountInput = row.querySelector('.ref-dsc-input');
         if (groupSelect) groupSelect.value = '';
         if (itemSelect) itemSelect.innerHTML = '<option value=""></option>';
         if (warrantySelect) warrantySelect.innerHTML = '<option value=""></option>';
@@ -3512,10 +3536,10 @@ async function loadRefSelection(quoteNumber) {
         if (quantityInput) quantityInput.value = '';
         if (priceLabel) priceLabel.textContent = '';
         if (dpriceLabel) dpriceLabel.textContent = '';
-        if (sku) sku.textContent = ''; // SKU değerini temizle
+        if (sku) sku.textContent = '';
+        if (discountInput) discountInput.value = 0;
     });
 
-    // ...existing code...
     try {
         const response = await fetch(`/load_ref_selection?quote_number=${quoteNumber}`);
         const data = await response.json();
@@ -3523,20 +3547,10 @@ async function loadRefSelection(quoteNumber) {
         if (data.status === 'success') {
             const selections = data.selections;
 
-            // Customer type ve ref_dsc geri yükleniyor
-            const customerTypeElement = document.getElementById('customerType');
-            const refDscElement = document.getElementById('ref_dsc');
-            if (selections.length > 0) {
-                customerTypeElement.value = selections[0].customer_type || '';
-                refDscElement.value = selections[0].ref_dsc || 0;
-                customerTypeElement.dispatchEvent(new Event('change'));
-                refDscElement.dispatchEvent(new Event('input'));
-            }
-
-            // Sadece quantity > 0 olan satırlar için işlem yapılıyor
-            for (const selection of selections) {
+            // Her satırın discount'unu da geri yükle
+            for (const [i, selection] of selections.entries()) {
                 if (selection.quantity > 0) {
-                    const row = document.querySelector(`#tab_refrigeration tbody tr:nth-child(${selection.row_index + 1})`);
+                    const row = document.querySelector(`#tab_refrigeration tbody tr:nth-child(${i + 1})`);
                     if (!row) continue;
 
                     const groupSelect = row.querySelector('.group-select');
@@ -3547,40 +3561,31 @@ async function loadRefSelection(quoteNumber) {
                     const quantityInput = row.querySelector('input[name^="quantity_"]');
                     const priceLabel = row.querySelector('label[id^="price_"]');
                     const dpriceLabel = row.querySelector('label[id^="dprice_"]');
+                    const discountInput = row.querySelector('.ref-dsc-input');
 
-                    // Group name geri yükleniyor
                     if (groupSelect) {
                         await new Promise(resolve => setTimeout(resolve, 150));
                         groupSelect.value = selection.group_name;
                         groupSelect.dispatchEvent(new Event('change'));
                     }
-
-                    // Group name seçildikten sonra item name geri yükleniyor
                     if (itemSelect) {
-                        await new Promise(resolve => setTimeout(resolve, 150)); // Bağımlı seçimlerin yüklenmesi için bekleme
+                        await new Promise(resolve => setTimeout(resolve, 150));
                         itemSelect.value = selection.item_name;
                         itemSelect.dispatchEvent(new Event('change'));
                     }
-
                     await new Promise(resolve => setTimeout(resolve, 150));
-
-                    // Item name seçildikten sonra warranty, unpack, remove geri yükleniyor
                     if (warrantySelect) warrantySelect.value = selection.warranty;
                     if (unpackSelect) unpackSelect.value = selection.unpack;
                     if (removeSelect) removeSelect.value = selection.remove;
-
-                    // Quantity, price ve dprice geri yükleniyor
                     if (quantityInput) quantityInput.value = selection.quantity;
                     if (priceLabel) priceLabel.textContent = selection.price.toFixed(2);
                     if (dpriceLabel) dpriceLabel.textContent = selection.discounted_price.toFixed(2);
+                    if (discountInput) discountInput.value = selection.discount || 0; // <-- SATIRIN DISCOUNT'U
                 }
             }
 
-            const { customer_type, ref_dsc } = data;
-
-            // customer_type ve ref_dsc değerlerini ilgili alanlara yerleştir
+            const { customer_type } = data;
             document.getElementById('customerType').value = customer_type;
-            document.getElementById('ref_dsc').value = ref_dsc;
 
             console.log('Refrigeration seçimleri başarıyla yüklendi.');
         } else {
@@ -5362,45 +5367,47 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // Item değişince fiyatları doldur
-    document.querySelectorAll('.woods-item-select').forEach((itemSelect, rowIndex) => {
-        itemSelect.addEventListener('change', function () {
-            const row = itemSelect.closest('tr');
-            const priceLabel = row.querySelector(`#woods_price_${rowIndex}`);
-            const dpriceLabel = row.querySelector(`#woods_dprice_${rowIndex}`);
-            const skuLabel = row.querySelector(`#woods_sku_${rowIndex}`);
-            const quantityInput = row.querySelector('input[type="number"]');
-            priceLabel.textContent = '';
-            dpriceLabel.textContent = '';
-            skuLabel.textContent = '';
-            quantityInput.value = '';
-            if (itemSelect.value) {
-                fetch(`/get_woods_item_details?item=${encodeURIComponent(itemSelect.value)}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        let price = 0;
-                        const customerType = document.getElementById('woodsCustomerType').value;
-                        if (customerType === 'Trade') {
-                            price = data.trade_price;
-                        } else {
-                            price = data.local_price;
-                        }
-                        priceLabel.textContent = price.toFixed(2);
-                        const discount = parseFloat(document.getElementById('woodsDiscount').value) || 0;
-                        dpriceLabel.textContent = (price - (price * discount / 100)).toFixed(2);
-                        skuLabel.textContent = data.sku || '';
-                    });
-            }
-        });
+document.querySelectorAll('.woods-item-select').forEach((itemSelect, rowIndex) => {
+    itemSelect.addEventListener('change', function () {
+        const row = itemSelect.closest('tr');
+        const priceLabel = row.querySelector(`#woods_price_${rowIndex}`);
+        const dpriceLabel = row.querySelector(`#woods_dprice_${rowIndex}`);
+        const skuLabel = row.querySelector(`#woods_sku_${rowIndex}`);
+        const quantityInput = row.querySelector('input[type="number"]');
+        const discountInput = row.querySelector('.woods-discount-input'); // Satırdaki discount inputunu al
+        priceLabel.textContent = '';
+        dpriceLabel.textContent = '';
+        skuLabel.textContent = '';
+        quantityInput.value = '';
+        if (itemSelect.value) {
+            fetch(`/get_woods_item_details?item=${encodeURIComponent(itemSelect.value)}`)
+                .then(response => response.json())
+                .then(data => {
+                    let price = 0;
+                    const customerType = document.getElementById('woodsCustomerType').value;
+                    if (customerType === 'Trade') {
+                        price = data.trade_price;
+                    } else {
+                        price = data.local_price;
+                    }
+                    priceLabel.textContent = price.toFixed(2);
+                    const discount = parseFloat(discountInput?.value) || 0; // Sadece bu satırın discount'u
+                    dpriceLabel.textContent = (price - (price * discount / 100)).toFixed(2);
+                    skuLabel.textContent = data.sku || '';
+                });
+        }
     });
+});
 
     // Customer type veya discount değişince fiyatları güncelle
     function updateWoodsPricesAndDPrices() {
-        const discount = parseFloat(document.getElementById('woodsDiscount').value) || 0;
-        const customerType = document.getElementById('woodsCustomerType').value;
         document.querySelectorAll('#woodsTable tbody tr').forEach((tr, rowIndex) => {
             const itemSelect = tr.querySelector('.woods-item-select');
             const priceLabel = tr.querySelector(`#woods_price_${rowIndex}`);
             const dpriceLabel = tr.querySelector(`#woods_dprice_${rowIndex}`);
+            const discountInput = tr.querySelector('.woods-discount-input');
+            const discount = parseFloat(discountInput?.value) || 0;
+            const customerType = document.getElementById('woodsCustomerType').value;
             if (itemSelect && itemSelect.value) {
                 fetch(`/get_woods_item_details?item=${encodeURIComponent(itemSelect.value)}`)
                     .then(response => response.json())
@@ -5420,13 +5427,14 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
-    document.getElementById('woodsDiscount').addEventListener('input', updateWoodsPricesAndDPrices);
     document.getElementById('woodsCustomerType').addEventListener('change', updateWoodsPricesAndDPrices);
+    document.querySelectorAll('.woods-discount-input').forEach(input => {
+    input.addEventListener('input', updateWoodsPricesAndDPrices);
+    });
 });
 
 async function saveWoodsSelection(quoteNumber) {
     const customerType = document.getElementById('woodsCustomerType')?.value || '';
-    const woodsDiscount = parseFloat(document.getElementById('woodsDiscount')?.value) || 0;
     const rows = Array.from(document.querySelectorAll('#woodsTable tbody tr'));
     const selections = rows.map((row, i) => {
         const group = row.querySelector('.woods-group-select')?.value || '';
@@ -5435,14 +5443,20 @@ async function saveWoodsSelection(quoteNumber) {
         const price = row.querySelector(`#woods_price_${i}`)?.textContent || '';
         const dprice = row.querySelector(`#woods_dprice_${i}`)?.textContent || '';
         const sku = row.querySelector(`#woods_sku_${i}`)?.textContent || '';
-        return { group, item, quantity, price, dprice, sku };
+        const discountInput = row.querySelector('.woods-discount-input');
+        const discount = parseFloat(discountInput?.value) || 0;
+        return { group, item, quantity, price, dprice, sku, discount };
     });
 
     try {
         const response = await fetch('/save_woods_selection', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ quote_number: quoteNumber, customer_type: customerType, woods_discount: woodsDiscount, selections })
+            body: JSON.stringify({
+                quote_number: quoteNumber,
+                customer_type: customerType,
+                selections: selections // Sadece selections gönder
+            })
         });
         const data = await response.json();
         if (data.status === 'success') {
@@ -5463,9 +5477,7 @@ async function loadWoodsSelection(quoteNumber) {
         if (data.status === 'success') {
             const selections = data.selections;
             const customerType = data.customer_type || 'Retail';
-            const woodsDiscount = data.woods_discount || 0;
             document.getElementById('woodsCustomerType').value = customerType;
-            document.getElementById('woodsDiscount').value = woodsDiscount;
 
             const rows = Array.from(document.querySelectorAll('#woodsTable tbody tr'));
             for (let i = 0; i < selections.length; i++) {
@@ -5478,6 +5490,7 @@ async function loadWoodsSelection(quoteNumber) {
                 const priceLabel = row.querySelector(`#woods_price_${i}`);
                 const dpriceLabel = row.querySelector(`#woods_dprice_${i}`);
                 const skuLabel = row.querySelector(`#woods_sku_${i}`);
+                const discountInput = row.querySelector('.woods-discount-input'); // Satırın discount inputu
 
                 // Önce grup seçimini ata ve item listesini doldur
                 if (groupSelect && sel.group) {
@@ -5497,6 +5510,7 @@ async function loadWoodsSelection(quoteNumber) {
                 if (priceLabel) priceLabel.textContent = sel.price || '';
                 if (dpriceLabel) dpriceLabel.textContent = sel.dprice || '';
                 if (skuLabel) skuLabel.textContent = sel.sku || '';
+                if (discountInput) discountInput.value = sel.discount || 0; // <-- SATIRIN DISCOUNT'U
             }
             console.log('Woods seçimleri başarıyla yüklendi.');
         } else {
