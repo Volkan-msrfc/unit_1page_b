@@ -4467,7 +4467,7 @@ async function decreaseStock() {
                     },
                     body: JSON.stringify({ item_id: itemId, qty: qty }),
                 });
-            } else if (parseInt(sira) >= 7000 && parseInt(sira) <= 7999) {
+            } else if (parseInt(sira) >= 7000 && parseInt(sira) <= 7199) {
                 await fetchWithCsrf('/update_refrigeration_quantity', {
                     method: 'POST',
                     headers: {
@@ -4490,10 +4490,17 @@ async function decreaseStock() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ item_id: itemId, qty: qty })
                 });
+            } else if (parseInt(sira) >= 7200 && parseInt(sira) <= 7299) {
+                // Catering için
+                await fetchWithCsrf('/update_catering_quantity', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ item_id: itemId, item_name: model, qty: qty })
+                });
             }
         }
 
-        alert(msg);
+        // alert(msg);
     } catch (error) {
         console.error('Hata (decreaseStock):', error);
         alert('Stok güncelleme sırasında bir hata oluştu.');
