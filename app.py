@@ -3681,6 +3681,9 @@ def update_catering_quantity():
         if not itemId or qty is None:
             return jsonify({'status': 'error', 'message': 'Invalid input data'}), 400
 
+        if '\\' in item_name:
+            item_name = item_name.split('\\')[0].strip()
+
         conn = sqlite3.connect('catering.db')
         cursor = conn.cursor()
 
