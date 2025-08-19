@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Sayfa İçi Sekmeler</title>
     <style>
         /* Sekme başlıkları */
@@ -136,7 +137,7 @@
             padding: 20px;
             border: 1px solid #888;
             width: 100%; /* Modal genişliği */
-            max-width: 1200px; /* Maksimum genişlik */
+            max-width: 1400px; /* Maksimum genişlik */
             height: 70%; /* Sabit yükseklik */
             overflow: hidden; /* İçerik taşmasını gizle */
             display: flex;
@@ -333,9 +334,139 @@
             overflow-x: auto;
         }
 
+        /* Returns tablosu alt toplam satırları için modern görünüm */
+        /* #returnsTable tfoot tr {
+            background: #f6f8fa;
+            font-size: 15px;
+            border-top: 2px solid #bbb;
+        }
+        #returnsTable tfoot td {
+            padding: 10px 8px;
+            font-weight: bold;
+            color: #222;
+            border-top: 2px solid #bbb;
+            background: #f6f8fa;
+        }
+        #returnsTable tfoot tr:last-child td {
+            background: #e9fbe9;
+            color: #28a745;
+        }
+        #returnsTable tfoot span {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        #returnsTable tfoot td[colspan="9"] {
+            text-align: right;
+            background: #f2f2f2;
+            color: #444;
+            border-right: none;
+        }
+        #returnsTable tfoot td:last-child {
+            text-align: right;
+            border-left: none;
+        } */
+
+        #dbTableContainer, .scrollable-table {
+            max-height: 75vh;
+            overflow-y: auto;
+            margin-bottom: 40px; /* Alt sabit panelin yüksekliğinden fazla olmalı */
+        }
+
+        /* label {
+            font-size: 15px;
+            color: #222;
+            font-weight: regular;
+            margin-right: 8px;
+            display: inline-block;
+        } */
+
+            /* Not bölümü sabit konum, sabit yükseklik/genişlik */
+        #customerNoteSection {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 40px;
+            min-width: 1500px;
+            overflow-x: auto;
+            height: 180px;
+            background: #f8f8f8;
+            border: 1px solid #bbb;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            padding: 18px 24px 12px 24px;
+            z-index: 10;
+            display: none;
+        }
+        #customerNoteSection label {
+            font-weight: bold;
+            font-size: 15px;
+            margin-bottom: 6px;
+            display: block;
+        }
+        #customerNoteArea {
+            width: 100%;
+            height: 80px;
+            resize: none;
+            font-size: 14px;
+            margin-bottom: 8px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        #customerNoteSection button {
+            padding: 6px 18px;
+            font-size: 14px;
+            border-radius: 5px;
+            background: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-top: 4px;
+        }
+        #customerNoteStatus {
+            margin-left: 10px;
+            color: green;
+            font-size: 13px;
+        }
+        /* Üstteki tablo kaydırılabilir */
+        #CAccountsTable, #ShelvingTable, #RefrigerationTable {
+            max-height: 980px;
+            overflow-y: auto;
+            margin-bottom: 16px;
+            position: relative;
+        }
+
     </style>
 </head>
 <body>
+<!-- CSRF koruma için helper fonksiyonlar -->
+<script>
+// CSRF token alma fonksiyonu
+function getCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+}
+
+// Fetch istekleri için yardımcı fonksiyon - CSRF ekler
+async function fetchWithCsrf(url, options = {}) {
+    // Varsayılan headers oluştur
+    const headers = options.headers || {};
+    
+    // CSRF token ekle
+    headers['X-CSRFToken'] = getCsrfToken();
+    
+    // Content-Type belirtilmemişse ekle (POST istekleri için)
+    if (options.method && options.method !== 'GET' && !headers['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
+    }
+    
+    // Yeni options nesnesi oluştur ve headers ekle
+    const newOptions = { ...options, headers };
+    
+    // Fetch isteğini gerçekleştir
+    return fetch(url, newOptions);
+}
+</script>
 
     <div id="loadingOverlay">
         <div class="spinner"></div>
@@ -894,11 +1025,13 @@
                             <button id="openProformaBtn" style="border-radius:none; padding: 0px 5px; font-size: 13px; cursor: pointer; width: 105px; height: 22px;" onclick="openProformaModal()">Open Proforma</button>
                             <label for="discountInput">Discount:</label>
                             <input type="number" id="discountInput" value="0" style="width: 60px;" min="0" max="100" step="1">
-                            <label for="deliveryPriceInput">Delivery Price:</label>
-                            <input type="number" id="deliveryPriceInput" value="0" style="width: 80px;" min="0" step="1">
+                            <label for="deliveryPriceInput">Delivery:</label>
+                            <input type="number" id="deliveryPriceInput" value="0" style="width: 60px;" min="0" step="1">
                         </div>
                         <div>
                             <button id="newProformaBtn" style="align-items: right;border-radius:none; padding: 0px 5px; font-size: 13px; cursor: pointer; width: 105px; height: 22px;">New Proforma</button>
+                            <label for="depositInput" style="margin-top: 8px; margin-left: 148px; width: 60px;">Deposit:</label>
+                            <input type="number" id="depositInput" value="0" style="margin-top: 8px; margin-left: 15px; width: 60px;" min="0" step="1">
                         </div>
                     </div>
 
@@ -960,11 +1093,8 @@
                 //alert(`Seçilen Renkler:\n${JSON.stringify(selections, null, 2)}`);
 
             try {
-                const response = await fetch('/save_color_selections', {
+                const response = await fetchWithCsrf('/save_color_selections', {
                 method: 'POST',
-                headers: {
-                'Content-Type': 'application/json',
-            },
                 body: JSON.stringify({ quote_number: quoteNumber, selections: selections }),
             });
 
@@ -982,7 +1112,7 @@
 
                 async function loadColorSelections(quoteNumber) {
                 try {
-                    const response = await fetch(`/load_color_selections?quote_number=${quoteNumber}`);
+                    const response = await fetchWithCsrf(`/load_color_selections?quote_number=${quoteNumber}`);
                     const data = await response.json();
 
                     if (data.status === 'success') {
@@ -1020,7 +1150,7 @@
                 // Fetch options from color_tbl.db and populate dropdowns
                 async function fetchColorOptions() {
                     try {
-                        const response = await fetch('/get_color_options');
+                        const response = await fetchWithCsrf('/get_color_options');
                         const data = await response.json();
 
                         if (data.status === 'success') {
@@ -1131,6 +1261,12 @@
                     <input type="number" id="ceilingM2" placeholder="Enter M2" style="margin-right: 20px;">
                     <label for="trimLM">Trim LM:</label>
                     <input type="number" id="trimLM" placeholder="Enter LM">
+                        <label for="ceilingColour">Colour:</label>
+                        <select id="ceilingColour">
+                            <option value=""></option>
+                            <option value="White">White</option>
+                            <option value="Black">Black</option>
+                        </select>
                 </div>
                 <div>
                     <label for="ceilingDiscount">Discount:</label>
@@ -1213,6 +1349,81 @@
         </div>
 
 
+<div id="tab_catering" class="tab-content">
+    <h2>Catering</h2>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+            <label for="cateringCustomerType">Choose Customer Type:</label>
+            <select id="cateringCustomerType">
+                <option value="Retail">Retail</option>
+                <option value="Trade">Trade</option>
+            </select>
+        </div>
+    </div>
+    <table border="1" style="width: 100%; text-align: center; border-collapse: collapse;">
+        <thead>
+            <tr>
+                <th>SELECT GROUP</th>
+                <th>SELECT ITEM</th>
+                <th>WARRANTY</th>
+                <th>UNPACK&POSITION</th>
+                <th>REMOVE&DISPOSE</th>
+                <th>QUANTITY</th>
+                <th>PRICE</th>
+                <th>D.PRICE</th>
+                <th>SKU</th>
+                <th>DISCOUNT</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for i in range(15) %}
+            <tr>
+                <td>
+                    <select name="catering_group_{{ i }}" class="catering-group-select">
+                        <option value=""></option>
+                    </select>
+                </td>
+                <td>
+                    <select name="catering_item_{{ i }}" class="catering-item-select">
+                        <option value=""></option>
+                    </select>
+                </td>
+                <td>
+                    <select name="catering_warranty_{{ i }}" class="catering-warranty-select">
+                        <option value=""></option>
+                    </select>
+                </td>
+                <td>
+                    <select name="catering_unpack_{{ i }}" class="catering-unpack-select">
+                        <option value=""></option>
+                    </select>
+                </td>
+                <td>
+                    <select name="catering_remove_{{ i }}" class="catering-remove-select">
+                        <option value=""></option>
+                    </select>
+                </td>
+                <td>
+                    <input type="number" name="catering_quantity_{{ i }}" min="1" style="width: 60px;">
+                </td>
+                <td>
+                    <label id="catering_price_{{ i }}"></label>
+                </td>
+                <td>
+                    <label id="catering_dprice_{{ i }}"></label>
+                </td>
+                <td>
+                    <label id="catering_sku_{{ i }}"></label>
+                </td>
+                <td>
+                    <input type="number" id="catering_dsc_{{ i }}" class="catering-dsc-input" value="0" style="width: 60px;" min="0" max="100" step="1">
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
 
         <script>
             let ceil_dsc = 0; // Discount değeri için global değişken
@@ -1221,28 +1432,21 @@
                 const ceilingM2Input = document.getElementById('ceilingM2');
                 const trimLMInput = document.getElementById('trimLM');
                 const discountInput = document.getElementById('ceilingDiscount');
+                const ceilingColour = document.getElementById('ceilingColour').value; // Renk seçimi
 
                 let ceilingM2 = parseFloat(ceilingM2Input.value) || 0;
                 let trimLM = parseFloat(trimLMInput.value) || 0;
-                ceil_dsc = parseFloat(discountInput.value) || 0; // Discount değerini al
+                let ceil_dsc = parseFloat(discountInput.value) || 0;
 
-                // Eğer tüm kutucuklar boşsa tabloyu temizle ve çık
-                if (
-                    (!ceilingM2Input.value || ceilingM2Input.value.trim() === '') &&
-                    (!trimLMInput.value || trimLMInput.value.trim() === '') &&
-                    (!discountInput.value || discountInput.value.trim() === '')
-                ) {
-                    const tableBody = document.getElementById('ceilingTableBody');
-                    tableBody.innerHTML = '';
+                // Eğer renk seçimi boşsa tabloyu temizle ve çık
+                if (!ceilingColour) {
+                    document.getElementById('ceilingTableBody').innerHTML = '';
                     return;
                 }
 
-                fetch('/calculate_ceiling_qty', {
+                fetchWithCsrf('/calculate_ceiling_qty', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ ceilingM2, trimLM, ceil_dsc }),
+                    body: JSON.stringify({ ceilingM2, trimLM, ceil_dsc, ceilingColour })
                 })
                 .then(response => response.json())
                 .then(data => {
@@ -1250,16 +1454,25 @@
                     if (data.status === 'success') {
                         tableBody.innerHTML = '';
                         data.rows.forEach(row => {
-                            const tr = document.createElement('tr');
-                            tr.innerHTML = `
-                                <td>${row.Code}</td>
-                                <td>${row.Materials}</td>
-                                <td>${row.Notes}</td>
-                                <td>${row.qty}</td>
-                                <td>${row.local}</td>
-                                <td>${row.dPrice}</td>
-                            `;
-                            tableBody.appendChild(tr);
+                            // row.Code, row.Materials, ...
+                            // Filtreleme:
+                            // White ise: id'si W ile başlayanlar veya CL_W124/CL_AB122
+                            // Black ise: id'si B ile başlayanlar veya CL_W124/CL_AB122
+                            if (
+                                (ceilingColour === "White" && (row.Code.startsWith('W') || row.Code === 'CL_W124' || row.Code === 'CL_AB122')) ||
+                                (ceilingColour === "Black" && (row.Code.startsWith('B') || row.Code === 'CL_W124' || row.Code === 'CL_AB122'))
+                            ) {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `
+                                    <td>${row.Code}</td>
+                                    <td>${row.Materials}</td>
+                                    <td>${row.Notes}</td>
+                                    <td>${row.qty}</td>
+                                    <td>${row.local}</td>
+                                    <td>${row.dPrice}</td>
+                                `;
+                                tableBody.appendChild(tr);
+                            }
                         });
                     } else {
                         tableBody.innerHTML = '';
@@ -1272,6 +1485,7 @@
                 });
             }
 
+            document.getElementById('ceilingColour').addEventListener('change', fetchCeilingData);
             document.getElementById('ceilingM2').addEventListener('input', fetchCeilingData);
             document.getElementById('trimLM').addEventListener('input', fetchCeilingData);
             document.getElementById('ceilingDiscount').addEventListener('input', fetchCeilingData); // Discount değişikliğinde tetikleniyor
@@ -1352,7 +1566,7 @@
     <div class="modal" id="proformaModal">
         <div class="modal-content">
             <h2>Proforma Listesi</h2>
-            <input type="text" id="searchBox" placeholder="Proforma Arama..." onkeyup="searchProforma()">
+            <input type="text" id="proformaSearchBox" placeholder="Search Quote" onkeyup="searchProforma()">
             
             <!-- Kaydırılabilir tablo -->
             <div class="scrollable-table">
@@ -1364,11 +1578,15 @@
                             <th>User Name</th>
                             <th>Customer ID</th>
                             <th>Customer Name</th>
+                            <th>Postcode</th>
+                            <th>Address1</th>
                             <th>DidDis</th>
                             <th>Amount</th>
                             <th>Sold</th>
                             <th>Inv</th>
                             <th>Created At</th> <!-- Yeni sütun -->
+                            <th>Dlv</th>
+                            <th>Deposit</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1388,18 +1606,195 @@
         <div class="tab" onclick="openTab('tab_woods')">Woods</div>
         <div class="tab" onclick="openTab('tab_refrigeration')">Refrigeration</div>
         <div class="tab" onclick="openTab('tab_ceiling')">Ceiling</div>
+        <div class="tab" onclick="openTab('tab_catering')">Catering</div>
+
         <div class="tab" onclick="openTab('tab_add_item')">Add Item</div>
-        
+        <div class="tab" onclick="openTab('tab_credit_note')">Credit Note</div>
         <div class="tab" onclick="openTab('tab_reports')">Report</div>
+        <div class="tab" onclick="openTab('tab_returns')">Returns</div>
         {% if session['authority'] == 'admin' %}
+        <div class="tab" onclick="openTab('tab_databaseler')">DB ler</div>
         <div class="tab" onclick="openTab('tab_goruntule')">Goruntule</div>
         {% endif %}
     </div>
 
+<div id="tab_databaseler" class="tab-content">
+    <h2>DB Listesi</h2>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <label for="dbSelect">Veritabanı Seç:</label>
+            <select id="dbSelect"></select>
+            <button id="loadDbBtn">Tabloyu Göster</button>
+            <button id="saveDbBtn" style="display:none;">Kaydet</button>
+        </div>
+        <div>
+            <button id="exportExcelBtn" style="padding: 8px 18px; font-size: 15px;">Excel Aktar</button>
+            <input type="file" id="importExcelInput" accept=".xlsx,.xls" style="display:none;">
+            <button id="importExcelBtn" style="padding: 8px 18px; font-size: 15px;">Excelden Veri Çek</button>
+        </div>
+    </div>
+    <div id="dbTableContainer"></div>
+</div>
 
+<div id="tab_returns" class="tab-content">
+    <h2 style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="display: flex; align-items: center; gap: 16px;">
+            Returns
+            <input type="text" id="returnsSearchBox" placeholder="Search Item..." style="margin-left: 18px; padding: 5px 10px; font-size: 15px; border-radius: 5px; border: 1px solid #bbb; width: 200px;">
+        </span>
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <label for="deductFeeInput" style="font-weight:bold;">Deduct. Fee (%):</label>
+            <input type="number" id="deductFeeInput" value="0" min="0" max="100" style="width: 70px; text-align: right; margin-right: 10px;" />
+            <button onclick="submitReturns()" style="padding: 8px 18px; font-size: 15px;">Save Returns</button>
+        </div>
+    </h2>
+    
+    <div id="returnsSelectedCustomer"></div>
+    <div class="scrollable-table">
+        <table id="returnsTable">
+            <thead>
+                <tr>
+                    <th>Item ID</th>
+                    <th>Item Name</th>
+                    <th>QTTY</th>
+                    <th>Unit Type</th>
+                    <th>D.Pprice</th>
+                    <th>Amounth</th>
+                    <th>Quote Number</th>
+                    <th>S_I</th>
+                    <th>Ret_Qty</th>
+                    <th>Ret_Amnt</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Satırlar JS ile doldurulacak -->
+            </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="9" style="text-align: right; font-weight: bold;">Ret. Total</td>
+                        <td><span id="retTotalValue">0.00</span></td>
+                    </tr>
+                    <tr>
+                        <td colspan="9" style="text-align: right; font-weight: bold;">Deduct. Fee (%)</td>
+                        <td><span id="deductFeeValue">0</span></td>
+                    </tr>
+                    <tr>
+                        <td colspan="9" style="text-align: right; font-weight: bold;">Ret. G. Tot</td>
+                        <td><span id="retGTotalValue">0.00</span></td>
+                    </tr>
+                </tfoot>
+        </table>
+    </div>
+</div>
+
+
+    <!-- <div id="returnsSummary" style="display:none; max-width: 420px; margin: 32px 0 0 auto; background: #f9f9f9; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); padding: 24px 32px 18px 32px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 16px; margin-bottom: 12px;">
+            <span style="font-weight: bold; color: #333;">Ret. Total</span>
+            <span id="retTotalValue" style="font-weight: bold; color: #007BFF;">0.00</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 15px; margin-bottom: 12px;">
+            <span style="font-weight: bold; color: #333;">Deduct. Fee (%)</span>
+            <input type="number" id="deductFeeInput" value="0" min="0" max="100" style="width: 90px; padding: 6px 10px; border: 1px solid #bbb; border-radius: 5px; font-size: 15px; text-align: right;" />
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 17px; margin-top: 18px; border-top: 1px solid #eee; padding-top: 12px;">
+            <span style="font-weight: bold; color: #222;">Ret. G. Tot</span>
+            <span id="retGTotalValue" style="font-weight: bold; color: #28a745;">0.00</span>
+        </div>
+    </div> -->
+   
+</div>
+<div id="tab_credit_note" class="tab-content">
+    <h2 style="display: flex; justify-content: space-between; align-items: center;">
+        <span>Credit Note List</span>
+        <button id="payCreditNoteBtn" style="padding: 8px 18px; font-size: 15px;">Pay Credit Note</button>
+    </h2>
+    <div id="creditNoteSelectedCustomer"></div>
+    <div class="scrollable-table">
+        <table id="creditNoteTable" border="1" style="width:100%;text-align:center;">
+            <thead>
+                <tr>
+                    <th>User ID</th>
+                    <th>Customer ID</th>
+                    <th>Customer Name</th>
+                    <th>RetNumber</th>
+                    <th>Description</th>
+                    <th>Amounth</th>
+                    <th>S_I</th>
+                    <th>State</th>
+                    <th>Used_quote</th>
+                    <th>Date</th>
+                    <th>U/P Date</th>
+                    <th>Select</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Satırlar JS ile doldurulacak -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+// Ana db listesini doldur
+fetchWithCsrf('/list_main_dbs')
+  .then(r => r.json())
+  .then(data => {
+    if (data.status === 'success') {
+      const dbSelect = document.getElementById('dbSelect');
+      dbSelect.innerHTML = '<option value="">Seçiniz</option>' +
+        data.dbs.map(db => `<option value="${db}">${db}</option>`).join('');
+    }
+  });
+
+document.getElementById('loadDbBtn').addEventListener('click', async function () {
+  const dbName = document.getElementById('dbSelect').value;
+  if (!dbName) return;
+  const resp = await fetchWithCsrf(`/get_main_db_table?db_name=${encodeURIComponent(dbName)}`);
+  const data = await resp.json();
+  if (data.status === 'success') {
+    renderMainDbTable(data.table_name, data.columns, data.rows);
+    document.getElementById('saveDbBtn').style.display = 'inline-block';
+  } else {
+    alert(data.message || 'Tablo yüklenemedi');
+  }
+});
+
+document.getElementById('saveDbBtn').addEventListener('click', async function () {
+  const dbName = document.getElementById('dbSelect').value;
+  const table = document.getElementById('editableMainDbTable');
+  if (!table) return;
+  const columns = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent);
+  const rows = Array.from(table.querySelectorAll('tbody tr')).map(tr =>
+    Array.from(tr.querySelectorAll('td')).map(td => td.querySelector('input') ? td.querySelector('input').value : td.textContent)
+  );
+  const tableName = table.dataset.tableName;
+  const resp = await fetchWithCsrf('/save_main_db_table', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ db_name: dbName, table_name: tableName, columns, rows })
+  });
+  const data = await resp.json();
+  alert(data.message || (data.status === 'success' ? 'Kaydedildi' : 'Hata'));
+});
+
+function renderMainDbTable(tableName, columns, rows) {
+  let html = `<table id="editableMainDbTable" data-table-name="${tableName}" border="1"><thead><tr>`;
+  columns.forEach(col => html += `<th>${col}</th>`);
+  html += '</tr></thead><tbody>';
+  rows.forEach(row => {
+    html += '<tr>';
+    row.forEach(cell => html += `<td><input value="${cell ?? ''}" /></td>`);
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('dbTableContainer').innerHTML = html; // <-- burada düzeltildi
+}
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+</script>
     
 
-    <script>
+<script>
 
 let selectedCustomerID = null;
 let selectedCustomer1ID = null;
@@ -1409,7 +1804,7 @@ let newQuoteNum = null;
 
 function setCustomerInfo(customer) {
     // Backend'e müşteri bilgilerini gönder
-    fetch('/set_customer', {
+    fetchWithCsrf('/set_customer', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -1678,11 +2073,8 @@ async function updateWidthData() {
 
     try {
         for (const data of validRows) {
-            const response = await fetch('/update_width', {
+            const response = await fetchWithCsrf('/update_width', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
                 body: JSON.stringify(data),
             });
 
@@ -1756,7 +2148,7 @@ async function showAddItemData() {
         : window.location.origin; // Render.com veya herhangi bir sunucu ortamı için
 
     // API çağrısı
-    const response = await fetch(`${apiBaseUrl}/add_item_data`, {
+    const response = await fetchWithCsrf(`${apiBaseUrl}/add_item_data`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -1775,22 +2167,31 @@ async function showAddItemData() {
     } catch (error) {
         console.error('API Hatası:', error);
         alert('Veri gönderme sırasında hata oluştu.');
-        await fetch('/reset_islmdvm', { method: 'POST' });
+        await fetchWithCsrf('/reset_islmdvm', { method: 'POST' });
         throw error; // Hata fırlatarak işlemi durdur
     }
 }
 // 3. Main fonksiyon: Sıralı çağırma ve loadQuoteList() çağrısı
 async function mainFunction() {
+
+    window.untknt = window.untknt || 0;
+    window.scnduntknt = window.scnduntknt || 0;
+    window.adwodknt = window.adwodknt || 0;
+    window.aditmknt = window.aditmknt || 0;
+    window.adrefknt = window.adrefknt || 0;
+    window.adclknt = window.adclknt || 0;
+    window.adcatknt = window.adcatknt || 0;
+
     console.log("mainFunction çalıştı");
     // islmdvm değerini kontrol et
-    const response = await fetch('/check_islmdvm');
+    const response = await fetchWithCsrf('/check_islmdvm');
     const data = await response.json();
 
         // Müşteri seçimi kontrolü
     if (!selectedCustomerID) {
     alert("Müşteri seçili değil! Lütfen bir müşteri seçin.");
     // islmdvm değerini sıfırlamak için bir API çağrısı yap
-    await fetch('/reset_islmdvm', { method: 'POST' });
+    await fetchWithCsrf('/reset_islmdvm', { method: 'POST' });
     return; // İşlemleri sonlandır
     }
 
@@ -1815,7 +2216,7 @@ async function mainFunction() {
         const uptclrcont = await clrCont();
         if (!uptclrcont) {
             //console.error('Color cont basarisiz oldu.');
-            await fetch('/reset_islmdvm', { method: 'POST' });
+            await fetchWithCsrf('/reset_islmdvm', { method: 'POST' });
             return;
         }
     }
@@ -1833,18 +2234,20 @@ async function mainFunction() {
     newQuoteNum = nextNumber; // nextNumber'ı global değişkene ata
     if (!nextNumber) {
         console.error("quotenumkont işlemi başarısız. İşlem durduruldu.");
-        await fetch('/reset_islmdvm', { method: 'POST' });
+        await fetchWithCsrf('/reset_islmdvm', { method: 'POST' });
         return; // İşlemi sonlandır
     }
 
     // largestFile değerini güncelle
     document.getElementById('largestFile').textContent = nextNumber
 
+    await saveColorSelections(nextNumber);
+
         // 1. updateWidthData çağrısı
     const updateResult = await updateWidthData(nextNumber);
     if (!updateResult) {
         console.error('updateWidthData başarısız oldu. İşlem sonlandırıldı.');
-        await fetch('/reset_islmdvm', { method: 'POST' });
+        await fetchWithCsrf('/reset_islmdvm', { method: 'POST' });
         return;
     }
 
@@ -1862,7 +2265,7 @@ async function mainFunction() {
         await AddWoodData(); // İşlemin tamamlanmasını bekle
     } catch (error) {
         console.error('AddWoodData başarısız oldu. İşlem sonlandırıldı.', error);
-        await fetch('/reset_islmdvm', { method: 'POST' });
+        await fetchWithCsrf('/reset_islmdvm', { method: 'POST' });
         return;
     }
 
@@ -1872,7 +2275,17 @@ async function mainFunction() {
         await AddRefData(); // İşlemin tamamlanmasını bekle
     } catch (error) {
         console.error('AddRefData başarısız oldu. İşlem sonlandırıldı.', error);
-        await fetch('/reset_islmdvm', { method: 'POST' });
+        await fetchWithCsrf('/reset_islmdvm', { method: 'POST' });
+        return;
+    }
+
+        // 1. AddCateringData çağrısı
+    try {
+        console.log("AddCateringData fonksiyonu çağrıldı.");
+        await AddCateringData(); // Catering verilerini gönder
+    } catch (error) {
+        console.error('AddCateringData başarısız oldu. İşlem sonlandırıldı.', error);
+        await fetchWithCsrf('/reset_islmdvm', { method: 'POST' });
         return;
     }
 
@@ -1882,7 +2295,7 @@ async function mainFunction() {
         await addCeilingData(); // Ceiling verilerini gönder
     } catch (error) {
         console.error('addCeilingData başarısız oldu. İşlem sonlandırıldı.', error);
-        await fetch('/reset_islmdvm', { method: 'POST' });
+        await fetchWithCsrf('/reset_islmdvm', { method: 'POST' });
         return;
     }
 
@@ -1892,7 +2305,7 @@ async function mainFunction() {
         await showAddItemData(); // İşlemin tamamlanmasını bekle
     } catch (error) {
         console.error('showAddItemData başarısız oldu. İşlem sonlandırıldı.', error);
-        await fetch('/reset_islmdvm', { method: 'POST' });
+        await fetchWithCsrf('/reset_islmdvm', { method: 'POST' });
         return;
     }
 
@@ -1903,7 +2316,7 @@ async function mainFunction() {
 
     // 4. apply_discount çağrısı
     try {
-    const response = await fetch('/apply_discount', {
+    const response = await fetchWithCsrf('/apply_discount', {
     method: 'POST',
     headers: {
     'Content-Type': 'application/json',
@@ -1911,41 +2324,77 @@ async function mainFunction() {
         body: JSON.stringify({ quote_number: nextNumber, dsc: dsc }) // dsc = 5
     });
 
+        // 3. loadQuoteList çağrısı
+    if (
+        (window.untknt || 0) +
+        (window.scnduntknt || 0) +
+        (window.adwodknt || 0) +
+        (window.aditmknt || 0) +
+        (window.adrefknt || 0) +
+        (window.adclknt || 0) +
+        (window.adcatknt || 0) <= 0 // <-- Catering kontrolü eklendi
+    ) {
+        alert("Proforma oluşturulacak bir değer yok!");
+        await fetchWithCsrf('/reset_islmdvm', { method: 'POST' });
+        //return;
+    } else {
+        console.log("loadQuoteList fonksiyonu çağrılıyor.");
+    }
+
     const result = await response.json();
     if (result.status !== 'success') {
         console.error('apply_discount başarısız oldu:', result.message);
-        await fetch('/reset_islmdvm', { method: 'POST' });
+        await fetchWithCsrf('/reset_islmdvm', { method: 'POST' });
         return;
     }
     console.log(result.message);
     } catch (error) {
         console.error('apply_discount sırasında hata oluştu:', error);
-        await fetch('/reset_islmdvm', { method: 'POST' });
+        await fetchWithCsrf('/reset_islmdvm', { method: 'POST' });
         return;
     }
 
     // 3. loadQuoteList çağrısı
-    if ((window.untknt || 0) + (window.scnduntknt || 0) + (window.adwodknt || 0)+ (window.aditmknt || 0) + (window.adrefknt || 0)+ (window.adclknt || 0)<= 0) {
-        alert("Proforma oluşturulacak bir değer yok!");
-        await fetch('/reset_islmdvm', { method: 'POST' });
+    if (
+        (window.untknt || 0) +
+        (window.scnduntknt || 0) +
+        (window.adwodknt || 0) +
+        (window.aditmknt || 0) +
+        (window.adrefknt || 0) +
+        (window.adclknt || 0) +
+        (window.adcatknt || 0) <= 0 // <-- Catering kontrolü eklendi
+    ) {
+        //alert("Proforma oluşturulacak bir değer yok!");
+        await fetchWithCsrf('/reset_islmdvm', { method: 'POST' });
+       
     } else {
         console.log("loadQuoteList fonksiyonu çağrılıyor.");
+        // ...
         
+
+        newQuoteNum = nextNumber;
+        window.newQuoteNum = nextNumber; //010725
         //await renkkontrol(nextNumber);
+
+        //await saveColorSelections(nextNumber);
         await createTableprofdelv(nextNumber);
-        await loadQuoteList(nextNumber); // İşlemin tamamlanmasını bekle
         await loadProformaDeliveryInfo(nextNumber);
+        await saveCreditNoteSelection(nextNumber);
+        await loadQuoteList(nextNumber); // İşlemin tamamlanmasını bekle
+        
         await DpTpl(nextNumber);
         await KgTpl(nextNumber);
         await callPrepUpQt(nextNumber, dsc, selectedCustomerID, selectedCustomerName);
         await saveUniteSelection(nextNumber);
         await saveAddItemSelection(nextNumber);
         await saveRefSelection(nextNumber); // Yeni fonksiyon çağrısı
+        await saveCateringSelection(nextNumber); // Catering seçimlerini kaydet
         await saveCeilSelection(nextNumber);
-        await saveColorSelections(nextNumber);
+        
         await saveWoodsSelection(nextNumber);
+        
         await fetchCustomerDataByQuote(newQuoteNum);
-        await fetch('/reset_islmdvm', { method: 'POST' });
+        await fetchWithCsrf('/reset_islmdvm', { method: 'POST' });
         
     }
 }
@@ -1965,7 +2414,7 @@ async function quotenumkont() {
             console.log(`Seçili quote bulundu: ${selectedQuoteNumber}`);
 
             // clear_list_table endpoint'ini çağır
-            const response = await fetch('/clear_list_table', {
+            const response = await fetchWithCsrf('/clear_list_table', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1989,7 +2438,7 @@ async function quotenumkont() {
         console.log("Seçili quote bulunamadı, yeni numara hesaplanıyor...");
 
         // Sunucudan dosya listesini al
-        const response = await fetch('/get_quote_files'); // quotes klasöründeki dosyaları döndüren bir endpoint
+        const response = await fetchWithCsrf('/get_quote_files'); // quotes klasöründeki dosyaları döndüren bir endpoint
         if (!response.ok) {
             throw new Error('Dosya listesi alınırken hata oluştu.');
         }
@@ -2167,7 +2616,7 @@ function closeModal() {
 
 // Müşteri verilerini çekme
 function fetchCustomerData() {
-    fetch("/fetch_customers")
+    fetchWithCsrf("/fetch_customers")
         .then(response => response.json())
         .then(data => {
             const tableBody = document.getElementById("customerTable").querySelector("tbody");
@@ -2186,11 +2635,13 @@ function fetchCustomerData() {
             });
         });
 }
+let selectedCustomerPostcode = null;
+
 function selectCustomer(customer) {
     selectedCustomerID = customer[0];
     selectedCustomerName = customer[1];
+    selectedCustomerPostcode = customer[5];
     selectedCustomer1ID = null;
-    //alert("Customer ID: " + customer[0]); // <-- Burada alert eklendi
     document.getElementById("selectedCustomer").innerHTML = `
         <div>
             <strong>Proforma To</strong><br>
@@ -2200,12 +2651,19 @@ function selectCustomer(customer) {
             <strong>Address Line2:</strong> ${customer[4]}<br>
             <strong>Postcode:</strong> ${customer[5]}
         </div>
-
     `;
-    // beckende musteri bilgilerini gonder    
     setCustomerInfo(customer);
-    //modali kapat
     closeModal();
+
+    // Returns sekmesi aktifse tabloyu yükle
+    if (document.getElementById('tab_returns').classList.contains('active')) {
+        loadReturnsTable(customer[0], customer[5]);
+    }
+        // Credit Note sekmesi aktifse tabloyu yükle
+    if (document.getElementById('tab_credit_note').classList.contains('active')) {
+        document.getElementById("creditNoteSelectedCustomer").innerHTML = `<b>Customer ID:</b> ${customer[0]} <b>Name:</b> ${customer[1]}`;
+        loadCreditNoteTable(customer[0]);
+    }
 }
 
 async function selectCustomerDlv(customer) {
@@ -2237,7 +2695,7 @@ async function selectCustomerDlv(customer) {
     // Backend'den Deliver To bilgilerini al
     try {
         const quoteNumber = selectedQuoteNumber ?? newQuoteNum;
-        const response = await fetch(`/get_delivery_info?quote_number=${quoteNumber}`);
+        const response = await fetchWithCsrf(`/get_delivery_info?quote_number=${quoteNumber}`);
         //const response = await fetch(`/get_delivery_info?quote_number=${selectedQuoteNumber}`);
         const data = await response.json();
 
@@ -2266,7 +2724,7 @@ async function selectCustomerDlv(customer) {
         //alert(`Selected Customer ID: ${selectedCustomer1ID}`); // ID'yi alert olarak göster
 
         // ...existing code...
-        fetch(`/get_customer_by_id?id=${selectedCustomer1ID}`)
+        fetchWithCsrf(`/get_customer_by_id?id=${selectedCustomer1ID}`)
             .then(response => response.json())
             .then(data => {
                 if (data.status === "success") {
@@ -2310,7 +2768,7 @@ async function selectCustomerDlv(customer) {
         discount: discountInput,
     };
         
-        fetch("/add_or_update_customer", {
+        fetchWithCsrf("/add_or_update_customer", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -2369,7 +2827,7 @@ async function checkConcurrentClicks() {
         const userId = document.querySelector('.user-info').getAttribute('data-user-id');
         const clickTime = new Date().toLocaleString(); // Kullanıcının tıklama zamanı
 
-        const response = await fetch('/log_click', {
+        const response = await fetchWithCsrf('/log_click', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -2408,12 +2866,28 @@ async function checkConcurrentClicks() {
     }
 }
 
+function clearAllInputsAndSelects() {
+    // Sadece tablo içindeki input ve label'ları temizle
+    const table = document.getElementById('quoteListTable');
+    if (table) {
+        table.querySelectorAll('input[type="text"], input[type="number"], textarea').forEach(input => {
+            input.value = '';
+        });
+        table.querySelectorAll('select').forEach(select => {
+            select.selectedIndex = 0;
+        });
+        table.querySelectorAll('label').forEach(label => {
+            label.textContent = '';
+        });
+    }
+}
+
 async function openProformaModal() {
     const modal = document.getElementById('proformaModal');
     modal.style.display = 'flex'; // Modalı görünür yap
 
     try {
-        const response = await fetch('/get_quotes');
+        const response = await fetchWithCsrf('/get_quotes');
         const data = await response.json();
 
         if (data.error) {
@@ -2434,18 +2908,23 @@ async function openProformaModal() {
             });
 
             // Satıra tıklama olayı ekle
-            tr.addEventListener('click', async () => {
+            tr.addEventListener('dblclick', async () => {
+
+                clearAllInputsAndSelects();
+
                 const quoteNumber = row[0]; // Birinci sütundaki numarayı al
-                const discountValue = row[5]; // Discount değerini al
+                const discountValue = row[7]; // Discount değerini al
                 selectedQuoteNumber = row[0]; // Birinci sütundaki quote numarasını al
-                const deliveryPriceValue = row[10] || 0; // 10. sütun DeliveryPrice (Delpr) ise
-                const Sing1 = row[7];
-                const Sing2 = row[8];
+                const deliveryPriceValue = row[12] || 0; // 10. sütun DeliveryPrice (Delpr) ise
+                const depositValue = row[13] || 0;
+                const Sing1 = row[9];
+                const Sing2 = row[10];
                 const dbName = `${quoteNumber}`; // Dosya adını oluştur
 
                 // Discount değerini dsc alanına yaz
                 document.getElementById('discountInput').value = discountValue;
                 document.getElementById('deliveryPriceInput').value = deliveryPriceValue;
+                document.getElementById('depositInput').value = depositValue;
 
                 // Eğer Sing1 veya Sing2 doluysa "Make Proforma" butonunu kilitle
                 const makeProformaButton = document.getElementById('updateWidthBtn');
@@ -2459,6 +2938,9 @@ async function openProformaModal() {
                     makeProformaButton.title = '';
                 }
 
+                selectedQuoteNumber = quoteNumber; //010725
+                window.selectedQuoteNumber = quoteNumber;
+
                 // Sıralı ve await'li şekilde çağır
                 await fetchCustomerDataByQuote(quoteNumber);
                 await loadUniteSelection(dbName);
@@ -2466,6 +2948,7 @@ async function openProformaModal() {
                 await loadWoodsSelection(dbName);
                 await loadAddItemSelection(dbName);
                 await loadRefSelection(dbName);
+                await loadCateringSelection(dbName);
                 await loadCeilSelection(dbName);
                 loadColorSelections(dbName);
                 updateQuoteDate(quoteNumber);
@@ -2473,6 +2956,7 @@ async function openProformaModal() {
 
                 closeProformaModal(); // Modalı kapat
             });
+
 
             tableBody.appendChild(tr);
         });
@@ -2488,11 +2972,11 @@ function closeProformaModal() {
 }
 
 async function loadQuoteList(dbName) {
-selectedQuoteNumber = dbName; // Seçilen quote numarasını güncelle
-let inputsLocked = true;
+    selectedQuoteNumber = dbName; // Seçilen quote numarasını güncelle
+    let inputsLocked = true;
     try {
         const viewMode = document.getElementById('viewMode').value;
-        const response = await fetch(`/get_quote_list?db_name=${dbName}`);
+        const response = await fetchWithCsrf(`/get_quote_list?db_name=${dbName}`);
 
         if (!response.ok) {
             if (response.status === 404) {
@@ -2565,8 +3049,24 @@ let inputsLocked = true;
             const deliveryPriceInput = document.getElementById('deliveryPriceInput');
             const deliveryPrice = parseFloat(deliveryPriceInput.value) || 0;
 
-            const vat = (totalAmount+deliveryPrice) * 0.2;
-            const grandTotal = totalAmount + deliveryPrice + vat;
+            let depositValue = parseFloat(document.getElementById('depositInput').value) || 0;
+
+            // CREDIT NOTE Amounth eklemesi
+            try {
+                const mainQuoteNum = (window.selectedQuoteNumber || window.newQuoteNum || "").toString();
+                //alert("endpointine gönderilen used_quote: " + mainQuoteNum); // <-- BURADA ALERT
+                const resp = await fetchWithCsrf(`/get_cr_note_amounth_total?used_quote=${encodeURIComponent(mainQuoteNum)}`);
+                const data = await resp.json();
+                if (data.status === "success") {
+                    depositValue += parseFloat(data.total) || 0;
+                }
+            } catch (e) {
+                console.error("Credit Note Amounth toplamı alınırken hata:", e);
+            }
+
+            const vat = (totalAmount + deliveryPrice) * 0.2;
+            const sTotal = totalAmount + deliveryPrice - depositValue;
+            const grandTotal = totalAmount + deliveryPrice + vat - depositValue;
 
             const totalRow = document.createElement('tr');
             totalRow.innerHTML = `
@@ -2575,8 +3075,6 @@ let inputsLocked = true;
             `;
             tableBody.appendChild(totalRow);
 
-           // Delivery Price satırı
-
             const deliveryRow = document.createElement('tr');
             deliveryRow.innerHTML = `
                 <td colspan="4" style="font-weight: bold; text-align: right;">Delivery:</td>
@@ -2584,13 +3082,26 @@ let inputsLocked = true;
             `;
             tableBody.appendChild(deliveryRow);
 
-            // VAT ve Grand Total satırları
             const vatRow = document.createElement('tr');
             vatRow.innerHTML = `
                 <td colspan="4" style="font-weight: bold; text-align: right;">Vat (20%):</td>
                 <td style="font-weight: bold; text-align: right;">${vat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             `;
             tableBody.appendChild(vatRow);
+
+            const depositRow = document.createElement('tr');
+            depositRow.innerHTML = `
+                <td colspan="4" style="font-weight: bold; text-align: right;">Deposit:</td>
+                <td style="font-weight: bold; text-align: right;">${depositValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            `;
+            tableBody.appendChild(depositRow);
+
+            const sTotalRow = document.createElement('tr');
+            sTotalRow.innerHTML = `
+                <td colspan="4" style="font-weight: bold; text-align: right;">S.Total:</td>
+                <td style="font-weight: bold; text-align: right;">${sTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            `;
+            tableBody.appendChild(sTotalRow);
 
             const grandTotalRow = document.createElement('tr');
             grandTotalRow.innerHTML = `
@@ -2761,42 +3272,74 @@ let inputsLocked = true;
             lastRow.after(subtotalRow);
         });
 
-            const deliveryPriceInput = document.getElementById('deliveryPriceInput');
-            const deliveryPrice = parseFloat(deliveryPriceInput.value) || 0;
+        const deliveryPriceInput = document.getElementById('deliveryPriceInput');
+        const deliveryPrice = parseFloat(deliveryPriceInput.value) || 0;
 
-            const vat = (totalAmount+deliveryPrice) * 0.2;
-            const grandTotal = totalAmount + deliveryPrice + vat;
+        let depositValue = parseFloat(document.getElementById('depositInput').value) || 0;
 
-            const totalRow = document.createElement('tr');
-            totalRow.innerHTML = `
-                <td colspan="4" style="font-weight: bold; text-align: right;">Total:</td>
-                <td style="font-weight: bold; text-align: right;">${totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            `;
-            tableBody.appendChild(totalRow);
+        // CREDIT NOTE Amounth eklemesi
+        try {
+            // alert(
+            //     "window.selectedQuoteNumber: " + window.selectedQuoteNumber +
+            //     "\nwindow.newQuoteNum: " + window.newQuoteNum
+            // );
+            const mainQuoteNum = (window.selectedQuoteNumber || window.newQuoteNum || "").toString();
+            //alert("get_cr endpointine gönderilen used_quote: " + mainQuoteNum); // <-- BURADA ALERT
+            const resp = await fetchWithCsrf(`/get_cr_note_amounth_total?used_quote=${encodeURIComponent(mainQuoteNum)}`);
+            const data = await resp.json();
+            if (data.status === "success") {
+                depositValue += parseFloat(data.total) || 0;
+            }
+        } catch (e) {
+            console.error("Credit Note Amounth toplamı alınırken hata:", e);
+        }
 
-           // Delivery Price satırı
+        const vat = (totalAmount + deliveryPrice) * 0.2;
+        const sTotal = totalAmount + deliveryPrice - depositValue;
+        const grandTotal = totalAmount + deliveryPrice + vat - depositValue;
 
-            const deliveryRow = document.createElement('tr');
-            deliveryRow.innerHTML = `
-                <td colspan="4" style="font-weight: bold; text-align: right;">Delivery:</td>
-                <td style="font-weight: bold; text-align: right;">${deliveryPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            `;
-            tableBody.appendChild(deliveryRow);
+        const totalRow = document.createElement('tr');
+        totalRow.innerHTML = `
+            <td colspan="4" style="font-weight: bold; text-align: right;">Total:</td>
+            <td style="font-weight: bold; text-align: right;">${totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        `;
+        tableBody.appendChild(totalRow);
 
-            // VAT ve Grand Total satırları
-            const vatRow = document.createElement('tr');
-            vatRow.innerHTML = `
-                <td colspan="4" style="font-weight: bold; text-align: right;">Vat (20%):</td>
-                <td style="font-weight: bold; text-align: right;">${vat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            `;
-            tableBody.appendChild(vatRow);
+        const deliveryRow = document.createElement('tr');
+        deliveryRow.innerHTML = `
+            <td colspan="4" style="font-weight: bold; text-align: right;">Delivery:</td>
+            <td style="font-weight: bold; text-align: right;">${deliveryPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        `;
+        tableBody.appendChild(deliveryRow);
 
-            const grandTotalRow = document.createElement('tr');
-            grandTotalRow.innerHTML = `
-                <td colspan="4" style="font-weight: bold; text-align: right;">G.Total:</td>
-                <td style="font-weight: bold; text-align: right;">${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            `;
-            tableBody.appendChild(grandTotalRow);
+        const vatRow = document.createElement('tr');
+        vatRow.innerHTML = `
+            <td colspan="4" style="font-weight: bold; text-align: right;">Vat (20%):</td>
+            <td style="font-weight: bold; text-align: right;">${vat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        `;
+        tableBody.appendChild(vatRow);
+
+        const depositRow = document.createElement('tr');
+        depositRow.innerHTML = `
+            <td colspan="4" style="font-weight: bold; text-align: right;">Deposit:</td>
+            <td style="font-weight: bold; text-align: right;">${depositValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        `;
+        tableBody.appendChild(depositRow);
+
+
+        const sTotalRow = document.createElement('tr');
+        sTotalRow.innerHTML = `
+            <td colspan="4" style="font-weight: bold; text-align: right;">S.Total:</td>
+            <td style="font-weight: bold; text-align: right;">${sTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        `;
+        tableBody.appendChild(sTotalRow);
+
+        const grandTotalRow = document.createElement('tr');
+        grandTotalRow.innerHTML = `
+            <td colspan="4" style="font-weight: bold; text-align: right;">G.Total:</td>
+            <td style="font-weight: bold; text-align: right;">${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        `;
+        tableBody.appendChild(grandTotalRow);
 
     } catch (error) {
         console.error('Hata:', error);
@@ -2805,7 +3348,6 @@ let inputsLocked = true;
 
     DpTpl(dbName);
     KgTpl(dbName);
-    
 }
 
 
@@ -2821,7 +3363,7 @@ async function saveUniteSelection(quoteNumber) {
     });
 
     try {
-        const response = await fetch('/save_unite_selection', {
+        const response = await fetchWithCsrf('/save_unite_selection', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -2846,7 +3388,7 @@ async function saveUniteSelection(quoteNumber) {
 
 async function loadUniteSelection(quoteNumber) {
     try {
-        const response = await fetch(`/load_unite_selection?quote_number=${quoteNumber}`);
+        const response = await fetchWithCsrf(`/load_unite_selection?quote_number=${quoteNumber}`);
         const data = await response.json();
 
         if (data.status === 'success') {
@@ -2922,7 +3464,7 @@ async function loadUniteSelection(quoteNumber) {
 
 async function fetchCustomerDataByQuote(quoteNumber) {
     try {
-        const response = await fetch(`/get_customer_by_quote?quote_number=${quoteNumber}`);
+        const response = await fetchWithCsrf(`/get_customer_by_quote?quote_number=${quoteNumber}`);
         const data = await response.json();
 
         if (data.status === 'success') {
@@ -2955,7 +3497,10 @@ async function callPrepUpQt(quoteNumber, dsc, customerId, customerName) {
         const deliveryPriceInput = document.getElementById('deliveryPriceInput');
         const deliveryPrice = parseInt(deliveryPriceInput?.value) || 0;
 
-        const response = await fetch('/prep_up_qt', {
+        const depositInput = document.getElementById('depositInput');
+        const deposit = parseInt(depositInput?.value) || 0;
+
+        const response = await fetchWithCsrf('/prep_up_qt', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -2964,6 +3509,7 @@ async function callPrepUpQt(quoteNumber, dsc, customerId, customerName) {
                 quote_number: quoteNumber, 
                 dsc: dsc,
                 del_pr: deliveryPrice,
+                Dpst: deposit,
                 customer_id: customerId,         // <-- müşteri id
                 customer_name: customerName      // <-- müşteri adı
             }),
@@ -2982,7 +3528,7 @@ async function callPrepUpQt(quoteNumber, dsc, customerId, customerName) {
 
 async function fetchServerTime() {
     try {
-        const response = await fetch('/get_server_time'); // Sunucudan tarih ve saat bilgisini al
+        const response = await fetchWithCsrf('/get_server_time'); // Sunucudan tarih ve saat bilgisini al
         if (!response.ok) {
             throw new Error('Sunucudan tarih ve saat alınamadı.');
         }
@@ -3012,7 +3558,7 @@ async function saveAddItemSelection(quoteNumber) {
     //alert("Kaydedilecek Selections Verileri:\n" + JSON.stringify(selections, null, 2));
 
     try {
-        const response = await fetch('/save_aditm_selection', {
+        const response = await fetchWithCsrf('/save_aditm_selection', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -3036,7 +3582,7 @@ async function saveAddItemSelection(quoteNumber) {
 
 async function loadAddItemSelection(quoteNumber) {
     try {
-        const response = await fetch(`/load_aditm_selection?quote_number=${quoteNumber}`);
+        const response = await fetchWithCsrf(`/load_aditm_selection?quote_number=${quoteNumber}`);
         const data = await response.json();
 
         if (data.status === 'success') {
@@ -3086,7 +3632,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Group seçimlerini doldur
     const groupSelects = document.querySelectorAll('.group-select');
     groupSelects.forEach(select => {
-        fetch('/get_refrigeration_groups')
+        fetchWithCsrf('/get_refrigeration_groups')
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
@@ -3135,7 +3681,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 const selectedGroup = groupSelect.value;
                 if (selectedGroup) {
-                    fetch(`/get_refrigeration_items?group=${encodeURIComponent(selectedGroup)}`)
+                    fetchWithCsrf(`/get_refrigeration_items?group=${encodeURIComponent(selectedGroup)}`)
                         .then(response => response.json())
                         .then(data => {
                             if (data.status === 'success') {
@@ -3170,7 +3716,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const selectedItem = itemSelect ? itemSelect.value : null;
 
             if (selectedGroup && selectedItem && customerType) {
-                fetch(`/get_refrigeration_price?model=${encodeURIComponent(selectedItem)}&customer_type=${encodeURIComponent(customerType)}`)
+                fetchWithCsrf(`/get_refrigeration_price?model=${encodeURIComponent(selectedItem)}&customer_type=${encodeURIComponent(customerType)}`)
                     .then(response => response.json())
                     .then(data => {
                         if (data.status === 'success') {
@@ -3213,7 +3759,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const customerType = this.value;
 
             if (groupSelect && itemSelect && priceLabel && groupSelect.value && itemSelect.value) {
-                fetch(`/get_refrigeration_price?model=${encodeURIComponent(itemSelect.value)}&customer_type=${encodeURIComponent(customerType)}`)
+                fetchWithCsrf(`/get_refrigeration_price?model=${encodeURIComponent(itemSelect.value)}&customer_type=${encodeURIComponent(customerType)}`)
                     .then(response => response.json())
                     .then(data => {
                         if (data.status === 'success') {
@@ -3277,7 +3823,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const skuLabel = row.querySelector('label[id^="sku_"]');
 
             if (selectedItem) {
-                fetch(`/get_refrigeration_item_details?model=${encodeURIComponent(selectedItem)}`)
+                fetchWithCsrf(`/get_refrigeration_item_details?model=${encodeURIComponent(selectedItem)}`)
                     .then(response => response.json())
                     .then(data => {
                         if (data.status === 'success') {
@@ -3364,7 +3910,7 @@ document.querySelectorAll('.warranty-select, .unpack-select, .remove-select').fo
         const itemSelect = row.querySelector('.item-select');
 
         if (itemSelect && itemSelect.value && customerType) {
-            fetch(`/get_refrigeration_price?model=${encodeURIComponent(itemSelect.value)}&customer_type=${encodeURIComponent(customerType)}`)
+            fetchWithCsrf(`/get_refrigeration_price?model=${encodeURIComponent(itemSelect.value)}&customer_type=${encodeURIComponent(customerType)}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
@@ -3394,51 +3940,69 @@ document.querySelectorAll('.warranty-select, .unpack-select, .remove-select').fo
 });
 
 async function AddRefData() {
-    const rows = document.querySelectorAll('#tab_refrigeration tbody tr'); // Refrigeration tablosundaki satırları seç
-    const largestFile = document.getElementById('largestFile').textContent.trim(); // largestFile değerini al
+    const rows = document.querySelectorAll('#tab_refrigeration tbody tr');
+    const largestFile = document.getElementById('largestFile').textContent.trim();
 
-    const refData = []; // Gönderilecek tüm verileri tutacak dizi
-    let validRowFound = false; // Geçerli bir satır bulunup bulunmadığını kontrol etmek için
+    const refData = [];
+    let validRowFound = false;
 
     rows.forEach((row) => {
-        const sku = row.querySelector('label[id^="sku_"]')?.textContent.trim(); // SKU değeri
-        const itemName = row.querySelector('.item-select')?.value.trim(); // Seçilen item
-        const quantity = row.querySelector('input[name^="quantity_"]')?.value.trim(); // Girilen quantity
-        const price = row.querySelector('label[id^="price_"]')?.textContent.trim(); // Price değeri
-        const dprice = row.querySelector('label[id^="dprice_"]')?.textContent.trim(); // D.Price değeri
+        const sku = row.querySelector('label[id^="sku_"]')?.textContent.trim();
+        const itemName = row.querySelector('.item-select')?.value.trim();
+        const quantity = row.querySelector('input[name^="quantity_"]')?.value.trim();
+        const price = row.querySelector('label[id^="price_"]')?.textContent.trim();
+        const dprice = row.querySelector('label[id^="dprice_"]')?.textContent.trim();
 
-        // Eğer 1., 2., 6., 7., 8., ve 9. kolonlar doluysa, veriyi ekle
+        // Yeni: Warranty, Unpack, Remove seçili ise isimlerini topla
+        const warrantySelect = row.querySelector('.warranty-select');
+        const unpackSelect = row.querySelector('.unpack-select');
+        const removeSelect = row.querySelector('.remove-select');
+
+        let xtra = 0.0;
+        if (warrantySelect && warrantySelect.value) xtra += parseFloat(warrantySelect.value) || 0;
+        if (unpackSelect && unpackSelect.value) xtra += parseFloat(unpackSelect.value) || 0;
+        if (removeSelect && removeSelect.value) xtra += parseFloat(removeSelect.value) || 0;
+
+
+        let extraNames = [];
+        if (warrantySelect && warrantySelect.value) extraNames.push('Warranty');
+        if (unpackSelect && unpackSelect.value) extraNames.push('Unpack');
+        if (removeSelect && removeSelect.value) extraNames.push('Remove');
+
+        // ItemName'e ekle
+        let fullItemName = itemName;
+        if (extraNames.length > 0) {
+            fullItemName += '\\' + extraNames.join('\\');
+        }
+
         if (sku && itemName && quantity && price && dprice) {
             refData.push({
                 sku: sku,
-                itemName: itemName,
-                quantity: parseInt(quantity, 10), // Sayıya çevir
-                price: parseFloat(price || 0), // Sayıya çevir, boşsa 0
-                dprice: parseFloat(dprice || 0), // Sayıya çevir, boşsa 0,
-                unitType: "Add Refrigeration" // Sabit değer
+                itemName: fullItemName, // Artık ekler ile birlikte
+                quantity: parseInt(quantity, 10),
+                price: parseFloat(price || 0),
+                dprice: parseFloat(dprice || 0),
+                unitType: "Add Refrigeration",
+                xtra: xtra // <-- EKLENDİ
             });
-            validRowFound = true; // Geçerli bir satır bulundu
+            validRowFound = true;
         }
     });
 
-    // Eğer geçerli bir satır bulunmadıysa işlemi durdur
     if (!validRowFound) {
-        console.log("Refrigeration tablosunda işlenecek geçerli veri yok.");
-        window.adrefknt = 0; // Tüm fonksiyonlar için global bir değişken oluşturuyoruz.
+        window.adrefknt = 0;
         return true;
     } else {
         window.adrefknt = 1;
     }
 
-    // API'ye gönderilecek veri
     const data = {
-        ref_data: refData, // Toplanan tüm satırlar
-        largest_file: largestFile // largestFile değeri burada kullanılıyor
+        ref_data: refData,
+        largest_file: largestFile
     };
 
-    // API'ye POST isteği gönder
     try {
-        const response = await fetch('/add_ref_data', {
+        const response = await fetchWithCsrf('/add_ref_data', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -3456,7 +4020,7 @@ async function AddRefData() {
     } catch (error) {
         console.error('API Hatası:', error);
         alert('Refrigeration verileri gönderilirken hata oluştu.');
-        throw error; // Hata fırlatarak işlemi durdur
+        throw error;
     }
 }
 
@@ -3491,7 +4055,7 @@ async function saveRefSelection(quoteNumber) {
     });
 
     try {
-        const response = await fetch('/save_ref_selection', {
+        const response = await fetchWithCsrf('/save_ref_selection', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -3541,7 +4105,7 @@ async function loadRefSelection(quoteNumber) {
     });
 
     try {
-        const response = await fetch(`/load_ref_selection?quote_number=${quoteNumber}`);
+        const response = await fetchWithCsrf(`/load_ref_selection?quote_number=${quoteNumber}`);
         const data = await response.json();
 
         if (data.status === 'success') {
@@ -3633,7 +4197,7 @@ async function addCeilingData() {
 
     // API'ye POST isteği gönder
     try {
-        const response = await fetch('/add_ceiling_data', {
+        const response = await fetchWithCsrf('/add_ceiling_data', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -3661,9 +4225,10 @@ async function saveCeilSelection(quoteNumber) {
     const ceilingM2 = parseFloat(document.getElementById('ceilingM2')?.value) || 0;
     const trimLM = parseFloat(document.getElementById('trimLM')?.value) || 0;
     const ceilingDiscount = parseFloat(document.getElementById('ceilingDiscount')?.value) || 0;
+    const ceilingColour = document.getElementById('ceilingColour')?.value || '';
 
     try {
-        const response = await fetch('/save_ceil_selection', {
+        const response = await fetchWithCsrf('/save_ceil_selection', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -3673,6 +4238,7 @@ async function saveCeilSelection(quoteNumber) {
                 ceiling_m2: ceilingM2,
                 trim_lm: trimLM,
                 ceiling_discount: ceilingDiscount,
+                ceiling_colour: ceilingColour   // <-- EKLENDİ
             }),
         });
 
@@ -3692,6 +4258,7 @@ async function loadCeilSelection(quoteNumber) {
     document.getElementById('ceilingM2').value = '';
     document.getElementById('trimLM').value = '';
     document.getElementById('ceilingDiscount').value = '';
+    //document.getElementById('ceilingColour').value = ''; // Ceiling Colour'u temizle
     const tableBody = document.getElementById('ceilingTableBody');
     if (tableBody) {
         tableBody.innerHTML = ''; // Tabloyu temizle
@@ -3699,11 +4266,11 @@ async function loadCeilSelection(quoteNumber) {
 
     // ...existing code...
     try {
-        const response = await fetch(`/load_ceil_selection?quote_number=${quoteNumber}`);
+        const response = await fetchWithCsrf(`/load_ceil_selection?quote_number=${quoteNumber}`);
         const data = await response.json();
 
         if (data.status === 'success') {
-            const { ceiling_m2, trim_lm, ceiling_discount } = data;
+            const { ceiling_m2, trim_lm, ceiling_discount, ceiling_colour } = data;
 
             // Eğer tüm değerler boşsa fonksiyonu sonlandır
             if (!ceiling_m2 && !trim_lm && !ceiling_discount) {
@@ -3714,6 +4281,7 @@ async function loadCeilSelection(quoteNumber) {
             document.getElementById('ceilingM2').value = ceiling_m2 || '';
             document.getElementById('trimLM').value = trim_lm || '';
             document.getElementById('ceilingDiscount').value = ceiling_discount || '';
+            document.getElementById('ceilingColour').value = ceiling_colour || '';
 
             // Değerler yüklendikten sonra ceiling verilerini güncelle
             fetchCeilingData();
@@ -3766,48 +4334,52 @@ async function loadCeilSelection(quoteNumber) {
         closeSellModal();
     }
 
-    async function salecustdet() {
+async function salecustdet() {
     try {
         const tableRows = Array.from(document.querySelectorAll('#quoteListTable tbody tr'));
-        const quoteNumber = document.getElementById('tableHeader').textContent.split(':')[1].trim(); // Proforma tablosunun database ismi alınıyor
+        const quoteNumber = document.getElementById('tableHeader').textContent.split(':')[1].trim();
 
-        // Checkbox'lardan seçili olanın değerini al
-        //const checkboxS = document.getElementById("checkboxS");
-        //const checkboxI = document.getElementById("checkboxI");
         let s_i = null;
-
         if (checkboxS.checked) {
             s_i = 'S';
         } else if (checkboxI.checked) {
             s_i = 'I';
         }
-
         if (!s_i) {
             alert("Lütfen bir seçenek seçin (S veya I).");
             return;
         }
 
-        // Veritabanından customer_id ve customer_name değerlerini çek
-        const customerResponse = await fetch(`/get_customer_by_quote_number?quote_number=${quoteNumber}`);
+        const customerResponse = await fetchWithCsrf(`/get_customer_by_quote_number?quote_number=${quoteNumber}`);
         const customerData = await customerResponse.json();
-
         if (customerData.status !== 'success') {
             alert('Müşteri bilgileri alınamadı: ' + customerData.message);
             return;
         }
-
         const customerId = customerData.customer_id;
         const customerName = customerData.customer_name;
         const postcode = document.getElementById('selectedCustomer').textContent.match(/Postcode:\s*(\S+)/)?.[1] || '';
-        
-        // G.Total satırını kontrol et
-        const gTotalRow = tableRows[tableRows.length - 1];
-        if (!gTotalRow) {
-            alert('G.Total satırı bulunamadı!');
-            return;
-        }
 
-        const gTotal = parseFloat(gTotalRow.querySelector('td:last-child')?.textContent.replace(/,/g, '')) || 0;
+        // Total, Delivery, Vat, Deposit satırlarını bul
+        let total = 0, delivery = 0, vat = 0, deposit = 0;
+        for (let i = tableRows.length - 1; i >= 0; i--) {
+            const row = tableRows[i];
+            const label = row.querySelector('td:first-child');
+            if (!label) continue;
+            const labelText = label.textContent.trim().toUpperCase();
+            if (labelText.includes('TOTAL') && !labelText.includes('S.TOTAL') && !labelText.includes('G.TOTAL')) {
+                total = parseFloat(row.querySelector('td:last-child')?.textContent.replace(/,/g, '')) || 0;
+            }
+            if (labelText.includes('DELIVERY')) {
+                delivery = parseFloat(row.querySelector('td:last-child')?.textContent.replace(/,/g, '')) || 0;
+            }
+            if (labelText.includes('VAT')) {
+                vat = parseFloat(row.querySelector('td:last-child')?.textContent.replace(/,/g, '')) || 0;
+            }
+            if (labelText.includes('DEPOSIT')) {
+                deposit = parseFloat(row.querySelector('td:last-child')?.textContent.replace(/,/g, '')) || 0;
+            }
+        }
 
         // Description oluştur
         const typeSet = new Set();
@@ -3816,7 +4388,9 @@ async function loadCeilSelection(quoteNumber) {
             const sira = parseInt(siraStr, 10);
             if (!isNaN(sira)) {
                 if (sira >= 1000 && sira <= 4300) typeSet.add('Shelving');
-                else if (sira >= 7000 && sira <= 7999) typeSet.add('Refrigeration');
+                else if (sira >= 4500 && sira <= 4900) typeSet.add('Wood');
+                else if (sira >= 7000 && sira <= 7199) typeSet.add('Refrigeration');
+                else if (sira >= 7200 && sira <= 7299) typeSet.add('Catering');
                 else if (sira >= 8000 && sira <= 8999) typeSet.add('Ceiling');
                 else if (sira >= 9000 && sira <= 9999) typeSet.add('Spec. Items');
             }
@@ -3830,14 +4404,14 @@ async function loadCeilSelection(quoteNumber) {
             customer_name: customerName,
             postcode: postcode,
             description: description,
-            s_i: s_i, // Checkbox'tan gelen değer
-            g_total: gTotal
+            s_i: s_i,
+            total: total,
+            delivery: delivery,
+            vat: vat,
+            deposit: deposit
         };
 
-        // Gönderilen verileri alert ile göster
-        //alert('Gönderilen Veriler:\n' + JSON.stringify(payload, null, 2));
-
-        const response = await fetch('/sale_cust_det', {
+        const response = await fetchWithCsrf('/sale_cust_det', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -3847,7 +4421,6 @@ async function loadCeilSelection(quoteNumber) {
 
         const result = await response.json();
         if (result.status === 'success') {
-            //alert('Satış bilgileri başarıyla kaydedildi.');
             closeSellModal();
         } else {
             console.error('Hata:', result.message);
@@ -3856,51 +4429,77 @@ async function loadCeilSelection(quoteNumber) {
     } catch (error) {
         console.error('Hata (salecustdet):', error);
         alert('Satış bilgileri kaydedilirken bir hata oluştu.');
-        await fetch('/reset_islmdvm', { method: 'POST' });
+        await fetchWithCsrf('/reset_islmdvm', { method: 'POST' });
     }
 }
 
 async function decreaseStock() {
+    console.log("decreaseStock çağrıldı");
     try {
         const tableRows = Array.from(document.querySelectorAll('#quoteListTable tbody tr'));
+        let msg = "Gönderilen Stok Düşüm Değerleri:\n";
 
         for (const row of tableRows) {
-            const sira = row.querySelector('td:nth-child(6)')?.textContent.trim(); // Sıra numarası
-            const itemId = row.querySelector('td:nth-child(2)')?.textContent.trim(); // Item ID
-            const model = row.querySelector('td:nth-child(3)')?.textContent.trim(); // Item ID
-            const qty = parseInt(row.querySelector('td:nth-child(4)')?.textContent.trim()) || 0; // Quantity
+            const sira = row.querySelector('td:nth-child(6)')?.textContent.trim();
+            const itemId = row.querySelector('td:nth-child(2)')?.textContent.trim();
+            const model = row.querySelector('td:nth-child(3)')?.textContent.trim();
+            // QTTY hücresinde input varsa onu al
+            let qty = 0;
+            const qtyInput = row.querySelector('td:nth-child(4) input');
+            if (qtyInput) {
+                qty = parseInt(qtyInput.value) || 0;
+            } else {
+                qty = parseInt(row.querySelector('td:nth-child(4)')?.textContent.trim()) || 0;
+            }
 
             if (!sira || !itemId || qty <= 0) continue; // Geçersiz veri varsa atla
 
-            if (sira.startsWith('1')) {
-                // Sıra numarası 1 ile başlıyorsa prc_tbl'deki quantity değerini düş
-                await fetch('/update_prc_tbl_quantity', {
+            msg += `Sıra: ${sira}, Item ID: ${itemId}, Model: ${model}, Qty: ${qty}\n`;
+
+            if (
+                (parseInt(sira) >= 1000 && parseInt(sira) <= 4499) &&
+                !(parseInt(sira) >= 2500 && parseInt(sira) < 3800)
+            ) {
+                await fetchWithCsrf('/update_prc_tbl_quantity', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({ item_id: itemId, qty: qty }),
                 });
-            } else if (sira.startsWith('2')) {
-                // Sıra numarası 2 ile başlıyorsa refrigeration.db'deki Qty değerini düş
-                await fetch('/update_refrigeration_quantity', {
+            } else if (parseInt(sira) >= 7000 && parseInt(sira) <= 7999) {
+                await fetchWithCsrf('/update_refrigeration_quantity', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({ model_: model, qty: qty }),
                 });
+            } else if (parseInt(sira) >= 4500 && parseInt(sira) <= 4900) {
+                await fetchWithCsrf('/update_wood_quantity', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ item_name: model, qty: qty }),
+                });
+            } else if (parseInt(sira) >= 8000 && parseInt(sira) < 8200) {
+                // Ceiling için
+                await fetchWithCsrf('/update_ceiling_quantity', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ item_id: itemId, qty: qty })
+                });
             }
         }
 
-        //alert('Stok güncelleme işlemi tamamlandı.');
+        alert(msg);
     } catch (error) {
         console.error('Hata (decreaseStock):', error);
         alert('Stok güncelleme sırasında bir hata oluştu.');
-        await fetch('/reset_islmdvm', { method: 'POST' });
+        await fetchWithCsrf('/reset_islmdvm', { method: 'POST' });
     }
 }
-
 
 </script>
 
@@ -3976,6 +4575,13 @@ async function decreaseStock() {
         </table>
     </div>
     
+    <div id="customerNoteSection" style="margin-top:30px; display:none; max-width:600px;">
+        <label for="customerNoteArea" style="font-weight:bold;">Customer Notes:</label>
+        <textarea id="customerNoteArea" rows="5" style="width:100%;"></textarea>
+        <button onclick="saveCustomerNote()" style="margin-top:8px;">Save Note</button>
+        <span id="customerNoteStatus" style="margin-left:10px; color:green;"></span>
+    </div>
+
 </div>
 
 <script>
@@ -3987,6 +4593,8 @@ async function decreaseStock() {
         tables.forEach(table => {
             table.style.display = "none"; // Tüm tabloları gizle
         });
+
+        document.getElementById('customerNoteSection').style.display = 'none';
 
         if (selection === "C.Accounts") {
             document.getElementById("CAccountsTable").style.display = "block";
@@ -4003,7 +4611,7 @@ async function decreaseStock() {
     }
 
     function fetchShelvingData() {
-        fetch('/get_prc_tbl_data')
+        fetchWithCsrf('/get_prc_tbl_data')
             .then(response => response.json())
             .then(data => {
                 if (data.status === "success") {
@@ -4030,7 +4638,7 @@ async function decreaseStock() {
     }
 
     function fetchRefrigerationData() {
-        fetch('/get_refrigeration_data')
+        fetchWithCsrf('/get_refrigeration_data')
             .then(response => response.json())
             .then(data => {
                 if (data.status === "success") {
@@ -4053,7 +4661,7 @@ async function decreaseStock() {
             .catch(async (error) => {
             console.error("Refrigeration verileri alınırken hata oluştu:", error);
             alert("An error occurred while fetching refrigeration data.");
-            await fetch('/reset_islmdvm', { method: 'POST' });
+            await fetchWithCsrf('/reset_islmdvm', { method: 'POST' });
             });
     }
 </script>
@@ -4088,6 +4696,7 @@ async function decreaseStock() {
     // Accounts Modal açma
     function openAccountsModal() {
         document.getElementById("accountsModal").style.display = "flex";
+        document.getElementById('customerNoteSection').style.display = 'none'; // Not bölümünü gizle
         fetchAccountsData(); // Modal açıldığında müşteri verilerini çek
     }
 
@@ -4098,7 +4707,7 @@ async function decreaseStock() {
 
     // Müşteri verilerini çekme
     function fetchAccountsData() {
-        fetch("/fetch_customers")
+        fetchWithCsrf("/fetch_customers")
             .then(response => response.json())
             .then(data => {
                 const tableBody = document.getElementById("accountsTable").querySelector("tbody");
@@ -4110,13 +4719,16 @@ async function decreaseStock() {
                         td.textContent = cell;
                         tr.appendChild(td);
                     });
-                    tr.addEventListener("click", () => handleCustomerRowClick(customer)); // Satıra tıklama olayı
+                    // Sadece satıra tıklanınca not bölümü açılacak!
+                    tr.addEventListener("click", () => handleCustomerRowClick(customer));
                     tableBody.appendChild(tr);
                 });
+                // Modal açıldığında not bölümünü gizle
+                document.getElementById('customerNoteSection').style.display = 'none';
             })
             .catch(error => console.error("Müşteri verileri alınırken hata oluştu:", error));
     }
-
+    
     // Satıra tıklama olayı
     function handleCustomerRowClick(customer) {
         const customerId = customer[0]; // Müşteri ID
@@ -4131,7 +4743,7 @@ async function decreaseStock() {
 
     // Sales sayfasında tabloyu oluşturmak için veri çekme
     function fetchSalesData(dbName) {
-        fetch(`/get_customer_db?db_name=${encodeURIComponent(dbName)}`)
+        fetchWithCsrf(`/get_customer_db?db_name=${encodeURIComponent(dbName)}`)
             .then(response => {
                 if (!response.ok) {
                     throw new Error(`Database not found: ${dbName}`);
@@ -4221,7 +4833,7 @@ async function decreaseStock() {
             }
 
             // Backend'e güncelleme isteği gönder
-            const response = await fetch('/update_quote_si', {
+            const response = await fetchWithCsrf('/update_quote_si', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -4251,7 +4863,7 @@ async function decreaseStock() {
 <script>
     async function fetchServerDate() {
         try {
-            const response = await fetch('/get_server_time'); // Sunucudan tarih ve saat bilgisini al
+            const response = await fetchWithCsrf('/get_server_time'); // Sunucudan tarih ve saat bilgisini al
             if (!response.ok) {
                 throw new Error('Sunucudan tarih ve saat alınamadı.');
             }
@@ -4269,7 +4881,7 @@ async function decreaseStock() {
 
     async function updateQuoteDate(quoteNumber) {
         try {
-            const response = await fetch(`/get_quote_date?quote_number=${quoteNumber}`);
+            const response = await fetchWithCsrf(`/get_quote_date?quote_number=${quoteNumber}`);
             const data = await response.json();
 
             if (data.status === 'success') {
@@ -4291,7 +4903,7 @@ async function decreaseStock() {
             
             //alert(`Quote Number: ${quoteNumber}`); // Bu satırı ekledik
     
-            const response = await fetch(`/check_sign?quote_number=${quoteNumber}`);
+            const response = await fetchWithCsrf(`/check_sign?quote_number=${quoteNumber}`);
             const data = await response.json();
     
             if (data.status === 'exists') {
@@ -4310,25 +4922,30 @@ async function decreaseStock() {
     
     // "Yes" butonuna tıklama olayı
     document.querySelector('#sellModal button:first-child').addEventListener('click', async () => {
-        try {
-            const isValid = await checkSign();
-            if (!isValid) {
-                console.log("İşlem iptal edildi.");
-                return; // İşlemleri durdur
-            }
-            await salecustdet();
-            await decreaseStock();
-            await updateQuoteSI(); // Yeni fonksiyon çağrıldı
-            if (checkboxI.checked === true) {
-                generateInvoice(true); // Sell için PDF oluştur
-            }
-    
-            checkboxI.checked = false; // 'I' kutucuğunun seçimini kaldır
-            checkboxS.checked = false;
-        } catch (error) {
-            console.error('İşlem iptal edildi:', error);
+    try {
+        // Make Proforma butonunu hemen kilitle
+        document.getElementById('updateWidthBtn').disabled = true;
+        document.getElementById('updateWidthBtn').style.cursor = 'not-allowed';
+        document.getElementById('updateWidthBtn').title = 'This quote is already processed.';
+
+        const isValid = await checkSign();
+        if (!isValid) {
+            console.log("İşlem iptal edildi.");
+            return; // İşlemleri durdur
         }
-    });
+        await salecustdet();
+        await decreaseStock();
+        await updateQuoteSI(); // Yeni fonksiyon çağrıldı
+        if (checkboxI.checked === true) {
+            generateInvoice(true); // Sell için PDF oluştur
+        }
+
+        checkboxI.checked = false; // 'I' kutucuğunun seçimini kaldır
+        checkboxS.checked = false;
+    } catch (error) {
+        console.error('İşlem iptal edildi:', error);
+    }
+});
     </script>
     
     <script>
@@ -4341,7 +4958,7 @@ async function decreaseStock() {
             }
     
             try {
-                const response = await fetch('/generate_invoice', {
+                const response = await fetchWithCsrf('/generate_invoice', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -4375,6 +4992,8 @@ async function decreaseStock() {
             document.getElementById('checkboxS').checked = false;
             document.getElementById('checkboxI').checked = false;
         }
+
+
 
 
         // proforma basim
@@ -4758,7 +5377,7 @@ function generateProfroma() {
 
     async function createTableprofdelv(nextNumber) {
         try {
-            const response = await fetch('/createTableprofdelv', {
+            const response = await fetchWithCsrf('/createTableprofdelv', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -4787,7 +5406,7 @@ function generateProfroma() {
 
     async function loadProformaDeliveryInfo(quoteNumber) {
         try {
-            const response = await fetch(`/get_delivery_info?quote_number=${quoteNumber}`);
+            const response = await fetchWithCsrf(`/get_delivery_info?quote_number=${quoteNumber}`);
             const data = await response.json();
 
             if (data.status === 'success') {
@@ -4835,7 +5454,7 @@ function generateProfroma() {
 
     async function DpTpl(quoteNumber) {
     try {
-        const response = await fetch('/depo_topla', {
+        const response = await fetchWithCsrf('/depo_topla', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -4870,7 +5489,7 @@ function generateProfroma() {
 
 async function KgTpl(quoteNumber) {
     try {
-        const response = await fetch('/kg_topla', {
+        const response = await fetchWithCsrf('/kg_topla', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -4983,7 +5602,7 @@ async function saveDeliveryAddress() {
     };
 
     try {
-        const response = await fetch('/update_delivery_address', {
+        const response = await fetchWithCsrf('/update_delivery_address', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -5108,7 +5727,7 @@ async function uniteScndprt(quoteNumber) {
         }
 
         if (dataToSend.length > 0) {
-            const response = await fetch('/add_unite_secnd_part', {
+            const response = await fetchWithCsrf('/add_unite_secnd_part', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -5134,7 +5753,7 @@ async function uniteScndprt(quoteNumber) {
         }
     } catch (error) {
         console.error('uniteScndprt Hatası:', error);
-        await fetch('/reset_islmdvm', { method: 'POST' });
+        await fetchWithCsrf('/reset_islmdvm', { method: 'POST' });
     }
 }
 </script>
@@ -5149,6 +5768,16 @@ document.addEventListener('DOMContentLoaded', async function () {
     if (adetHeader) {
         adetHeader.style.cursor = 'pointer';
         adetHeader.addEventListener('click', async function () {
+
+            // Satış yapılmış mı kontrolü
+            const signRes = await fetchWithCsrf(`/check_sign?quote_number=${selectedQuoteNumber}`);
+            const signData = await signRes.json();
+            if (signData.status === "exists") {
+                alert("Satışı yapılmış, miktar değiştirilemez!");
+                return; // Fonksiyonu durdur
+            }
+
+
             // View Mode kontrolü
             const viewMode = document.getElementById('viewMode')?.value;
             if (viewMode !== 'subtotal') {
@@ -5209,7 +5838,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
                 try {
                     // ✅ Adetleri güncelle
-                    const adetResponse = await fetch('/apply_adet', {
+                    const adetResponse = await fetchWithCsrf('/apply_adet', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -5223,12 +5852,12 @@ document.addEventListener('DOMContentLoaded', async function () {
                     const adetResult = await adetResponse.json();
                     if (!adetResponse.ok || adetResult.status !== 'success') {
                         console.error('apply_adet başarısız:', adetResult.message);
-                        await fetch('/reset_islmdvm', { method: 'POST' });
+                        await fetchWithCsrf('/reset_islmdvm', { method: 'POST' });
                         return;
                     }
 
                     // ✅ Ardından indirim işlemi
-                    const response = await fetch('/apply_discount', {
+                    const response = await fetchWithCsrf('/apply_discount', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -5242,7 +5871,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                     const result = await response.json();
                     if (!response.ok || result.status !== 'success') {
                         console.error('apply_discount başarısız:', result.message);
-                        await fetch('/reset_islmdvm', { method: 'POST' });
+                        await fetchWithCsrf('/reset_islmdvm', { method: 'POST' });
                         return;
                     }
 
@@ -5250,7 +5879,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                     console.log(result.message);
                 } catch (error) {
                     console.error('İşlem sırasında hata:', error);
-                    await fetch('/reset_islmdvm', { method: 'POST' });
+                    await fetchWithCsrf('/reset_islmdvm', { method: 'POST' });
                 }
             }
         });
@@ -5289,7 +5918,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 <script>
 setInterval(function() {
-    fetch('/is_session_active')
+    fetchWithCsrf('/is_session_active')
         .then(r => r.json())
         .then(data => {
             if (!data.active) {
@@ -5330,7 +5959,7 @@ document.getElementById('newProformaBtn').addEventListener('click', function() {
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     // Woods grup isimlerini doldur
-    fetch('/get_woods_groups')
+    fetchWithCsrf('/get_woods_groups')
         .then(response => response.json())
         .then(data => {
             if (data.groups) {
@@ -5355,7 +5984,7 @@ document.addEventListener('DOMContentLoaded', function () {
             skuLabel.textContent = '';
             quantityInput.value = '';
             if (groupSelect.value) {
-                fetch(`/get_woods_items?group=${encodeURIComponent(groupSelect.value)}`)
+                fetchWithCsrf(`/get_woods_items?group=${encodeURIComponent(groupSelect.value)}`)
                     .then(response => response.json())
                     .then(data => {
                         if (data.items) {
@@ -5380,7 +6009,7 @@ document.querySelectorAll('.woods-item-select').forEach((itemSelect, rowIndex) =
         skuLabel.textContent = '';
         quantityInput.value = '';
         if (itemSelect.value) {
-            fetch(`/get_woods_item_details?item=${encodeURIComponent(itemSelect.value)}`)
+            fetchWithCsrf(`/get_woods_item_details?item=${encodeURIComponent(itemSelect.value)}`)
                 .then(response => response.json())
                 .then(data => {
                     let price = 0;
@@ -5409,7 +6038,7 @@ document.querySelectorAll('.woods-item-select').forEach((itemSelect, rowIndex) =
             const discount = parseFloat(discountInput?.value) || 0;
             const customerType = document.getElementById('woodsCustomerType').value;
             if (itemSelect && itemSelect.value) {
-                fetch(`/get_woods_item_details?item=${encodeURIComponent(itemSelect.value)}`)
+                fetchWithCsrf(`/get_woods_item_details?item=${encodeURIComponent(itemSelect.value)}`)
                     .then(response => response.json())
                     .then(data => {
                         let price = 0;
@@ -5449,7 +6078,7 @@ async function saveWoodsSelection(quoteNumber) {
     });
 
     try {
-        const response = await fetch('/save_woods_selection', {
+        const response = await fetchWithCsrf('/save_woods_selection', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -5471,7 +6100,7 @@ async function saveWoodsSelection(quoteNumber) {
 
 async function loadWoodsSelection(quoteNumber) {
     try {
-        const response = await fetch(`/load_woods_selection?quote_number=${quoteNumber}`);
+        const response = await fetchWithCsrf(`/load_woods_selection?quote_number=${quoteNumber}`);
         const data = await response.json();
 
         if (data.status === 'success') {
@@ -5496,7 +6125,7 @@ async function loadWoodsSelection(quoteNumber) {
                 if (groupSelect && sel.group) {
                     groupSelect.value = sel.group;
                     if (groupSelect.value) {
-                        const items = await fetch(`/get_woods_items?group=${encodeURIComponent(groupSelect.value)}`)
+                        const items = await fetchWithCsrf(`/get_woods_items?group=${encodeURIComponent(groupSelect.value)}`)
                             .then(r => r.json())
                             .then(d => d.items || []);
                         itemSelect.innerHTML = `<option value=""></option>` + items.map(item => `<option value="${item}">${item}</option>`).join('');
@@ -5572,7 +6201,7 @@ async function AddWoodData() {
     };
 
     try {
-        const response = await fetch('/add_woods_data', {
+        const response = await fetchWithCsrf('/add_woods_data', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -5588,12 +6217,937 @@ async function AddWoodData() {
     } catch (error) {
         console.error('API Hatası:', error);
         alert('Woods verileri gönderilirken hata oluştu.');
-        await fetch('/reset_islmdvm', { method: 'POST' });
+        await fetchWithCsrf('/reset_islmdvm', { method: 'POST' });
         throw error;
     }
 }
 </script>
 
+<script>
+    function searchProforma() {
+    const input = document.getElementById("proformaSearchBox").value.toUpperCase();
+    const table = document.getElementById("proformaTable");
+    const tr = table.getElementsByTagName("tr");
+
+    for (let i = 1; i < tr.length; i++) { // İlk satır başlık olduğu için 1'den başla
+        const tds = tr[i].getElementsByTagName("td");
+        let visible = false;
+        for (let td of tds) {
+            if (td.textContent.toUpperCase().includes(input)) {
+                visible = true;
+                break;
+            }
+        }
+        tr[i].style.display = visible ? "" : "none";
+    }
+}
+</script>
+
+
+
+<!-- RETURN SAYFASI -->
+<script>
+document.querySelector('.tab[onclick="openTab(\'tab_returns\')"]').addEventListener('click', function() {
+    selectedCustomerID = null;
+    selectedCustomerName = null;
+    document.getElementById("selectedCustomer").innerHTML = ""; // Ana müşteri alanını temizle
+
+    document.getElementById("returnsSelectedCustomer").innerHTML = "";
+    document.getElementById("returnsTable").querySelector("tbody").innerHTML = "";
+});
+
+
+
+
+
+// Müşteri modalında returns için seçim:
+function overrideCustomerModalForReturns() {
+    // Müşteri modalı açıldığında, satır çift tıklamasında returns fonksiyonunu kullan
+    const tableBody = document.getElementById("customerTable").querySelector("tbody");
+    Array.from(tableBody.querySelectorAll("tr")).forEach(tr => {
+        tr.ondblclick = () => {
+            const cells = Array.from(tr.children).map(td => td.textContent);
+            selectCustomerForReturns(cells);
+        };
+    });
+}
+
+// Returns tablosunu yükle
+async function loadReturnsTable(customerId, postcode) {
+    const resp = await fetchWithCsrf(`/get_customer_quotes_content?customer_id=${customerId}&postcode=${postcode}`);
+    const data = await resp.json();
+    if (data.status === "success") {
+        const tbody = document.getElementById("returnsTable").querySelector("tbody");
+        tbody.innerHTML = "";
+
+        // [item_id, item_name, qtty, unit_type, d.price, amounth, quote_number, S_I]
+        // QTTY: index 2, d.price: index 4, quote_number: row.length-2, S_I: row.length-1
+        for (let i = 0; i < data.rows.length; i++) {
+            const row = data.rows[i];
+            const tr = document.createElement("tr");
+            let dprice = parseFloat(row[7]) || 0;
+            // Sadece gerekli kolonları ekle
+            // Item ID, Item Name, QTTY, Unit Type, D.PRICE, AMOUNTH
+
+            tr.setAttribute('data-rowid', row[0]); // rowid'yi sakla
+
+            [2, 3, 4, 5, 8,9].forEach(idx => {
+                const td = document.createElement("td");
+                td.textContent = row[idx];
+                tr.appendChild(td);
+            });
+
+            
+            // Quote Number
+            const quoteTd = document.createElement("td");
+            quoteTd.textContent = row[row.length - 2] || "";
+            tr.appendChild(quoteTd);
+
+            // S_I
+            const siTd = document.createElement("td");
+            siTd.textContent = row[row.length - 1] || "";
+            tr.appendChild(siTd);
+
+            // Ret_qty input
+            // const retTd = document.createElement("td");
+            // retTd.innerHTML = `<input type="number" min="0" style="width:60px;" value="0" oninput="updateRetAmnt(this, ${dprice})">`;
+            // tr.appendChild(retTd);
+
+            const retTd = document.createElement("td");
+            retTd.innerHTML = `<input type="number" min="0" style="width:60px;" value="0" oninput="updateRetAmnt(this, ${dprice}); updateReturnsSummary();">`;
+            tr.appendChild(retTd);
+
+            // Ret_Amnt
+            const retAmntTd = document.createElement("td");
+            retAmntTd.textContent = "0.00";
+            tr.appendChild(retAmntTd);
+
+            tbody.appendChild(tr);
+        }
+
+        //document.getElementById('returnsSummary').style.display = 'block';
+        updateReturnsSummary();
+        document.querySelectorAll('#returnsTable input[type="number"]').forEach(input => {
+            input.addEventListener('input', updateReturnsSummary);
+        });
+        document.getElementById('deductFeeInput').addEventListener('input', updateReturnsSummary);
+
+        // Returns sekmesi açıldığında returnsSummary'yi gizle:
+        document.querySelector('.tab[onclick="openTab(\'tab_returns\')"]').addEventListener('click', function() {
+            selectedCustomerID = null;
+            selectedCustomerName = null;
+            document.getElementById("returnsSelectedCustomer").innerHTML = "";
+            document.getElementById("returnsTable").querySelector("tbody").innerHTML = "";
+            //document.getElementById('returnsSummary').style.display = 'none';
+            const returnsSummaryDiv = document.getElementById('returnsSummary');
+            if (returnsSummaryDiv) {
+                returnsSummaryDiv.style.display = 'none';
+            }
+        });
+
+
+    } else {
+        alert(data.message || "No data found.");
+    }
+}
+
+document.querySelectorAll('#returnsTable input[type="number"]').forEach(input => {
+    input.addEventListener('input', updateReturnsSummary);
+});
+document.getElementById('deductFeeInput').addEventListener('input', updateReturnsSummary);
+
+// Ret_Amnt kolonunu güncelle
+function updateRetAmnt(input, dprice) {
+    const tr = input.closest("tr");
+    const qttyTd = tr.children[2];
+    const maxQty = parseFloat(qttyTd.textContent) || 0;
+    let qty = parseFloat(input.value) || 0;
+    if (qty > maxQty) {
+        qty = maxQty;
+        input.value = maxQty;
+        alert("Return miktarı, orijinal QTTY değerinden fazla olamaz!");
+    }
+    const retAmntTd = tr.lastElementChild;
+    retAmntTd.textContent = (qty * dprice).toFixed(2);
+    updateReturnsSummary();
+}
+
+function updateReturnsSummary() {
+    let total = 0;
+    document.querySelectorAll('#returnsTable tbody tr').forEach(tr => {
+        const retAmntTd = tr.lastElementChild;
+        const val = parseFloat(retAmntTd.textContent) || 0;
+        total += val;
+    });
+    // tfoot içindeki hücreleri güncelle
+    document.getElementById('retTotalValue').textContent = total.toFixed(2);
+
+    const fee = parseFloat(document.getElementById('deductFeeInput').value) || 0;
+    document.getElementById('deductFeeValue').textContent = fee;
+
+    const gtot = total - (total * fee / 100);
+    document.getElementById('retGTotalValue').textContent = gtot.toFixed(2);
+}
+
+// Deduct. Fee input değişince tablo altındaki değeri güncelle
+//document.getElementById('deductFeeInput').addEventListener('input', updateReturnsSummary);
+
+// Returns sekmesi açıldığında müşteri seçimini sıfırla
+document.querySelector('.tab[onclick="openTab(\'tab_returns\')"]').addEventListener('click', function() {
+    selectedCustomerID = null;
+    selectedCustomerName = null;
+    document.getElementById("returnsSelectedCustomer").innerHTML = "";
+    document.getElementById("returnsTable").querySelector("tbody").innerHTML = "";
+});
+
+// Returns tabı için filtreleme fonksiyonu
+document.getElementById("returnsSearchBox").addEventListener("keyup", function() {
+    const input = this.value.toUpperCase();
+    const table = document.getElementById("returnsTable");
+    const tr = table.getElementsByTagName("tr");
+    // 2. kolon: Item Name (index 1)
+    for (let i = 1; i < tr.length; i++) { // Başlık satırını atla
+        const td = tr[i].getElementsByTagName("td")[1];
+        if (td) {
+            tr[i].style.display = td.textContent.toUpperCase().includes(input) ? "" : "none";
+        }
+    }
+});
+
+</script>
+
+<script>
+
+async function submitReturns() {
+    const rows = document.querySelectorAll('#returnsTable tbody tr');
+    const returnsData = [];
+    let sentRowIds = [];
+
+    // Müşteri bilgilerini al
+    const customerId = selectedCustomerID;
+    const customerName = selectedCustomerName;
+
+    // G. Total (retGTotalValue) değerini al
+    const gTotal = parseFloat(document.getElementById('retGTotalValue').textContent) || 0;
+    const deductFee = parseFloat(document.getElementById('deductFeeInput').value) || 0;
+
+    rows.forEach((tr) => {
+        const retQtyInput = tr.querySelector('input[type="number"]');
+        const retQty = parseFloat(retQtyInput.value) || 0;
+        if (retQty > 0) {
+            returnsData.push({
+                rowid: tr.getAttribute('data-rowid'),
+                quote_number: tr.children[tr.children.length - 4].textContent,
+                s_i: tr.children[tr.children.length - 3].textContent,
+                ret_qty: retQty,
+                ret_amnt: parseFloat(tr.lastElementChild.textContent) || 0
+            });
+            sentRowIds.push(tr.getAttribute('data-rowid'));
+        }
+    });
+
+    if (returnsData.length === 0) {
+        alert("Return için miktar girilmedi.");
+        return;
+    }
+
+    // Gönderilecek tüm değerleri alert ile göster
+    let msg = `Gönderilen Değerler:\n`;
+    msg += `Customer ID: ${customerId}\n`;
+    msg += `Customer Name: ${customerName}\n`;
+    msg += `G. Total: ${gTotal}\n`;
+    msg += `Deduct Fee: ${deductFee}\n`;
+    msg += `Satırlar:\n`;
+    returnsData.forEach(r => {
+        msg += `rowid: ${r.rowid}, quote_number: ${r.quote_number}, s_i: ${r.s_i}, ret_qty: ${r.ret_qty}, ret_amnt: ${r.ret_amnt}\n`;
+    });
+    //alert(msg);
+
+    await fetchWithCsrf('/save_returns', {
+        method: 'POST',
+        body: JSON.stringify({
+            returns: returnsData,
+            customer_id: customerId,
+            customer_name: customerName,
+            g_total: gTotal,
+            deduct_fee: deductFee
+        })
+    }).then(r => r.json()).then(data => {
+        //alert(data.message || (data.status === 'success' ? 'Returns kaydedildi.' : 'Hata!'));
+        alert('Credit note başarıyla oluşturuldu ve kaydedildi.');
+        // Returns kaydedildikten sonra tabloyu tekrar yükle
+        if (data.status === 'success') {
+            loadReturnsTable(customerId, selectedCustomerPostcode); // <-- Burada kullan
+        }
+    });
+}
+</script>
+
+<script>
+// CREDIT NOTE SEKME AÇILDIĞINDA TABLOYU YÜKLE
+document.querySelector('.tab[onclick="openTab(\'tab_credit_note\')"]').addEventListener('click', function() {
+    // Seçili müşteri yoksa tabloyu temizle
+    if (!selectedCustomerID) {
+        document.getElementById("creditNoteSelectedCustomer").innerHTML = "<b>Please select a customer.</b>";
+        document.getElementById("creditNoteTable").querySelector("tbody").innerHTML = "";
+        return;
+    }
+    document.getElementById("creditNoteSelectedCustomer").innerHTML = `<b>Customer ID:</b> ${selectedCustomerID} <b>Name:</b> ${selectedCustomerName}`;
+    loadCreditNoteTable(selectedCustomerID);
+});
+
+// Müşteri seçilince Credit Note sekmesi aktifse tabloyu yükle
+function loadCreditNoteTable(customerId) {
+    fetchWithCsrf(`/get_credit_note_list?customer_id=${encodeURIComponent(customerId)}`)
+        .then(r => r.json())
+        .then(data => {
+            const tbody = document.getElementById("creditNoteTable").querySelector("tbody");
+            tbody.innerHTML = "";
+            if (data.status !== "success" || !data.rows || data.rows.length === 0) {
+                // Boşsa tabloyu temizle
+                return;
+            }
+            // Ana quote numarasını al
+            const mainQuoteNum = selectedQuoteNumber ?? newQuoteNum;
+
+            data.rows.forEach(row => {
+                const tr = document.createElement("tr");
+                row.forEach((cell, idx) => {
+                    const td = document.createElement("td");
+                    td.textContent = cell;
+                    tr.appendChild(td);
+                });
+                // Checkbox ekle
+                const tdCheck = document.createElement("td");
+                const checkbox = document.createElement("input");
+                checkbox.type = "checkbox";
+                // State sütunu 8. indexte (0'dan başlıyor, 8. sütun)
+                // Used_quote sütunu 9. indexte
+                const state = row[7];
+                const usedQuote = (row[8] || "").toString();
+                if (state === "Paid") {
+                    checkbox.checked = true;
+                    checkbox.disabled = true;
+                    tr.style.background = "#eee";
+                }
+                // Eğer Used_quote dolu ve ana quote numarasından farklıysa disable et
+                if (usedQuote) {
+                    checkbox.checked = true;
+                    if (usedQuote !== mainQuoteNum) {
+                        checkbox.disabled = true;
+                        tr.style.background = "#eee";
+                    }
+                }
+                tdCheck.appendChild(checkbox);
+                tr.appendChild(tdCheck);
+                tbody.appendChild(tr);
+            });
+        });
+}
+
+// Müşteri seçilince Credit Note sekmesi aktifse tabloyu yükle
+function selectCustomerForCreditNote(customer) {
+    //selectedCustomerID = customer[0];
+    //selectedCustomerName = customer[1];
+    document.getElementById("creditNoteSelectedCustomer").innerHTML = `<b>Customer ID:</b> ${selectedCustomerID} <b>Name:</b> ${selectedCustomerName}`;
+    loadCreditNoteTable(selectedCustomerID); // Her durumda tabloyu yükle
+}
+
+// Mevcut selectCustomer fonksiyonunu aşağıdaki gibi güncelleyebilirsiniz:
+// selectCustomer fonksiyonunun sonuna şunu ekleyin:
+/*
+if (document.getElementById('tab_credit_note').classList.contains('active')) {
+    loadCreditNoteTable(customer[0]);
+}
+*/
+
+// Returns sekmesinde olduğu gibi, müşteri seçilince Credit Note sekmesi de güncellenir.
+
+async function saveCreditNoteSelection(quoteNumber) {
+    // Credit Note tablosundaki tüm satırları bul
+    const rows = document.querySelectorAll('#creditNoteTable tbody tr');
+    const selectedNotes = [];
+    const unselectedNotes = [];
+    rows.forEach(tr => {
+        const checkbox = tr.querySelector('input[type="checkbox"]');
+        const retNumber = tr.children[3]?.textContent.trim();
+        // Sadece aktif (disable olmayan) satırlar için işlem yap
+        if (!retNumber || (checkbox && checkbox.disabled)) return;
+        if (checkbox && checkbox.checked) {
+            selectedNotes.push({ retNumber });
+        } else {
+            unselectedNotes.push({ retNumber });
+        }
+    });
+
+    // Backend'e gönder
+    try {
+        const response = await fetchWithCsrf('/save_cr_note_selection', {
+            method: 'POST',
+            body: JSON.stringify({
+                used_quote: quoteNumber,
+                selected_notes: selectedNotes,
+                unselected_notes: unselectedNotes
+            })
+        });
+        const data = await response.json();
+        if (data.status !== 'success') {
+            alert('Credit Note selection kaydedilemedi: ' + data.message);
+        }
+    } catch (err) {
+        alert('Credit Note selection kaydedilirken hata oluştu.');
+    }
+}
+
+document.getElementById('payCreditNoteBtn').addEventListener('click', async function() {
+    // Tablodaki seçili (checkbox işaretli ve aktif) satırların RetNumber'larını topla
+    const rows = document.querySelectorAll('#creditNoteTable tbody tr');
+    const selectedRetNumbers = [];
+    rows.forEach(tr => {
+        const checkbox = tr.querySelector('input[type="checkbox"]');
+        const retNumber = tr.children[3]?.textContent.trim();
+        if (checkbox && checkbox.checked && !checkbox.disabled && retNumber) {
+            selectedRetNumbers.push(retNumber);
+        }
+    });
+    if (selectedRetNumbers.length === 0) {
+        alert('Önce en az bir Credit Note seçmelisiniz.');
+        return;
+    }
+    // Backend'e gönder
+    const resp = await fetchWithCsrf('/pay_credit_note', {
+        method: 'POST',
+        body: JSON.stringify({ ret_numbers: selectedRetNumbers })
+    });
+    const data = await resp.json();
+    if (data.status === 'success') {
+        alert('Seçili Credit Note(lar) Paid olarak işaretlendi.');
+        // Tabloyu güncelle
+        if (typeof loadCreditNoteTable === 'function') {
+            loadCreditNoteTable(selectedCustomerID);
+        }
+    } else {
+        alert('Hata: ' + (data.message || 'İşlem başarısız.'));
+    }
+});
+
+</script>
+
+
+<script>
+document.getElementById('exportExcelBtn').addEventListener('click', function() {
+    const dbName = document.getElementById('dbSelect').value;
+    if (!dbName) {
+        alert('Lütfen bir veritabanı seçin.');
+        return;
+    }
+    window.open(`/export_db_excel?db_name=${encodeURIComponent(dbName)}`, '_blank');
+});
+</script>
+
+<script>
+document.getElementById('exportExcelBtn').addEventListener('click', function() {
+    const dbName = document.getElementById('dbSelect').value;
+    if (!dbName) {
+        alert('Lütfen bir veritabanı seçin.');
+        return;
+    }
+    window.open(`/export_db_excel?db_name=${encodeURIComponent(dbName)}`, '_blank');
+});
+
+document.getElementById('importExcelBtn').addEventListener('click', function() {
+    document.getElementById('importExcelInput').click();
+});
+
+document.getElementById('importExcelInput').addEventListener('change', function(event) {
+    const file = event.target.files[0];
+    const dbName = document.getElementById('dbSelect').value;
+    if (!dbName) {
+        alert('Lütfen bir veritabanı seçin.');
+        return;
+    }
+    if (!file) {
+        alert('Lütfen bir Excel dosyası seçin.');
+        return;
+    }
+    // Dosya adı kontrolü (uzantı hariç)
+    const fileNameNoExt = file.name.replace(/\.[^/.]+$/, "");
+    const dbNameNoExt = dbName.replace(/\.db$/, "");
+    if (fileNameNoExt !== dbNameNoExt) {
+        if (!confirm(`Seçilen dosya adı (${fileNameNoExt}) ile db adı (${dbNameNoExt}) aynı değil. Devam edilsin mi?`)) {
+            return;
+        }
+    }
+    const formData = new FormData();
+    formData.append('excel_file', file);
+    formData.append('db_name', dbName);
+
+    fetchWithCsrf('/import_excel_to_db', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert('Excel verileri başarıyla aktarıldı.');
+            if (typeof loadDbTable === 'function') loadDbTable(dbName);
+        } else {
+            alert('Hata: ' + (data.message || 'Aktarım başarısız.'));
+        }
+    });
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Grup isimlerini doldur
+    document.querySelectorAll('.catering-group-select').forEach(select => {
+        fetchWithCsrf('/get_catering_groups')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    data.groups.forEach(group => {
+                        const option = document.createElement('option');
+                        option.value = group;
+                        option.textContent = group;
+                        select.appendChild(option);
+                    });
+                }
+            });
+    });
+
+    // Grup, item ve customer type değişikliklerini dinle
+    document.querySelectorAll('.catering-group-select, .catering-item-select, #cateringCustomerType').forEach(element => {
+        element.addEventListener('change', function () {
+            const row = this.closest('tr');
+            const groupSelect = row ? row.querySelector('.catering-group-select') : null;
+            const itemSelect = row ? row.querySelector('.catering-item-select') : null;
+            const customerType = document.getElementById('cateringCustomerType').value;
+            const priceLabel = row ? row.querySelector('label[id^="catering_price_"]') : null;
+            const dpriceLabel = row ? row.querySelector('label[id^="catering_dprice_"]') : null;
+            const skuLabel = row ? row.querySelector('label[id^="catering_sku_"]') : null;
+            const discountInput = row.querySelector('.catering-dsc-input');
+            const discount = parseFloat(discountInput?.value) || 0;
+
+            // Grup değiştiğinde item ve sonraki seçim kutularını sıfırla
+            if (this.classList.contains('catering-group-select')) {
+                if (itemSelect) {
+                    itemSelect.innerHTML = '<option value=""></option>';
+                    itemSelect.value = '';
+                }
+                const inputsAndSelects = Array.from(row.querySelectorAll('select, input')).slice(1);
+                inputsAndSelects.forEach(inputOrSelect => {
+                    if (inputOrSelect.tagName === 'SELECT') {
+                        inputOrSelect.value = '';
+                    } else if (inputOrSelect.tagName === 'INPUT') {
+                        inputOrSelect.value = '';
+                    }
+                });
+                if (priceLabel) priceLabel.textContent = '';
+                if (dpriceLabel) dpriceLabel.textContent = '';
+                if (skuLabel) skuLabel.textContent = '';
+
+                const selectedGroup = groupSelect.value;
+                if (selectedGroup) {
+                    fetchWithCsrf(`/get_catering_items?group=${encodeURIComponent(selectedGroup)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                data.items.forEach(item => {
+                                    const option = document.createElement('option');
+                                    option.value = item;
+                                    option.textContent = item;
+                                    itemSelect.appendChild(option);
+                                });
+                            }
+                        });
+                }
+            }
+
+            // Item değiştiğinde sonraki seçim kutularını ve giriş kutularını sıfırla
+            if (this.classList.contains('catering-item-select')) {
+                const inputsAndSelects = Array.from(row.querySelectorAll('select, input')).slice(2);
+                inputsAndSelects.forEach(inputOrSelect => {
+                    if (inputOrSelect.tagName === 'SELECT') {
+                        inputOrSelect.value = '';
+                    } else if (inputOrSelect.tagName === 'INPUT') {
+                        inputOrSelect.value = '';
+                    }
+                });
+
+                // Warranty, Unpack, Remove, SKU doldur
+                const warrantySelect = row.querySelector('.catering-warranty-select');
+                const unpackSelect = row.querySelector('.catering-unpack-select');
+                const removeSelect = row.querySelector('.catering-remove-select');
+                const selectedItem = itemSelect.value;
+                if (selectedItem) {
+                    fetchWithCsrf(`/get_catering_item_details?model=${encodeURIComponent(selectedItem)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                warrantySelect.innerHTML = `<option value=""></option><option value="${data.warranty}">${data.warranty}</option>`;
+                                unpackSelect.innerHTML = `<option value=""></option><option value="${data.unpack}">${data.unpack}</option>`;
+                                removeSelect.innerHTML = `<option value=""></option><option value="${data.remove}">${data.remove}</option>`;
+                                // SKU gösterimi
+                                skuLabel.textContent = `SKU ${data.tradePrice}-${data.kar}`;
+                            } else {
+                                warrantySelect.innerHTML = '<option value=""></option>';
+                                unpackSelect.innerHTML = '<option value=""></option>';
+                                removeSelect.innerHTML = '<option value=""></option>';
+                                skuLabel.textContent = '';
+                            }
+                        });
+                } else {
+                    warrantySelect.innerHTML = '<option value=""></option>';
+                    unpackSelect.innerHTML = '<option value=""></option>';
+                    removeSelect.innerHTML = '<option value=""></option>';
+                    skuLabel.textContent = '';
+                }
+            }
+
+            // Grup, item veya customer type değiştiğinde fiyatı güncelle veya sıfırla
+            const selectedGroup = groupSelect ? groupSelect.value : null;
+            const selectedItem = itemSelect ? itemSelect.value : null;
+
+            if (selectedGroup && selectedItem && customerType) {
+                fetchWithCsrf(`/get_catering_price?model=${encodeURIComponent(selectedItem)}&customer_type=${encodeURIComponent(customerType)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            priceLabel.textContent = data.price.toFixed(2);
+                            dpriceLabel.textContent = (data.price - (data.price * discount / 100)).toFixed(2);
+                        } else {
+                            priceLabel.textContent = '';
+                            dpriceLabel.textContent = '';
+                        }
+                    });
+            } else {
+                if (priceLabel) priceLabel.textContent = '';
+                if (dpriceLabel) dpriceLabel.textContent = '';
+            }
+        });
+    });
+
+    // Customer type değiştiğinde fiyatı güncelle
+    document.getElementById('cateringCustomerType').addEventListener('change', function () {
+        document.querySelectorAll('#tab_catering tbody tr').forEach(row => {
+            const groupSelect = row.querySelector('.catering-group-select');
+            const itemSelect = row.querySelector('.catering-item-select');
+            const priceLabel = row.querySelector('label[id^="catering_price_"]');
+            const dpriceLabel = row.querySelector('label[id^="catering_dprice_"]');
+            const discountInput = row.querySelector('.catering-dsc-input');
+            const discount = parseFloat(discountInput?.value) || 0;
+            const customerType = this.value;
+
+            if (groupSelect && itemSelect && priceLabel && groupSelect.value && itemSelect.value) {
+                fetchWithCsrf(`/get_catering_price?model=${encodeURIComponent(itemSelect.value)}&customer_type=${encodeURIComponent(customerType)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            priceLabel.textContent = data.price.toFixed(2);
+                            dpriceLabel.textContent = (data.price - (data.price * discount / 100)).toFixed(2);
+                        } else {
+                            priceLabel.textContent = '';
+                            dpriceLabel.textContent = '';
+                        }
+                    });
+            }
+        });
+    });
+
+    // Her discount inputu değiştiğinde sadece ilgili satırı güncelle
+    document.querySelectorAll('.catering-dsc-input').forEach(input => {
+        input.addEventListener('input', function () {
+            const row = this.closest('tr');
+            const priceLabel = row.querySelector('label[id^="catering_price_"]');
+            const dpriceLabel = row.querySelector('label[id^="catering_dprice_"]');
+            const discount = parseFloat(this.value) || 0;
+            if (priceLabel && dpriceLabel && priceLabel.textContent) {
+                const basePrice = parseFloat(priceLabel.textContent);
+                dpriceLabel.textContent = (basePrice - (basePrice * discount / 100)).toFixed(2);
+            }
+        });
+    });
+
+    // Warranty, Unpack, Remove değişince fiyatları güncelle
+    document.querySelectorAll('.catering-warranty-select, .catering-unpack-select, .catering-remove-select').forEach(select => {
+        select.addEventListener('change', function () {
+            const row = this.closest('tr');
+            const discountInput = row.querySelector('.catering-dsc-input');
+            const discount = parseFloat(discountInput?.value) || 0;
+            const customerType = document.getElementById('cateringCustomerType').value;
+            const priceLabel = row.querySelector('label[id^="catering_price_"]');
+            const dpriceLabel = row.querySelector('label[id^="catering_dprice_"]');
+            const warrantyValue = parseFloat(row.querySelector('.catering-warranty-select').value) || 0;
+            const unpackValue = parseFloat(row.querySelector('.catering-unpack-select').value) || 0;
+            const removeValue = parseFloat(row.querySelector('.catering-remove-select').value) || 0;
+            const itemSelect = row.querySelector('.catering-item-select');
+
+            if (itemSelect && itemSelect.value && customerType) {
+                fetchWithCsrf(`/get_catering_price?model=${encodeURIComponent(itemSelect.value)}&customer_type=${encodeURIComponent(customerType)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            const basePrice = data.price;
+                            const updatedPrice = basePrice + warrantyValue + unpackValue + removeValue;
+                            priceLabel.textContent = updatedPrice.toFixed(2);
+                            dpriceLabel.textContent = ((basePrice - (basePrice * discount / 100)) + warrantyValue + unpackValue + removeValue).toFixed(2);
+                        } else {
+                            priceLabel.textContent = '';
+                            dpriceLabel.textContent = '';
+                        }
+                    })
+                    .catch(error => {
+                        priceLabel.textContent = '';
+                        dpriceLabel.textContent = '';
+                    });
+            }
+        });
+    });
+});
+
+//////////////////////////////////////////
+// Catering verilerini toplar ve backend'e gönderir
+async function AddCateringData() {
+    const rows = document.querySelectorAll('#tab_catering tbody tr');
+    const largestFile = document.getElementById('largestFile').textContent.trim();
+
+    const cateringData = [];
+    let validRowFound = false;
+
+    rows.forEach((row) => {
+        const sku = row.querySelector('label[id^="catering_sku_"]')?.textContent.trim();
+        const itemName = row.querySelector('.catering-item-select')?.value.trim();
+        const quantity = row.querySelector('input[name^="catering_quantity_"]')?.value.trim();
+        const price = row.querySelector('label[id^="catering_price_"]')?.textContent.trim();
+        const dprice = row.querySelector('label[id^="catering_dprice_"]')?.textContent.trim();
+
+       // Warranty, Unpack, Remove değerlerini topla
+        const warrantySelect = row.querySelector('.catering-warranty-select');
+        const unpackSelect = row.querySelector('.catering-unpack-select');
+        const removeSelect = row.querySelector('.catering-remove-select');
+        let xtra = 0.0;
+        if (warrantySelect && warrantySelect.value) xtra += parseFloat(warrantySelect.value) || 0;
+        if (unpackSelect && unpackSelect.value) xtra += parseFloat(unpackSelect.value) || 0;
+        if (removeSelect && removeSelect.value) xtra += parseFloat(removeSelect.value) || 0;
+
+
+
+        let extraNames = [];
+        if (warrantySelect && warrantySelect.value) extraNames.push('Warranty');
+        if (unpackSelect && unpackSelect.value) extraNames.push('Unpack');
+        if (removeSelect && removeSelect.value) extraNames.push('Remove');
+
+        let fullItemName = itemName;
+        if (extraNames.length > 0) {
+            fullItemName += '\\' + extraNames.join('\\');
+        }
+
+        if (sku && itemName && quantity && price && dprice) {
+            cateringData.push({
+                sku: sku,
+                itemName: fullItemName, // Seçim isimleri ile birlikte
+                quantity: parseInt(quantity, 10),
+                price: parseFloat(price || 0),
+                dprice: parseFloat(dprice || 0),
+                unitType: "Add Catering",
+                xtra: xtra
+            });
+            validRowFound = true;
+        }
+    });
+
+    if (!validRowFound) {
+        window.adcatknt = 0;
+        return true;
+    } else {
+        window.adcatknt = 1;
+    }
+
+    const data = {
+        catering_data: cateringData,
+        largest_file: largestFile
+    };
+
+    try {
+        const response = await fetchWithCsrf('/add_catering_data', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+
+        const responseData = await response.json();
+
+        if (responseData.status === "success") {
+            // Başarılı
+        } else {
+            throw new Error("Bir hata oluştu: " + responseData.message);
+        }
+    } catch (error) {
+        console.error('API Hatası:', error);
+        alert('Catering verileri gönderilirken hata oluştu.');
+        await fetchWithCsrf('/reset_islmdvm', { method: 'POST' });
+        throw error;
+    }
+}
+
+// Catering seçimlerini kaydet
+async function saveCateringSelection(quoteNumber) {
+    const customerType = document.getElementById('cateringCustomerType')?.value || '';
+    const rows = Array.from(document.querySelectorAll('#tab_catering tbody tr'));
+    const selections = rows.map(row => {
+        const groupSelect = row.querySelector('.catering-group-select')?.value || '';
+        const itemSelect = row.querySelector('.catering-item-select')?.value || '';
+        const quantityInput = row.querySelector('input[name^="catering_quantity_"]')?.value || 0;
+        const warrantySelect = row.querySelector('.catering-warranty-select')?.value || '';
+        const unpackSelect = row.querySelector('.catering-unpack-select')?.value || '';
+        const removeSelect = row.querySelector('.catering-remove-select')?.value || '';
+        const priceLabel = row.querySelector('label[id^="catering_price_"]')?.textContent || 0.0;
+        const discountedPriceLabel = row.querySelector('label[id^="catering_dprice_"]')?.textContent || 0.0;
+        const discountInput = row.querySelector('.catering-dsc-input');
+        const discount = parseFloat(discountInput?.value) || 0;
+
+        return {
+            group_name: groupSelect,
+            item_name: itemSelect,
+            warranty: warrantySelect,
+            unpack: unpackSelect,
+            remove: removeSelect,
+            quantity: parseInt(quantityInput, 10),
+            price: parseFloat(priceLabel),
+            discounted_price: parseFloat(discountedPriceLabel),
+            discount: discount
+        };
+    });
+
+    const catering_dsc = 0; // Eğer genel bir discount alanınız varsa buraya ekleyin
+
+    try {
+        const response = await fetchWithCsrf('/save_catering_selection', {
+            method: 'POST',
+            body: JSON.stringify({
+                quote_number: quoteNumber,
+                customer_type: customerType,
+                catering_dsc: catering_dsc,
+                selections: selections
+            }),
+        });
+
+        const data = await response.json();
+        if (data.status === 'success') {
+            console.log('Catering seçimleri başarıyla kaydedildi.');
+        } else {
+            console.error('Catering seçimleri kaydedilirken hata oluştu:', data.message);
+        }
+    } catch (error) {
+        console.error('Catering seçimleri kaydedilirken hata oluştu:', error);
+    }
+}
+
+async function loadCateringSelection(quoteNumber) {
+    try {
+        const response = await fetchWithCsrf(`/load_catering_selection?quote_number=${quoteNumber}`);
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            const selections = data.selections;
+            const rows = Array.from(document.querySelectorAll('#tab_catering tbody tr'));
+            for (const [i, selection] of selections.entries()) {
+                if (selection.quantity > 0) {
+                    const row = rows[i];
+                    if (!row) continue;
+                    row.querySelector('.catering-group-select').value = selection.group_name;
+                    row.querySelector('.catering-group-select').dispatchEvent(new Event('change'));
+                    await new Promise(resolve => setTimeout(resolve, 150));
+                    row.querySelector('.catering-item-select').value = selection.item_name;
+                    row.querySelector('.catering-item-select').dispatchEvent(new Event('change'));
+                    await new Promise(resolve => setTimeout(resolve, 150));
+                    row.querySelector('.catering-warranty-select').value = selection.warranty;
+                    row.querySelector('.catering-unpack-select').value = selection.unpack;
+                    row.querySelector('.catering-remove-select').value = selection.remove;
+                    row.querySelector('input[name^="catering_quantity_"]').value = selection.quantity;
+                    row.querySelector('label[id^="catering_price_"]').textContent = selection.price.toFixed(2);
+                    row.querySelector('label[id^="catering_dprice_"]').textContent = selection.discounted_price.toFixed(2);
+                    row.querySelector('.catering-dsc-input').value = selection.discount || 0;
+                }
+            }
+            document.getElementById('cateringCustomerType').value = data.customer_type;
+            // Eğer catering_dsc alanınız varsa burada set edebilirsiniz
+        } else {
+            console.error('Catering seçimleri yüklenirken hata oluştu:', data.message);
+        }
+    } catch (error) {
+        console.error('Catering seçimleri yüklenirken hata oluştu:', error);
+    }
+}
+
+</script>
+
+<script>
+
+// Customer Accounts tablosunda satıra double-click ile müşteri ID'sini alıp not bölümünü açmak için:
+// document.querySelectorAll('#accountsTable tbody tr').forEach(row => {
+//     row.addEventListener('dblclick', function () {
+//         // Her satırın ilk hücresinde customer_id var
+//         const customerId = this.cells[0].textContent.trim();
+//         selectedCustomerIdForNote = customerId;
+//         document.getElementById('customerNoteSection').style.display = 'block';
+//         fetch(`/get_customer_note?customer_id=${customerId}`)
+//             .then(res => res.json())
+//             .then(data => {
+//                 document.getElementById('customerNoteArea').value = data.note || '';
+//                 document.getElementById('customerNoteStatus').textContent = '';
+//             });
+//         // Diğer işlemler (ör: sales tablosu doldurma) buraya eklenebilir
+//     });
+// });
+
+
+let selectedCustomerIdForNote = null;
+
+// Customer Accounts tablosunda satıra tıklanınca not bölümü açılır
+function handleCustomerRowClick(customer) {
+    const customerId = customer[0];
+    selectedCustomerIdForNote = customerId;
+    // Sadece C.Accounts kategorisi seçiliyse not bölümünü aç
+    const selection = document.getElementById("salesSelection").value;
+    if (selection === "C.Accounts") {
+        document.getElementById('customerNoteSection').style.display = 'block';
+        fetch(`/get_customer_note?customer_id=${customerId}`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('customerNoteArea').value = data.note || '';
+                document.getElementById('customerNoteStatus').textContent = '';
+            });
+    } else {
+        document.getElementById('customerNoteSection').style.display = 'none';
+    }
+    // Sales tablosunu doldur
+    fetchSalesData(`${customerId}${customer[5]}.db`);
+    closeAccountsModal();
+}
+
+// Notu kaydet
+function saveCustomerNote() {
+    if (!selectedCustomerIdForNote) return;
+    const note = document.getElementById('customerNoteArea').value;
+    fetchWithCsrf('/save_customer_note', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            customer_id: selectedCustomerIdForNote,
+            note: note
+        })
+    }).then(res => res.json()).then(data => {
+        if (data.status === 'success') {
+            document.getElementById('customerNoteStatus').textContent = 'Note saved!';
+        } else {
+            document.getElementById('customerNoteStatus').textContent = 'Error!';
+        }
+    });
+}
+</script>
+
+<!-- CSRF helper functions moved to the top of the body -->
 </body>
 </html>
 

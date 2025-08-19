@@ -2,6 +2,7 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Aktif Kullanıcılar</title>
     <style>
         .container {
@@ -62,6 +63,7 @@
     <h1>Kullanıcı Yönetimi</h1>
     <!-- Kullanıcı ekleme/güncelleme formu -->
     <form id="addUserForm" method="post" action="{{ url_for('add_user') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <input type="hidden" name="id" id="userIdInput">
         <div class="form-row">
             <label>Kullanıcı Adı:</label>
@@ -178,7 +180,10 @@ let selectedKickUserId = null;
         const password = document.getElementById('passwordInput').value;
         fetch('{{ url_for("update_user") }}', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
             body: JSON.stringify({id, username, name, surname, authority, status, password})
         }).then(r => {
             if (r.ok) location.reload();
@@ -201,12 +206,23 @@ let selectedKickUserId = null;
     document.getElementById('kickBtn').onclick = function() {
         if (!selectedKickUserId) return;
         if (!confirm("Seçili kullanıcıyı oturumdan atmak istediğinize emin misiniz?")) return;
-        fetch('/kick_user/' + selectedKickUserId, {method: 'POST'})
+        fetch('/kick_user/' + selectedKickUserId, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
             .then(r => {
                 if (r.ok) location.reload();
                 else alert("Kullanıcı oturumdan atılamadı!");
             });
     };
+    
+    // CSRF token alma fonksiyonu
+    function getCsrfToken() {
+        return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
 });
 </script>
 </body>

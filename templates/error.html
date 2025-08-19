@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Hata</title>
+    <style>
+        body {
+            background: linear-gradient(120deg, #e74c3c 0%, #c0392b 100%);
+            min-height: 100vh;
+            margin: 0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .error-container {
+            background: #fff;
+            padding: 36px 32px 28px 32px;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(44, 62, 80, 0.15);
+            min-width: 320px;
+            max-width: 450px;
+            width: 100%;
+            text-align: center;
+            position: relative;
+        }
+        .error-icon {
+            font-size: 64px;
+            margin-bottom: 24px;
+            color: #e74c3c;
+        }
+        .error-container h1 {
+            margin-bottom: 24px;
+            color: #e74c3c;
+            font-size: 2rem;
+            letter-spacing: 1px;
+        }
+        .error-container p {
+            color: #333;
+            line-height: 1.5;
+            margin-bottom: 24px;
+        }
+        .error-container a {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #e74c3c;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        .error-container a:hover {
+            background: #c0392b;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-icon">⚠️</div>
+        <h1>Hata</h1>
+        <p>{{ message }}</p>
+        <a href="{{ url_for('login') }}">Giriş Sayfasına Dön</a>
+    </div>
+</body>
+</html>
